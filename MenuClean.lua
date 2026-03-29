@@ -58,6 +58,15 @@ function MenuLib:Init(config)
     local isOpen = false
     local prevMouseBehavior = Enum.MouseBehavior.Default
     
+    local inputBlocker = Instance.new("TextButton")
+    inputBlocker.Size = UDim2.new(1, 0, 1, 0)
+    inputBlocker.BackgroundTransparency = 1
+    inputBlocker.Text = ""
+    inputBlocker.Active = true
+    inputBlocker.Visible = false
+    inputBlocker.ZIndex = -10
+    inputBlocker.Parent = sg
+    
     pcall(function()
         local PM = require(lp:WaitForChild("PlayerScripts"):WaitForChild("PlayerModule"))
         controls = PM:GetControls()
@@ -66,37 +75,24 @@ function MenuLib:Init(config)
     local function lockInput()
         prevMouseBehavior = UserInputService.MouseBehavior
         isOpen = true
+        inputBlocker.Visible = true
         pcall(function() controls:Disable() end)
         UserInputService.MouseBehavior = Enum.MouseBehavior.Default
         UserInputService.MouseIconEnabled = true
-        -- Freeze camera
-        local cam = workspace.CurrentCamera
-        if cam then
-            pcall(function() cam.CameraType = Enum.CameraType.Fixed end)
-        end
     end
     
     local function unlockInput()
         isOpen = false
+        inputBlocker.Visible = false
         pcall(function() controls:Enable() end)
         UserInputService.MouseBehavior = prevMouseBehavior
-        UserInputService.MouseIconEnabled = true
-        -- Unfreeze camera
-        local cam = workspace.CurrentCamera
-        if cam then
-            pcall(function() cam.CameraType = Enum.CameraType.Custom end)
-        end
+        UserInputService.MouseIconEnabled = false
     end
     
     RunService:BindToRenderStep(RS_BIND_INP, Enum.RenderPriority.Input.Value + 1, function()
         if not isOpen then return end
         UserInputService.MouseBehavior = Enum.MouseBehavior.Default
         UserInputService.MouseIconEnabled = true
-        -- Keep camera frozen
-        local cam = workspace.CurrentCamera
-        if cam and cam.CameraType ~= Enum.CameraType.Fixed then
-            pcall(function() cam.CameraType = Enum.CameraType.Fixed end)
-        end
     end)
     
     local C = {
@@ -185,6 +181,7 @@ function MenuLib:Init(config)
     
     local function mkToggle(parent, posX, initState, onToggle)
         local track = fr(parent, UDim2.new(0, 44, 0, 24), UDim2.new(1, posX, 0.5, -12), Color3.fromRGB(18, 8, 36), 0, 12)
+        track.ClipsDescendants = true
         local fill = fr(track, UDim2.new(1, 0, 1, 0), nil, C.ACCENT, 1, 12)
         gradV(fill, C.ACCENT, C.ACCENT2)
         local knob = fr(track, UDim2.new(0, 18, 0, 18), UDim2.new(0, 3, 0.5, -9), C.TEXT, 0, 9)
@@ -365,17 +362,24 @@ function MenuLib:Init(config)
     local div4 = mkDivL(hudBar)
     local div5 = mkDivL(hudBar)
     
-    local homeBtn = Instance.new("ImageButton")
+    local homeBtn = Instance.new("TextButton")
     homeBtn.Size = UDim2.new(0, 30, 0, 30)
     homeBtn.Position = UDim2.new(0, 420, 0.45, -15)
     homeBtn.BackgroundColor3 = Color3.fromRGB(24, 10, 48)
     homeBtn.BackgroundTransparency = 0.2
-    homeBtn.Image = ICON.settings
-    homeBtn.ScaleType = Enum.ScaleType.Fit
-    homeBtn.ImageColor3 = C.TEXT
+    homeBtn.Text = ""
     homeBtn.AutoButtonColor = false
     homeBtn.Parent = hudBar
     Instance.new("UICorner").Parent = homeBtn
+    
+    local homeBtnIcon1 = Instance.new("ImageLabel")
+    homeBtnIcon1.Size = UDim2.new(1, 0, 1, 0)
+    homeBtnIcon1.BackgroundTransparency = 1
+    homeBtnIcon1.Image = ICON.settings
+    homeBtnIcon1.ScaleType = Enum.ScaleType.Fit
+    homeBtnIcon1.ImageColor3 = C.TEXT
+    homeBtnIcon1.ImageTransparency = 0
+    homeBtnIcon1.Parent = homeBtn
     
     local homeBtnIcon2 = Instance.new("ImageLabel")
     homeBtnIcon2.Size = UDim2.new(1, 0, 1, 0)
@@ -413,14 +417,14 @@ function MenuLib:Init(config)
     mainLayer.ZIndex = 2
     
     local dragHandle = Instance.new("TextButton")
-    dragHandle.Size = UDim2.new(1, 0, 0, 28)
-    dragHandle.Position = UDim2.new(0, 0, 0, 2)
+    dragHandle.Size = UDim2.new(1, 0, 0, 12)
+    dragHandle.Position = UDim2.new(0, 0, 0, 0)
     dragHandle.BackgroundTransparency = 1
     dragHandle.Text = ""
     dragHandle.ZIndex = 30
     dragHandle.Parent = mainLayer
     
-    local bodyShell = fr(mainLayer, UDim2.new(1, 0, 1, -32), UDim2.new(0, 0, 0, 32), C.BG, 1, 0)
+    local bodyShell = fr(mainLayer, UDim2.new(1, 0, 1, -12), UDim2.new(0, 0, 0, 12), C.BG, 1, 0)
     bodyShell.ZIndex = 2
     
     local sidebar = fr(bodyShell, UDim2.new(0, SIDE_W, 1, -4), UDim2.new(0, 0, 0, 4), C.SIDEBAR, 0, 14)
@@ -569,14 +573,14 @@ function MenuLib:Init(config)
     settingsMainLayer.ZIndex = 2
     
     local settingsDrag = Instance.new("TextButton")
-    settingsDrag.Size = UDim2.new(1, 0, 0, 28)
-    settingsDrag.Position = UDim2.new(0, 0, 0, 2)
+    settingsDrag.Size = UDim2.new(1, 0, 0, 12)
+    settingsDrag.Position = UDim2.new(0, 0, 0, 0)
     settingsDrag.BackgroundTransparency = 1
     settingsDrag.Text = ""
     settingsDrag.ZIndex = 50
     settingsDrag.Parent = settingsMainLayer
     
-    local settingsBodyShell = fr(settingsMainLayer, UDim2.new(1, 0, 1, -32), UDim2.new(0, 0, 0, 32), C.BG, 1, 0)
+    local settingsBodyShell = fr(settingsMainLayer, UDim2.new(1, 0, 1, -12), UDim2.new(0, 0, 0, 12), C.BG, 1, 0)
     settingsBodyShell.ZIndex = 2
     
     local settingsLeft = fr(settingsBodyShell, UDim2.new(0, SIDE_W, 1, -4), UDim2.new(0, 0, 0, 4), C.SIDEBAR, 0, 14)
@@ -617,8 +621,9 @@ function MenuLib:Init(config)
         cb.Parent = catScroll
         Instance.new("UICorner").Parent = cb
         
-        local selLine = fr(cb, UDim2.new(0, 4, 0, 0), UDim2.new(0, 0, 0.5, 0), C.ACCENT, 1, 0)
-        local selBg = fr(cb, UDim2.new(1, 0, 1, 0), nil, C.SEL, 1, 0)
+        local selBg = fr(cb, UDim2.new(1, 0, 1, 0), nil, C.SEL, 1, 12)
+        local selLine = fr(cb, UDim2.new(0, 4, 0.5, 0), UDim2.new(1, -5, 0.25, 0), C.ACCENT, 1, 4)
+        gradV(selLine, C.ACCENT, C.ACCENT2)
         
         local ci = Instance.new("ImageLabel")
         ci.Size = UDim2.new(0, 24, 0, 24)
@@ -685,17 +690,25 @@ function MenuLib:Init(config)
     local sRight = fr(settingsBodyShell, UDim2.new(1, -SIDE_W - 2, 1, -32), UDim2.new(0, SIDE_W + 2, 0, 4), C.CONTENT, 0, 16)
     sRight.ZIndex = 2
     
-    local function updateSidebarWidth()
-        if sidebar then
-            sidebar.Size = UDim2.new(0, SIDE_W, 1, -4)
-        end
-        if settingsLeft then
-            settingsLeft.Size = UDim2.new(0, SIDE_W, 1, -4)
-        end
-        if sRight then
-            sRight.Size = UDim2.new(1, -SIDE_W - 2, 1, -32)
-            sRight.Position = UDim2.new(0, SIDE_W + 2, 0, 4)
-        end
+    local function setSidebarWidth(w, animate)
+        SIDE_W = w
+        local cw = UDim2.new(1, -SIDE_W - 2, 1, -32)
+        local cp = UDim2.new(0, SIDE_W + 2, 0, 4)
+        local sw = UDim2.new(0, SIDE_W, 1, -4)
+        
+        local atn = animate and 0.25 or 0
+        if sidebar then tw(sidebar, {Size = sw}, atn) end
+        if contentArea then tw(contentArea, {Size = cw, Position = cp}, atn) end
+        if statusBar then tw(statusBar, {Size = UDim2.new(1, -SIDE_W - 2, 0, 28), Position = UDim2.new(0, SIDE_W + 2, 1, -32)}, atn) end
+        if settingsLeft then tw(settingsLeft, {Size = sw}, atn) end
+        if sRight then tw(sRight, {Size = cw, Position = cp}, atn) end
+        
+        local tAlpha = (w <= 100) and 1 or 0
+        local tatn = animate and 0.2 or 0
+        pcall(function()
+            for _, t in ipairs(allTabs or {}) do if t.lbl then tw(t.lbl, {TextTransparency = tAlpha}, tatn) end end
+            for _, t in ipairs(catBtns or {}) do if t.lbl then tw(t.lbl, {TextTransparency = tAlpha}, tatn) end end
+        end)
     end
     
     local titleRow = fr(sRight, UDim2.new(1, 0, 0, 40), nil, C.HEADER, 0, 0)
@@ -754,20 +767,21 @@ function MenuLib:Init(config)
     addSettingOption("General", "Show watermark", true, function(on) hudBar.Visible = on end, true)
     
     addSettingOption("Appearance", "Compact sidebar", true, function(on)
-        SIDE_W = on and math.max(110, math.floor(WIN_W * 0.17)) or 160
-        updateSidebarWidth()
+        setSidebarWidth(on and 52 or 160, true)
     end, false)
     addSettingOption("Appearance", "Blur background", true, function(on)
         _G._BlurEnabled = on
         if on and isOpen then
             if not blurPart then
                 blurPart = Instance.new("BlurEffect")
-                blurPart.Size = 12
+                blurPart.Size = 0
                 blurPart.Parent = Lighting
             end
+            tw(blurPart, {Size = 12}, 0.25)
         elseif blurPart then
-            blurPart:Destroy()
-            blurPart = nil
+            tw(blurPart, {Size = 0}, 0.25)
+            local currentBlur = blurPart
+            task.delay(0.25, function() if currentBlur and not _G._BlurEnabled then currentBlur:Destroy() if blurPart == currentBlur then blurPart = nil end end end)
         end
     end, false)
     
@@ -850,6 +864,8 @@ function MenuLib:Init(config)
         if inSettings then return end
         inSettings = true
         tw(homeBtn, { Rotation = homeBtn.Rotation + 360 }, 0.5)
+        tw(homeBtnIcon1, { ImageTransparency = 1 }, 0.25)
+        tw(homeBtnIcon2, { ImageTransparency = 0 }, 0.25)
         
         tw(win, { Size = UDim2.new(0, 0, 0, 0), Position = UDim2.new(0.5, 0, 0.5, 0) }, 0.2)
         task.delay(0.1, function() win.Visible = false end)
@@ -884,6 +900,8 @@ function MenuLib:Init(config)
         if not inSettings then return end
         inSettings = false
         tw(homeBtn, { Rotation = homeBtn.Rotation - 360 }, 0.5)
+        tw(homeBtnIcon1, { ImageTransparency = 0 }, 0.25)
+        tw(homeBtnIcon2, { ImageTransparency = 1 }, 0.25)
         
         tw(settingsPanel, { Size = UDim2.new(0, 0, 0, 0), Position = UDim2.new(0.5, 0, 0.5, 0) }, 0.2)
         task.delay(0.1, function() settingsPanel.Visible = false end)
@@ -898,8 +916,9 @@ function MenuLib:Init(config)
         if not win.Visible and not settingsPanel.Visible then return end
         isOpen = false
         if blurPart and _G._BlurEnabled then
-            blurPart:Destroy()
-            blurPart = nil
+            tw(blurPart, {Size = 0}, 0.15)
+            local currentBlur = blurPart
+            task.delay(0.15, function() if currentBlur then currentBlur:Destroy() if blurPart == currentBlur then blurPart = nil end end end)
         end
         if inSettings then
             tw(settingsPanel, { Size = UDim2.new(0, 0, 0, 0), Position = UDim2.new(0.5, 0, 0.5, 0) }, 0.15)
@@ -921,6 +940,14 @@ function MenuLib:Init(config)
         isOpen = true
         lockInput()
         hudBar.Visible = true
+        if _G._BlurEnabled then
+            if not blurPart then
+                blurPart = Instance.new("BlurEffect")
+                blurPart.Size = 0
+                blurPart.Parent = Lighting
+            end
+            tw(blurPart, {Size = 12}, 0.25)
+        end
         if inSettings then
             settingsPanel.Visible = true
             settingsPanel.Size = UDim2.new(0, 0, 0, 0)
@@ -1374,6 +1401,62 @@ function MenuLib:Init(config)
     end)
     
     -- Select first tab
+    firstTab:Select()
+    
+    -- Window Resizer Grip
+    local resizer = Instance.new("TextButton")
+    resizer.Size = UDim2.new(0, 20, 0, 20)
+    resizer.Position = UDim2.new(1, -20, 1, -20)
+    resizer.BackgroundTransparency = 1
+    resizer.Text = ""
+    resizer.ZIndex = 50
+    resizer.Parent = win
+    
+    local settingsResizer = Instance.new("TextButton")
+    settingsResizer.Size = UDim2.new(0, 20, 0, 20)
+    settingsResizer.Position = UDim2.new(1, -20, 1, -20)
+    settingsResizer.BackgroundTransparency = 1
+    settingsResizer.Text = ""
+    settingsResizer.ZIndex = 50
+    settingsResizer.Parent = settingsPanel
+    
+    local isResizing = false
+    local resizeStartMouse = nil
+    local resizeStartW = 0
+    local resizeStartH = 0
+    
+    local function beginResize(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            isResizing = true
+            resizeStartMouse = UserInputService:GetMouseLocation()
+            resizeStartW = WIN_W
+            resizeStartH = WIN_H
+        end
+    end
+    resizer.InputBegan:Connect(beginResize)
+    settingsResizer.InputBegan:Connect(beginResize)
+    
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            isResizing = false
+        end
+    end)
+    
+    UserInputService.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement and isResizing then
+            local currMouse = UserInputService:GetMouseLocation()
+            local delta = currMouse - resizeStartMouse
+            WIN_W = math.max(600, resizeStartW + delta.X * 2)
+            WIN_H = math.max(380, resizeStartH + delta.Y * 2)
+            
+            win.Size = UDim2.new(0, WIN_W, 0, WIN_H)
+            win.Position = UDim2.new(0.5, -WIN_W / 2, 0.5, -WIN_H / 2)
+            settingsPanel.Size = UDim2.new(0, WIN_W, 0, WIN_H)
+            settingsPanel.Position = UDim2.new(0.5, -WIN_W / 2, 0.5, -WIN_H / 2)
+            
+            setSidebarWidth(SIDE_W, false)
+        end
+    end)
     firstTab:Select()
     
     return API
