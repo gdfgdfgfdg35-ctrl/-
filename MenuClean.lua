@@ -50,25 +50,8 @@ function MenuLib:Init(config)
         if type(id) ~= "string" and type(id) ~= "number" then return nil end
         local s = tostring(id):gsub("^%s+", ""):gsub("%s+$", "")
         if s == "" then return nil end
-        
-        -- Already proper format
         if s:match("^rbxassetid://") or s:match("^rbxasset://") then return s end
-        
-        -- Extract ID from roblox.com URLs
-        local urlId = s:match("roblox%.com/library/(\d+)") or s:match("roblox%.com/asset[/]?%?(\d+)") or s:match("create%.roblox%.com/dashboard/creations/store/asset/(\d+)")
-        if urlId then
-            return "rbxassetid://" .. urlId
-        end
-        
-        -- Plain number - treat as decal ID, convert to image ID (decalId - 1)
-        if s:match("^%d+$") then
-            local numId = tonumber(s)
-            if numId and numId > 0 then
-                -- Convert decal asset ID to actual image ID
-                return "rbxassetid://" .. tostring(numId - 1)
-            end
-        end
-        
+        if s:match("^%d+$") then return "rbxassetid://" .. s end
         return s
     end
     
