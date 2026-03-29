@@ -43,6 +43,7 @@ function MenuLib:Init(config)
         performance = "rbxassetid://13321880274",
         keyboard = "rbxassetid://7734022107",
         fire = "rbxassetid://14502433595",
+        protection = "rbxassetid://139030092198236",
     }
     
     local function normalizeIconId(id)
@@ -115,8 +116,8 @@ function MenuLib:Init(config)
         DARK = Color3.fromRGB(4, 2, 9),
     }
     
-    local WIN_W = config.width or 680
-    local WIN_H = config.height or 420
+    local WIN_W = config.width or 650
+    local WIN_H = config.height or 490
     local SIDE_W = config.sidebarWidth or 160
     local HUD_W = config.hudWidth or 520
     
@@ -1379,7 +1380,7 @@ function MenuLib:Init(config)
 
     end)
     
-    API.AddTab("Protections", ICON.misc, function(f)
+    API.AddTab("Protections", ICON.protection, function(f)
         local scroll = Instance.new("ScrollingFrame")
         scroll.Size = UDim2.new(1, 0, 1, 0)
         scroll.BackgroundTransparency = 1
