@@ -1131,10 +1131,11 @@ function MenuLib:Init(config)
     
     task.defer(function() updateHudLayout(false) end)
     nameLbl:GetPropertyChangedSignal("AbsoluteSize"):Connect(function() updateHudLayout(true) end)
+    fpsLbl:GetPropertyChangedSignal("Text"):Connect(function() updateHudLayout(true) end)
     fpsLbl:GetPropertyChangedSignal("Visible"):Connect(function() updateHudLayout(true) end)
+    fpsLbl:GetPropertyChangedSignal("AbsoluteSize"):Connect(function() updateHudLayout(true) end)
     pingLbl:GetPropertyChangedSignal("Visible"):Connect(function() updateHudLayout(true) end)
     timeLbl:GetPropertyChangedSignal("Visible"):Connect(function() updateHudLayout(true) end)
-    fpsLbl:GetPropertyChangedSignal("AbsoluteSize"):Connect(function() updateHudLayout(true) end)
     pingLbl:GetPropertyChangedSignal("AbsoluteSize"):Connect(function() updateHudLayout(true) end)
     timeLbl:GetPropertyChangedSignal("AbsoluteSize"):Connect(function() updateHudLayout(true) end)
     
