@@ -346,9 +346,24 @@ function MenuLib:Init(config)
     local nameLbl = lbl(hudBar, lp.Name, UDim2.new(0, 0, 0, 16), UDim2.new(0, 48, 0, 20), 12, C.TEXT, Enum.Font.GothamBold)
     nameLbl.AutomaticSize = Enum.AutomaticSize.X
     
-    local fpsLbl = lbl(hudBar, "...", UDim2.new(0, 80, 0, 20), UDim2.new(0, 248, 0, 14), 14, C.ACCENT, Enum.Font.GothamBold)
-    local pingLbl = lbl(hudBar, "...", UDim2.new(0, 80, 0, 20), UDim2.new(0, 340, 0, 14), 14, C.GREEN, Enum.Font.GothamBold)
-    local timeLbl = lbl(hudBar, "12:00 PM", UDim2.new(0, 90, 0, 16), UDim2.new(0, 556, 0, 12), 14, C.TEXT, Enum.Font.GothamBold)
+    local fpsLbl = lbl(hudBar, "...", UDim2.new(0, 0, 0, 20), UDim2.new(0, 248, 0, 14), 14, C.ACCENT, Enum.Font.GothamBold)
+    fpsLbl.AutomaticSize = Enum.AutomaticSize.X
+    local pingLbl = lbl(hudBar, "...", UDim2.new(0, 0, 0, 20), UDim2.new(0, 340, 0, 14), 14, C.GREEN, Enum.Font.GothamBold)
+    pingLbl.AutomaticSize = Enum.AutomaticSize.X
+    local timeLbl = lbl(hudBar, "12:00 PM", UDim2.new(0, 0, 0, 16), UDim2.new(0, 556, 0, 12), 14, C.TEXT, Enum.Font.GothamBold)
+    timeLbl.AutomaticSize = Enum.AutomaticSize.X
+    
+    local function mkDivL(parent)
+        local d = fr(parent, UDim2.new(0, 2, 0, 18), UDim2.new(0, 0, 0.5, -9), C.DIV, 0.2, 1)
+        gradV(d, C.ACCENT, C.ACCENT2)
+        d.Visible = false
+        return d
+    end
+    local div1 = mkDivL(hudBar)
+    local div2 = mkDivL(hudBar)
+    local div3 = mkDivL(hudBar)
+    local div4 = mkDivL(hudBar)
+    local div5 = mkDivL(hudBar)
     
     local homeBtn = Instance.new("ImageButton")
     homeBtn.Size = UDim2.new(0, 30, 0, 30)
@@ -546,22 +561,28 @@ function MenuLib:Init(config)
     
     -- Settings Panel (sibling of win, not child)
     local settingsPanel = fr(sg, UDim2.new(0, WIN_W, 0, WIN_H), UDim2.new(0.5, -WIN_W/2, 0.5, -WIN_H/2), C.BG, 0, 20)
+    settingsPanel.ClipsDescendants = true
     settingsPanel.ZIndex = 100
     settingsPanel.Visible = false
     
-    -- Add a solid background frame to prevent transparency issues
-    local settingsBg = fr(settingsPanel, UDim2.new(1, 0, 1, 0), nil, C.BG, 0, 20)
-    settingsBg.ZIndex = 1
+    local settingsMainLayer = fr(settingsPanel, UDim2.new(1, 0, 1, 0), UDim2.new(0, 0, 0, 0), C.BG, 1, 0)
+    settingsMainLayer.ZIndex = 2
     
     local settingsDrag = Instance.new("TextButton")
-    settingsDrag.Size = UDim2.new(1, 0, 0, 32)
+    settingsDrag.Size = UDim2.new(1, 0, 0, 28)
+    settingsDrag.Position = UDim2.new(0, 0, 0, 2)
     settingsDrag.BackgroundTransparency = 1
     settingsDrag.Text = ""
     settingsDrag.ZIndex = 50
-    settingsDrag.Parent = settingsPanel
+    settingsDrag.Parent = settingsMainLayer
     
-    local settingsLeft = fr(settingsPanel, UDim2.new(0, SIDE_W, 1, -4), UDim2.new(0, 0, 0, 32), C.SIDEBAR, 0, 14)
-    fr(settingsPanel, UDim2.new(0, 1, 1, -4), UDim2.new(0, SIDE_W, 0, 32), C.DIV)
+    local settingsBodyShell = fr(settingsMainLayer, UDim2.new(1, 0, 1, -32), UDim2.new(0, 0, 0, 32), C.BG, 1, 0)
+    settingsBodyShell.ZIndex = 2
+    
+    local settingsLeft = fr(settingsBodyShell, UDim2.new(0, SIDE_W, 1, -4), UDim2.new(0, 0, 0, 4), C.SIDEBAR, 0, 14)
+    settingsLeft.ZIndex = 2
+    
+    fr(settingsBodyShell, UDim2.new(0, 1, 1, -4), UDim2.new(0, SIDE_W, 0, 4), C.DIV)
     
     local catItems = { "General", "Appearance", "Performance", "Keybinds" }
     local catKeys = { ICON.general, ICON.appearance, ICON.performance, ICON.keyboard }
@@ -661,7 +682,8 @@ function MenuLib:Init(config)
         end)
     end
     
-    local sRight = fr(settingsPanel, UDim2.new(1, -SIDE_W - 2, 1, -4), UDim2.new(0, SIDE_W + 2, 0, 32), C.CONTENT, 0, 14)
+    local sRight = fr(settingsBodyShell, UDim2.new(1, -SIDE_W - 2, 1, -32), UDim2.new(0, SIDE_W + 2, 0, 4), C.CONTENT, 0, 16)
+    sRight.ZIndex = 2
     
     local function updateSidebarWidth()
         if sidebar then
@@ -671,8 +693,8 @@ function MenuLib:Init(config)
             settingsLeft.Size = UDim2.new(0, SIDE_W, 1, -4)
         end
         if sRight then
-            sRight.Size = UDim2.new(1, -SIDE_W - 2, 1, -4)
-            sRight.Position = UDim2.new(0, SIDE_W + 2, 0, 32)
+            sRight.Size = UDim2.new(1, -SIDE_W - 2, 1, -32)
+            sRight.Position = UDim2.new(0, SIDE_W + 2, 0, 4)
         end
     end
     
@@ -827,12 +849,11 @@ function MenuLib:Init(config)
     local function openSettings()
         if inSettings then return end
         inSettings = true
-        -- Animate win out
+        tw(homeBtn, { Rotation = homeBtn.Rotation + 360 }, 0.5)
+        
         tw(win, { Size = UDim2.new(0, 0, 0, 0), Position = UDim2.new(0.5, 0, 0.5, 0) }, 0.2)
-        task.delay(0.2, function()
-            win.Visible = false
-        end)
-        -- Animate settings in
+        task.delay(0.1, function() win.Visible = false end)
+        
         settingsPanel.Size = UDim2.new(0, 0, 0, 0)
         settingsPanel.Position = UDim2.new(0.5, 0, 0.5, 0)
         settingsPanel.Visible = true
@@ -862,12 +883,11 @@ function MenuLib:Init(config)
     local function closeSettings()
         if not inSettings then return end
         inSettings = false
-        -- Animate settings out
+        tw(homeBtn, { Rotation = homeBtn.Rotation - 360 }, 0.5)
+        
         tw(settingsPanel, { Size = UDim2.new(0, 0, 0, 0), Position = UDim2.new(0.5, 0, 0.5, 0) }, 0.2)
-        task.delay(0.2, function()
-            settingsPanel.Visible = false
-        end)
-        -- Animate win in
+        task.delay(0.1, function() settingsPanel.Visible = false end)
+        
         win.Size = UDim2.new(0, 0, 0, 0)
         win.Position = UDim2.new(0.5, 0, 0.5, 0)
         win.Visible = true
@@ -875,24 +895,38 @@ function MenuLib:Init(config)
     end
     
     local function closeMenu()
-        if not win then return end
+        if not win.Visible and not settingsPanel.Visible then return end
         isOpen = false
         if blurPart and _G._BlurEnabled then
             blurPart:Destroy()
             blurPart = nil
         end
-        tw(win, { Size = UDim2.new(0, 0, 0, 0), Position = UDim2.new(0.5, 0, 0.5, 0) }, 0.15)
-        task.delay(0.15, function()
-            win.Visible = false
-            unlockInput()
-        end)
+        if inSettings then
+            tw(settingsPanel, { Size = UDim2.new(0, 0, 0, 0), Position = UDim2.new(0.5, 0, 0.5, 0) }, 0.15)
+            task.delay(0.15, function()
+                settingsPanel.Visible = false
+                unlockInput()
+            end)
+        else
+            tw(win, { Size = UDim2.new(0, 0, 0, 0), Position = UDim2.new(0.5, 0, 0.5, 0) }, 0.15)
+            task.delay(0.15, function()
+                win.Visible = false
+                unlockInput()
+            end)
+        end
     end
     
     local function openMenu()
-        if not win.Visible then
-            isOpen = true
-            lockInput()
-            hudBar.Visible = true
+        if win.Visible or settingsPanel.Visible then return end
+        isOpen = true
+        lockInput()
+        hudBar.Visible = true
+        if inSettings then
+            settingsPanel.Visible = true
+            settingsPanel.Size = UDim2.new(0, 0, 0, 0)
+            settingsPanel.Position = UDim2.new(0.5, 0, 0.5, 0)
+            tw(settingsPanel, { Size = UDim2.new(0, WIN_W, 0, WIN_H), Position = UDim2.new(0.5, -WIN_W / 2, 0.5, -WIN_H / 2) }, 0.22)
+        else
             win.Visible = true
             win.Size = UDim2.new(0, 0, 0, 0)
             win.Position = UDim2.new(0.5, 0, 0.5, 0)
@@ -901,22 +935,7 @@ function MenuLib:Init(config)
     end
     
     local function toggleMenu()
-        if inSettings then
-            -- Close settings and menu
-            inSettings = false
-            tw(settingsPanel, { Size = UDim2.new(0, 0, 0, 0), Position = UDim2.new(0.5, 0, 0.5, 0) }, 0.2)
-            task.delay(0.2, function()
-                settingsPanel.Visible = false
-            end)
-            isOpen = false
-            if blurPart and _G._BlurEnabled then
-                blurPart:Destroy()
-                blurPart = nil
-            end
-            task.delay(0.2, function()
-                unlockInput()
-            end)
-        elseif win.Visible then
+        if isOpen then
             closeMenu()
         else
             openMenu()
@@ -987,40 +1006,77 @@ function MenuLib:Init(config)
     local function updateHudLayout(animate)
         local baseX = 48
         local nameWidth = nameLbl.AbsoluteSize.X
-        local spacing = 12
-        local currentX = baseX + 70 + spacing
+        local spacing = 16
+        local currentX = baseX
         
-        if nameWidth > 0 then currentX = baseX + math.max(70, nameWidth + 8) + spacing end
-        
-        local targetFpsX = currentX + 12
-        if animate and fpsLbl.Visible then
-            tw(fpsLbl, { Position = UDim2.new(0, targetFpsX, 0, 12) }, 0.2)
+        if nameWidth > 0 then 
+            currentX = currentX + math.max(70, nameWidth + 8) + spacing 
         else
-            fpsLbl.Position = UDim2.new(0, targetFpsX, 0, 12)
+            currentX = currentX + 70 + spacing
         end
+        
+        local function applyLayout(obj, isVisible, targetX, yOffset)
+            if not obj then return currentX end
+            if isVisible then
+                obj.Visible = true
+                if animate then
+                    tw(obj, { Position = UDim2.new(0, targetX, 0.5, yOffset or -10) }, 0.2)
+                else
+                    obj.Position = UDim2.new(0, targetX, 0.5, yOffset or -10)
+                end
+                return targetX + obj.AbsoluteSize.X + spacing
+            else
+                obj.Visible = false
+                return targetX
+            end
+        end
+
+        local function applyDiv(divObj, isVisible, targetX)
+            if isVisible then
+                divObj.Visible = true
+                if animate then
+                    tw(divObj, { Position = UDim2.new(0, targetX - (spacing/2) - 1, 0.5, -9) }, 0.2)
+                else
+                    divObj.Position = UDim2.new(0, targetX - (spacing/2) - 1, 0.5, -9)
+                end
+            else
+                divObj.Visible = false
+            end
+        end
+
         if fpsLbl.Visible then
-            currentX = currentX + 78 + spacing
-        end
-        
-        local targetPingX = currentX + 12
-        if animate and pingLbl.Visible then
-            tw(pingLbl, { Position = UDim2.new(0, targetPingX, 0, 12) }, 0.2)
+            applyDiv(div1, true, currentX)
+            currentX = applyLayout(fpsLbl, true, currentX, -10)
         else
-            pingLbl.Position = UDim2.new(0, targetPingX, 0, 12)
+            applyDiv(div1, false, currentX)
         end
+
         if pingLbl.Visible then
-            currentX = currentX + 65 + spacing
-        end
-        
-        local targetTimeX = currentX
-        if animate then
-            tw(timeLbl, { Position = UDim2.new(0, targetTimeX, 0, 14) }, 0.2)
-            tw(homeBtn, { Position = UDim2.new(0, targetTimeX + 65 + spacing, 0.45, -15) }, 0.2)
-            tw(badge, { Position = UDim2.new(0, targetTimeX + 65 + spacing + 30 + spacing, 0.5, -14) }, 0.2)
+            applyDiv(div2, true, currentX)
+            currentX = applyLayout(pingLbl, true, currentX, -10)
         else
-            timeLbl.Position = UDim2.new(0, targetTimeX, 0, 14)
-            homeBtn.Position = UDim2.new(0, targetTimeX + 65 + spacing, 0.45, -15)
-            badge.Position = UDim2.new(0, targetTimeX + 65 + spacing + 30 + spacing, 0.5, -14)
+            applyDiv(div2, false, currentX)
+        end
+
+        if timeLbl.Visible then
+            applyDiv(div3, true, currentX)
+            currentX = applyLayout(timeLbl, true, currentX, -8)
+        else
+            applyDiv(div3, false, currentX)
+        end
+
+        applyDiv(div4, true, currentX)
+        currentX = applyLayout(homeBtn, true, currentX, -15)
+
+        applyDiv(div5, true, currentX)
+        currentX = applyLayout(badge, true, currentX, -14)
+
+        local targetWidth = currentX + 8 -- Additional padding end
+        if animate then
+            tw(hudBar, { Size = UDim2.new(0, targetWidth, 0, 44), Position = UDim2.new(0.5, -targetWidth / 2, 0, 10) }, 0.25)
+        else
+            hudBar.Size = UDim2.new(0, targetWidth, 0, 44)
+            hudBar.Position = UDim2.new(0.5, -targetWidth / 2, 0, 10)
         end
     end
     
@@ -1028,6 +1084,10 @@ function MenuLib:Init(config)
     nameLbl:GetPropertyChangedSignal("AbsoluteSize"):Connect(function() updateHudLayout(true) end)
     fpsLbl:GetPropertyChangedSignal("Visible"):Connect(function() updateHudLayout(true) end)
     pingLbl:GetPropertyChangedSignal("Visible"):Connect(function() updateHudLayout(true) end)
+    timeLbl:GetPropertyChangedSignal("Visible"):Connect(function() updateHudLayout(true) end)
+    fpsLbl:GetPropertyChangedSignal("AbsoluteSize"):Connect(function() updateHudLayout(true) end)
+    pingLbl:GetPropertyChangedSignal("AbsoluteSize"):Connect(function() updateHudLayout(true) end)
+    timeLbl:GetPropertyChangedSignal("AbsoluteSize"):Connect(function() updateHudLayout(true) end)
     
     -- RenderStepped
     local fpsT, fpsN = 0, 0
