@@ -43,7 +43,7 @@ function MenuLib:Init(config)
         performance = "rbxassetid://13321880274",
         keyboard = "rbxassetid://7734022107",
         fire = "rbxassetid://14502433595",
-        protection = "rbxassetid://139030092198236",
+        protection = "rbxassetid://73332630842054",
     }
     
     local function normalizeIconId(id)
