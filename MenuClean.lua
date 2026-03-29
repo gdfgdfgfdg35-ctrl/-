@@ -531,22 +531,24 @@ function MenuLib:Init(config)
         tabContents[name] = tf
         
         local function deselect()
+            local isCompact = (SIDE_W <= 100)
             tw(tf, { Position = UDim2.new(0, -30, 0, 0), BackgroundTransparency = 1 }, 0.35)
             tw(selBg, { BackgroundTransparency = 1 }, 0.25)
             tw(selLine, { BackgroundTransparency = 1, Size = UDim2.new(0, 4, 0, 0) }, 0.2)
             tw(namL, { TextColor3 = C.DIM }, 0.2)
-            tw(icoL, { ImageColor3 = C.DIM, Position = UDim2.new(0, iconX, 0.5, -iconSize / 2) }, 0.25)
+            tw(icoL, { ImageColor3 = C.DIM, Position = isCompact and UDim2.new(0.5, -iconSize/2, 0.5, -iconSize/2) or UDim2.new(0, iconX, 0.5, -iconSize / 2) }, 0.25)
             task.delay(0.35, function() tf.Visible = false end)
         end
         
         local function select()
+            local isCompact = (SIDE_W <= 100)
             tf.Visible = true
             tf.Position = UDim2.new(0, 30, 0, 0)
             tw(tf, { Position = UDim2.new(0, 0, 0, 0), BackgroundTransparency = 0 }, 0.4)
             tw(selBg, { BackgroundTransparency = 0 }, 0.3)
-            tw(selLine, { BackgroundTransparency = 0, Size = UDim2.new(0, 4, 0.5, 0) }, 0.35)
+            tw(selLine, { BackgroundTransparency = isCompact and 1 or 0, Size = UDim2.new(0, 4, 0.5, 0) }, 0.35)
             tw(namL, { TextColor3 = C.TEXT }, 0.25)
-            tw(icoL, { ImageColor3 = C.TEXT, Position = UDim2.new(0, iconX + 4, 0.5, -iconSize / 2) }, 0.3)
+            tw(icoL, { ImageColor3 = C.TEXT, Position = isCompact and UDim2.new(0.5, -iconSize/2, 0.5, -iconSize/2) or UDim2.new(0, iconX + 4, 0.5, -iconSize / 2) }, 0.3)
         end
         
         btn.MouseEnter:Connect(function() if activeTab ~= entry then tw(selBg, { BackgroundTransparency = 0.5 }) end end)
@@ -639,16 +641,17 @@ function MenuLib:Init(config)
         local function updateTabVisuals(idx, isActive)
             local btn = catBtns[idx]
             if not btn then return end
+            local isCompact = (SIDE_W <= 100)
             if isActive then
                 tw(btn.bg, { BackgroundTransparency = 0 }, 0.25, Enum.EasingStyle.Quad)
-                tw(btn.line, { BackgroundTransparency = 0, Size = UDim2.new(0, 4, 0.5, 0) }, 0.25, Enum.EasingStyle.Quad)
+                tw(btn.line, { BackgroundTransparency = isCompact and 1 or 0, Size = UDim2.new(0, 4, 0.5, 0) }, 0.25, Enum.EasingStyle.Quad)
                 tw(btn.lbl, { TextColor3 = C.TEXT }, 0.2, Enum.EasingStyle.Quad)
-                tw(btn.icon, { ImageColor3 = C.TEXT, Position = UDim2.new(0, 14, 0.5, -12) }, 0.25, Enum.EasingStyle.Quad)
+                tw(btn.icon, { ImageColor3 = C.TEXT, Position = isCompact and UDim2.new(0.5, -12, 0.5, -12) or UDim2.new(0, 14, 0.5, -12) }, 0.25, Enum.EasingStyle.Quad)
             else
                 tw(btn.bg, { BackgroundTransparency = 1 }, 0.2, Enum.EasingStyle.Quad)
                 tw(btn.line, { BackgroundTransparency = 1, Size = UDim2.new(0, 4, 0, 0) }, 0.15, Enum.EasingStyle.Quad)
                 tw(btn.lbl, { TextColor3 = C.DIM }, 0.15, Enum.EasingStyle.Quad)
-                tw(btn.icon, { ImageColor3 = C.DIM, Position = UDim2.new(0, 10, 0.5, -12) }, 0.2, Enum.EasingStyle.Quad)
+                tw(btn.icon, { ImageColor3 = C.DIM, Position = isCompact and UDim2.new(0.5, -12, 0.5, -12) or UDim2.new(0, 10, 0.5, -12) }, 0.2, Enum.EasingStyle.Quad)
             end
         end
         
@@ -703,12 +706,30 @@ function MenuLib:Init(config)
         if settingsLeft then tw(settingsLeft, {Size = sw}, atn) end
         if sRight then tw(sRight, {Size = cw, Position = cp}, atn) end
         
-        local tAlpha = (w <= 100) and 1 or 0
+        local isCompact = (w <= 100)
+        local tAlpha = isCompact and 1 or 0
         local tatn = animate and 0.2 or 0
-        pcall(function()
-            for _, t in ipairs(allTabs or {}) do if t.lbl then tw(t.lbl, {TextTransparency = tAlpha}, tatn) end end
-            for _, t in ipairs(catBtns or {}) do if t.lbl then tw(t.lbl, {TextTransparency = tAlpha}, tatn) end end
-        end)
+        
+        for _, t in ipairs(allTabs or {}) do 
+            if t.lbl then tw(t.lbl, {TextTransparency = tAlpha}, tatn) end 
+            local isActive = (t.frame and t.frame.Visible)
+            if t.line and isActive then
+                tw(t.line, {BackgroundTransparency = isCompact and 1 or 0}, tatn)
+            end
+            if t.ico then
+                tw(t.ico, {Position = isCompact and UDim2.new(0.5, -t.iconSize/2, 0.5, -t.iconSize/2) or UDim2.new(0, t.iconX + (isActive and 4 or 0), 0.5, -t.iconSize/2)}, tatn)
+            end
+        end
+        for i, t in ipairs(catBtns or {}) do
+            if t.lbl then tw(t.lbl, {TextTransparency = tAlpha}, tatn) end 
+            local isActive = (i == activeSettingTab)
+            if t.line and isActive then
+                tw(t.line, {BackgroundTransparency = isCompact and 1 or 0}, tatn)
+            end
+            if t.icon then
+                tw(t.icon, {Position = isCompact and UDim2.new(0.5, -12, 0.5, -12) or UDim2.new(0, 10 + (isActive and 4 or 0), 0.5, -12)}, tatn)
+            end
+        end
     end
     
     local titleRow = fr(sRight, UDim2.new(1, 0, 0, 40), nil, C.HEADER, 0, 0)
