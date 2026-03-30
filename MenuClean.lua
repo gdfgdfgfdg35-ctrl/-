@@ -1620,31 +1620,35 @@ function MenuLib:Init(config)
             tw(shadow, { Size = UDim2.new(0, 118, 0, targetHeight) }, 0.25)
             tw(dropdownFrame, { Size = UDim2.new(0, 110, 0, targetHeight), BackgroundTransparency = 0 }, 0.25)
             
-            -- Simpler click-outside detection with longer delay
-            task.delay(0.25, function()
-                if not isOpen then return end
-                local conn
-                conn = UserInputService.InputBegan:Connect(function(inp)
-                    if not isOpen then 
-                        conn:Disconnect()
-                        return 
+            -- Fixed click-outside detection - use Heartbeat instead of InputBegan to avoid conflicts
+            local checkConn
+            local function checkClick()
+                if not isOpen then
+                    checkConn:Disconnect()
+                    return
+                end
+                if UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) then
+                    local pos = UserInputService:GetMouseLocation()
+                    local dropPos = dropdownFrame.AbsolutePosition
+                    local dropSize = dropdownFrame.AbsoluteSize
+                    local btnPos = dropdownBtn.AbsolutePosition
+                    local btnSize = dropdownBtn.AbsoluteSize
+                    
+                    local inDropdown = pos.X >= dropPos.X and pos.X <= dropPos.X + dropSize.X and
+                                      pos.Y >= dropPos.Y and pos.Y <= dropPos.Y + dropSize.Y
+                    local inButton = pos.X >= btnPos.X and pos.X <= btnPos.X + btnSize.X and
+                                    pos.Y >= btnPos.Y and pos.Y <= btnPos.Y + btnSize.Y
+                    
+                    if not inDropdown and not inButton then
+                        closeDropdown()
+                        checkConn:Disconnect()
                     end
-                    if inp.UserInputType == Enum.UserInputType.MouseButton1 then
-                        local pos = UserInputService:GetMouseLocation()
-                        local inDropdown = pos.X >= dropdownFrame.AbsolutePosition.X and 
-                                          pos.X <= dropdownFrame.AbsolutePosition.X + dropdownFrame.AbsoluteSize.X and
-                                          pos.Y >= dropdownFrame.AbsolutePosition.Y and 
-                                          pos.Y <= dropdownFrame.AbsolutePosition.Y + dropdownFrame.AbsoluteSize.Y
-                        local inButton = pos.X >= dropdownBtn.AbsolutePosition.X and 
-                                          pos.X <= dropdownBtn.AbsolutePosition.X + dropdownBtn.AbsoluteSize.X and
-                                          pos.Y >= dropdownBtn.AbsolutePosition.Y and 
-                                          pos.Y <= dropdownBtn.AbsolutePosition.Y + dropdownBtn.AbsoluteSize.Y
-                        if not inDropdown and not inButton then
-                            closeDropdown()
-                            conn:Disconnect()
-                        end
-                    end
-                end)
+                end
+            end
+            task.delay(0.3, function()
+                if isOpen then
+                    checkConn = RunService.Heartbeat:Connect(checkClick)
+                end
             end)
         end
         
@@ -1835,8 +1839,8 @@ function MenuLib:Init(config)
     end)
     
     -- Select first tab
-    if firstTab and firstTab._sel then
-        firstTab._sel()
+    if firstTab and firstTab.Select then
+        firstTab:Select()
     end
     
     -- Window Resizer Grip
