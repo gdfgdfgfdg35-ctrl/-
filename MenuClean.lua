@@ -1547,16 +1547,19 @@ function MenuLib:Init(config)
             local btnAbsPos = dropdownBtn.AbsolutePosition
             local btnAbsSize = dropdownBtn.AbsoluteSize
             
-            -- Shadow behind dropdown (unrolled paper effect)
+            -- Position dropdown BELOW button (not above)
+            local dropY = btnAbsPos.Y + btnAbsSize.Y + 2
+            
+            -- Shadow behind dropdown
             shadow = fr(sg, UDim2.new(0, 100, 0, 0), 
-                UDim2.new(0, btnAbsPos.X, 0, btnAbsPos.Y + btnAbsSize.Y + 2), C.DARK, 0.9, 8)
+                UDim2.new(0, btnAbsPos.X, 0, dropY), C.DARK, 0.9, 8)
             shadow.ZIndex = 998
             
-            -- Main dropdown frame - UNROLLED PAPER STYLE (rolls DOWN)
+            -- Main dropdown frame - rolls DOWN from button
             dropdownFrame = fr(sg, UDim2.new(0, 100, 0, 0), 
-                UDim2.new(0, btnAbsPos.X, 0, btnAbsPos.Y + btnAbsSize.Y + 2), C.DARK, 1, 8)
+                UDim2.new(0, btnAbsPos.X, 0, dropY), C.DARK, 1, 8)
             dropdownFrame.ZIndex = 1000
-            dropdownFrame.ClipsDescendants = true
+            dropdownFrame.ClipsDescendants = false -- Allow overflow so it doesn't get clipped
             
             -- Gradient border effect for unrolled paper look
             local dropStroke = Instance.new("UIStroke")
