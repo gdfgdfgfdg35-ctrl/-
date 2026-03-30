@@ -1620,18 +1620,28 @@ function MenuLib:Init(config)
             tw(shadow, { Size = UDim2.new(0, 118, 0, targetHeight) }, 0.25)
             tw(dropdownFrame, { Size = UDim2.new(0, 110, 0, targetHeight), BackgroundTransparency = 0 }, 0.25)
             
-            task.delay(0.1, function()
+            -- Simpler click-outside detection with longer delay
+            task.delay(0.25, function()
+                if not isOpen then return end
                 local conn
                 conn = UserInputService.InputBegan:Connect(function(inp)
+                    if not isOpen then 
+                        conn:Disconnect()
+                        return 
+                    end
                     if inp.UserInputType == Enum.UserInputType.MouseButton1 then
                         local pos = UserInputService:GetMouseLocation()
-                        if pos.X < dropdownFrame.AbsolutePosition.X or pos.X > dropdownFrame.AbsolutePosition.X + dropdownFrame.AbsoluteSize.X or
-                           pos.Y < dropdownFrame.AbsolutePosition.Y or pos.Y > dropdownFrame.AbsolutePosition.Y + dropdownFrame.AbsoluteSize.Y then
-                            if pos.X < dropdownBtn.AbsolutePosition.X or pos.X > dropdownBtn.AbsolutePosition.X + dropdownBtn.AbsoluteSize.X or
-                               pos.Y < dropdownBtn.AbsolutePosition.Y or pos.Y > dropdownBtn.AbsolutePosition.Y + dropdownBtn.AbsoluteSize.Y then
-                                closeDropdown()
-                                conn:Disconnect()
-                            end
+                        local inDropdown = pos.X >= dropdownFrame.AbsolutePosition.X and 
+                                          pos.X <= dropdownFrame.AbsolutePosition.X + dropdownFrame.AbsoluteSize.X and
+                                          pos.Y >= dropdownFrame.AbsolutePosition.Y and 
+                                          pos.Y <= dropdownFrame.AbsolutePosition.Y + dropdownFrame.AbsoluteSize.Y
+                        local inButton = pos.X >= dropdownBtn.AbsolutePosition.X and 
+                                          pos.X <= dropdownBtn.AbsolutePosition.X + dropdownBtn.AbsoluteSize.X and
+                                          pos.Y >= dropdownBtn.AbsolutePosition.Y and 
+                                          pos.Y <= dropdownBtn.AbsolutePosition.Y + dropdownBtn.AbsoluteSize.Y
+                        if not inDropdown and not inButton then
+                            closeDropdown()
+                            conn:Disconnect()
                         end
                     end
                 end)
@@ -1825,7 +1835,9 @@ function MenuLib:Init(config)
     end)
     
     -- Select first tab
-    firstTab:Select()
+    if firstTab and firstTab._sel then
+        firstTab._sel()
+    end
     
     -- Window Resizer Grip
     local resizer = Instance.new("TextButton")
