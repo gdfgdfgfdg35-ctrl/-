@@ -193,9 +193,9 @@ function MenuLib:Init(config)
         togBtn.Parent = track
         local state = initState
         local function apply(anim, silent)
-            tw(fill, { BackgroundTransparency = state and 0 or 1 }, anim and 0.2 or 0)
+            tw(fill, { BackgroundTransparency = state and 0 or 1 }, anim and 0.35 or 0)
             local dest = state and UDim2.new(0, 23, 0.5, -9) or UDim2.new(0, 3, 0.5, -9)
-            if anim then tw(knob, { Position = dest }, 0.25) else knob.Position = dest end
+            if anim then tw(knob, { Position = dest }, 0.4) else knob.Position = dest end
             if onToggle and not silent then task.defer(function() onToggle(state) end) end
         end
         apply(false, true)
@@ -1505,6 +1505,7 @@ function MenuLib:Init(config)
         local dropdownFrame = nil
         local optionButtons = {}
         local shadow = nil
+        local ignoreNextCheck = false
         
         local function closeDropdown()
             isOpen = false
@@ -1524,6 +1525,7 @@ function MenuLib:Init(config)
                 end)
             end
             optionButtons = {}
+            ignoreNextCheck = false
         end
         
         local function openDropdown()
@@ -1608,6 +1610,7 @@ function MenuLib:Init(config)
                 optBtn.MouseButton1Click:Connect(function()
                     selectedIndex = i
                     dropdownBtn.Text = opt
+                    ignoreNextCheck = true
                     if callback then callback(opt, i) end
                     closeDropdown()
                 end)
@@ -1625,6 +1628,10 @@ function MenuLib:Init(config)
             local function checkClick()
                 if not isOpen then
                     checkConn:Disconnect()
+                    return
+                end
+                if ignoreNextCheck then
+                    ignoreNextCheck = false
                     return
                 end
                 if UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) then
