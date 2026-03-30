@@ -196,8 +196,8 @@ function MenuLib:Init(config)
             local targetTransparency = state and 0 or 1
             local dest = state and UDim2.new(0, 23, 0.5, -9) or UDim2.new(0, 3, 0.5, -9)
             if anim then
-                tw(fill, { BackgroundTransparency = targetTransparency }, 0.4)
-                tw(knob, { Position = dest }, 0.4)
+                tw(fill, { BackgroundTransparency = targetTransparency }, 0.35)
+                tw(knob, { Position = dest }, 0.35)
             else
                 fill.BackgroundTransparency = targetTransparency
                 knob.Position = dest
@@ -1464,15 +1464,15 @@ function MenuLib:Init(config)
         local stripe = fr(row, UDim2.new(0, 3, 1, -8), UDim2.new(0, 0, 0, 4), C.ACCENT, 0, 0)
         gradV(stripe, C.ACCENT, C.ACCENT2)
         
-        lbl(row, label, UDim2.new(1, -130, 1, 0), UDim2.new(0, 14, 0, 0), 12, C.TEXT)
+        lbl(row, label, UDim2.new(1, -135, 1, 0), UDim2.new(0, 14, 0, 0), 12, C.TEXT)
         
         local selectedIndex = defaultIndex or 1
         local isOpen = false
         
         -- Modern dropdown button with chevron - CENTERED TEXT
         local dropdownBtn = Instance.new("TextButton")
-        dropdownBtn.Size = UDim2.new(0, 100, 0, 28)
-        dropdownBtn.Position = UDim2.new(1, -108, 0.5, -14)
+        dropdownBtn.Size = UDim2.new(0, 110, 0, 28)
+        dropdownBtn.Position = UDim2.new(1, -118, 0.5, -14)
         dropdownBtn.BackgroundColor3 = C.DARK
         dropdownBtn.Text = options[selectedIndex] or "Select"
         dropdownBtn.TextColor3 = C.TEXT
@@ -1518,11 +1518,11 @@ function MenuLib:Init(config)
         local function closeDropdown()
             isOpen = false
             if closeConn then closeConn:Disconnect() closeConn = nil end
-            if chevron then tw(chevron, { Rotation = 0 }, 0.25) end
-            if shadow then tw(shadow, { Size = UDim2.new(0, 100, 0, 0) }, 0.3) end
+            if chevron then tw(chevron, { Rotation = 0 }, 0.2, Enum.EasingStyle.Quint) end
+            if shadow then tw(shadow, { Size = UDim2.new(0, 110, 0, 0) }, 0.25) end
             if dropdownFrame then
-                tw(dropdownFrame, { Size = UDim2.new(0, 100, 0, 0), BackgroundTransparency = 1 }, 0.3)
-                task.delay(0.3, function()
+                tw(dropdownFrame, { Size = UDim2.new(0, 110, 0, 0), BackgroundTransparency = 1 }, 0.25)
+                task.delay(0.25, function()
                     if dropdownFrame then
                         dropdownFrame:Destroy()
                         dropdownFrame = nil
@@ -1546,20 +1546,21 @@ function MenuLib:Init(config)
             -- Get button position
             local btnAbsPos = dropdownBtn.AbsolutePosition
             local btnAbsSize = dropdownBtn.AbsoluteSize
+            local sgAbsPos = sg.AbsolutePosition
             
-            -- Position dropdown BELOW button (not above)
-            local dropY = btnAbsPos.Y + btnAbsSize.Y + 2
+            -- Position dropdown BELOW button (always rolls down)
+            local dropY = btnAbsPos.Y + btnAbsSize.Y + 4
             
             -- Shadow behind dropdown
-            shadow = fr(sg, UDim2.new(0, 100, 0, 0), 
+            shadow = fr(sg, UDim2.new(0, 110, 0, 0), 
                 UDim2.new(0, btnAbsPos.X, 0, dropY), C.DARK, 0.9, 8)
             shadow.ZIndex = 998
             
             -- Main dropdown frame - rolls DOWN from button
-            dropdownFrame = fr(sg, UDim2.new(0, 100, 0, 0), 
+            dropdownFrame = fr(sg, UDim2.new(0, 110, 0, 0), 
                 UDim2.new(0, btnAbsPos.X, 0, dropY), C.DARK, 1, 8)
             dropdownFrame.ZIndex = 1000
-            dropdownFrame.ClipsDescendants = false -- Allow overflow so it doesn't get clipped
+            dropdownFrame.ClipsDescendants = false
             
             -- Gradient border effect for unrolled paper look
             local dropStroke = Instance.new("UIStroke")
@@ -1638,20 +1639,24 @@ function MenuLib:Init(config)
                 -- Use InputEnded instead of MouseButton1Click for better reliability
                 optBtn.InputEnded:Connect(function(input)
                     if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                        selectedIndex = i
-                        dropdownBtn.Text = opt
-                        if callback then callback(opt, i) end
-                        closeDropdown()
+                        -- Visual feedback animation
+                        tw(optBtn, { BackgroundColor3 = C.ACCENT }, 0.1)
+                        task.delay(0.1, function()
+                            selectedIndex = i
+                            dropdownBtn.Text = opt
+                            if callback then callback(opt, i) end
+                            closeDropdown()
+                        end)
                     end
                 end)
                 
                 table.insert(optionButtons, optBtn)
             end
             
-            -- Animate open with unroll effect (slower, smoother)
+            -- Animate open with smooth unroll effect
             local targetHeight = math.min(#options * 30 + 16, 150)
-            tw(shadow, { Size = UDim2.new(0, 100, 0, targetHeight) }, 0.35)
-            tw(dropdownFrame, { Size = UDim2.new(0, 100, 0, targetHeight), BackgroundTransparency = 0 }, 0.35)
+            tw(shadow, { Size = UDim2.new(0, 110, 0, targetHeight) }, 0.25, Enum.EasingStyle.Quint)
+            tw(dropdownFrame, { Size = UDim2.new(0, 110, 0, targetHeight), BackgroundTransparency = 0 }, 0.25, Enum.EasingStyle.Quint)
             
             -- Click-outside detection using InputBegan on dropdownFrame
             closeConn = dropdownFrame.InputBegan:Connect(function(input)
