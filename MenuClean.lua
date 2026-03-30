@@ -193,9 +193,15 @@ function MenuLib:Init(config)
         togBtn.Parent = track
         local state = initState
         local function apply(anim, silent)
-            tw(fill, { BackgroundTransparency = state and 0 or 1 }, anim and 0.35 or 0)
+            local targetTransparency = state and 0 or 1
             local dest = state and UDim2.new(0, 23, 0.5, -9) or UDim2.new(0, 3, 0.5, -9)
-            if anim then tw(knob, { Position = dest }, 0.4) else knob.Position = dest end
+            if anim then
+                tw(fill, { BackgroundTransparency = targetTransparency }, 0.4)
+                tw(knob, { Position = dest }, 0.4)
+            else
+                fill.BackgroundTransparency = targetTransparency
+                knob.Position = dest
+            end
             if onToggle and not silent then task.defer(function() onToggle(state) end) end
         end
         apply(false, true)
@@ -1465,8 +1471,8 @@ function MenuLib:Init(config)
         
         -- Modern dropdown button with chevron - CENTERED TEXT
         local dropdownBtn = Instance.new("TextButton")
-        dropdownBtn.Size = UDim2.new(0, 110, 0, 28)
-        dropdownBtn.Position = UDim2.new(1, -118, 0.5, -14)
+        dropdownBtn.Size = UDim2.new(0, 100, 0, 28)
+        dropdownBtn.Position = UDim2.new(1, -108, 0.5, -14)
         dropdownBtn.BackgroundColor3 = C.DARK
         dropdownBtn.Text = options[selectedIndex] or "Select"
         dropdownBtn.TextColor3 = C.TEXT
@@ -1486,10 +1492,10 @@ function MenuLib:Init(config)
         btnStroke.Transparency = 0.5
         btnStroke.Parent = dropdownBtn
         
-        -- Chevron icon
+        -- Chevron icon - positioned outside text area
         local chevron = Instance.new("ImageLabel")
-        chevron.Size = UDim2.new(0, 12, 0, 12)
-        chevron.Position = UDim2.new(1, -18, 0.5, -6)
+        chevron.Size = UDim2.new(0, 10, 0, 10)
+        chevron.Position = UDim2.new(1, -16, 0.5, -5)
         chevron.BackgroundTransparency = 1
         chevron.Image = "rbxassetid://6031091004" -- Down arrow/chevron
         chevron.ImageColor3 = C.ACCENT
@@ -1512,11 +1518,11 @@ function MenuLib:Init(config)
         local function closeDropdown()
             isOpen = false
             if closeConn then closeConn:Disconnect() closeConn = nil end
-            if chevron then tw(chevron, { Rotation = 0 }, 0.2) end
-            if shadow then tw(shadow, { Size = UDim2.new(0, 118, 0, 0) }, 0.2) end
+            if chevron then tw(chevron, { Rotation = 0 }, 0.25) end
+            if shadow then tw(shadow, { Size = UDim2.new(0, 100, 0, 0) }, 0.3) end
             if dropdownFrame then
-                tw(dropdownFrame, { Size = UDim2.new(0, 110, 0, 0), BackgroundTransparency = 1 }, 0.2)
-                task.delay(0.2, function()
+                tw(dropdownFrame, { Size = UDim2.new(0, 100, 0, 0), BackgroundTransparency = 1 }, 0.3)
+                task.delay(0.3, function()
                     if dropdownFrame then
                         dropdownFrame:Destroy()
                         dropdownFrame = nil
@@ -1542,12 +1548,12 @@ function MenuLib:Init(config)
             local btnAbsSize = dropdownBtn.AbsoluteSize
             
             -- Shadow behind dropdown (unrolled paper effect)
-            shadow = fr(sg, UDim2.new(0, 110, 0, 0), 
-                UDim2.new(0, btnAbsPos.X, 0, btnAbsPos.Y + btnAbsSize.Y), C.DARK, 0.9, 8)
+            shadow = fr(sg, UDim2.new(0, 100, 0, 0), 
+                UDim2.new(0, btnAbsPos.X, 0, btnAbsPos.Y + btnAbsSize.Y + 2), C.DARK, 0.9, 8)
             shadow.ZIndex = 998
             
-            -- Main dropdown frame - UNROLLED PAPER STYLE
-            dropdownFrame = fr(sg, UDim2.new(0, 110, 0, 0), 
+            -- Main dropdown frame - UNROLLED PAPER STYLE (rolls DOWN)
+            dropdownFrame = fr(sg, UDim2.new(0, 100, 0, 0), 
                 UDim2.new(0, btnAbsPos.X, 0, btnAbsPos.Y + btnAbsSize.Y + 2), C.DARK, 1, 8)
             dropdownFrame.ZIndex = 1000
             dropdownFrame.ClipsDescendants = true
@@ -1639,10 +1645,10 @@ function MenuLib:Init(config)
                 table.insert(optionButtons, optBtn)
             end
             
-            -- Animate open with unroll effect
-            local targetHeight = math.min(#options * 30 + 16, 160)
-            tw(shadow, { Size = UDim2.new(0, 110, 0, targetHeight) }, 0.3)
-            tw(dropdownFrame, { Size = UDim2.new(0, 110, 0, targetHeight), BackgroundTransparency = 0 }, 0.3)
+            -- Animate open with unroll effect (slower, smoother)
+            local targetHeight = math.min(#options * 30 + 16, 150)
+            tw(shadow, { Size = UDim2.new(0, 100, 0, targetHeight) }, 0.35)
+            tw(dropdownFrame, { Size = UDim2.new(0, 100, 0, targetHeight), BackgroundTransparency = 0 }, 0.35)
             
             -- Click-outside detection using InputBegan on dropdownFrame
             closeConn = dropdownFrame.InputBegan:Connect(function(input)
