@@ -1504,6 +1504,7 @@ function MenuLib:Init(config)
         
         local dropdownFrame = nil
         local optionButtons = {}
+        local shadow = nil
         
         local function closeDropdown()
             isOpen = false
@@ -1549,7 +1550,7 @@ function MenuLib:Init(config)
             dropStroke.Parent = dropdownFrame
             
             -- Shadow effect (behind dropdown)
-            local shadow = fr(sg, UDim2.new(0, 110, 0, 0), 
+            shadow = fr(sg, UDim2.new(0, 110, 0, 0), 
                 UDim2.new(0, btnAbsPos.X - 4, 0, btnAbsPos.Y + btnAbsSize.Y), Color3.fromRGB(0, 0, 0), 0.8, 8)
             shadow.ZIndex = 999
             
@@ -1880,7 +1881,6 @@ function MenuLib:Init(config)
             setSidebarWidth(SIDE_W, false)
         end
     end)
-    firstTab._sel()
     
     return API
 end
