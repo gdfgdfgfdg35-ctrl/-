@@ -193,9 +193,9 @@ function MenuLib:Init(config)
         togBtn.Parent = track
         local state = initState
         local function apply(anim, silent)
-            tw(fill, { BackgroundTransparency = state and 0 or 1 }, anim and 0.12 or 0)
+            tw(fill, { BackgroundTransparency = state and 0 or 1 }, anim and 0.2 or 0)
             local dest = state and UDim2.new(0, 23, 0.5, -9) or UDim2.new(0, 3, 0.5, -9)
-            if anim then tw(knob, { Position = dest }, 0.14) else knob.Position = dest end
+            if anim then tw(knob, { Position = dest }, 0.25) else knob.Position = dest end
             if onToggle and not silent then task.defer(function() onToggle(state) end) end
         end
         apply(false, true)
@@ -1306,8 +1306,8 @@ function MenuLib:Init(config)
             local targetWidth = UDim2.new(percent, 0, 1, 0)
             local targetPos = UDim2.new(percent, -6, 0, -3)
             if animate then
-                tw(fill, { Size = targetWidth }, 0.1)
-                tw(knob, { Position = targetPos }, 0.1)
+                tw(fill, { Size = targetWidth }, 0.15)
+                tw(knob, { Position = targetPos }, 0.15)
             else
                 fill.Size = targetWidth
                 knob.Position = targetPos
@@ -1458,33 +1458,64 @@ function MenuLib:Init(config)
         local stripe = fr(row, UDim2.new(0, 3, 1, -8), UDim2.new(0, 0, 0, 4), C.ACCENT, 0, 0)
         gradV(stripe, C.ACCENT, C.ACCENT2)
         
-        lbl(row, label, UDim2.new(1, -110, 1, 0), UDim2.new(0, 14, 0, 0), 12, C.TEXT)
+        lbl(row, label, UDim2.new(1, -130, 1, 0), UDim2.new(0, 14, 0, 0), 12, C.TEXT)
         
         local selectedIndex = defaultIndex or 1
         local isOpen = false
         
+        -- Modern dropdown button with chevron
         local dropdownBtn = Instance.new("TextButton")
-        dropdownBtn.Size = UDim2.new(0, 100, 0, 26)
-        dropdownBtn.Position = UDim2.new(1, -106, 0.5, -13)
-        dropdownBtn.BackgroundColor3 = C.BTN
+        dropdownBtn.Size = UDim2.new(0, 110, 0, 28)
+        dropdownBtn.Position = UDim2.new(1, -118, 0.5, -14)
+        dropdownBtn.BackgroundColor3 = C.DARK
         dropdownBtn.Text = options[selectedIndex] or "Select"
         dropdownBtn.TextColor3 = C.TEXT
         dropdownBtn.TextSize = 11
         dropdownBtn.Font = Enum.Font.GothamBold
         dropdownBtn.Parent = row
-        Instance.new("UICorner").Parent = dropdownBtn
+        local btnCorner = Instance.new("UICorner")
+        btnCorner.CornerRadius = UDim.new(0, 6)
+        btnCorner.Parent = dropdownBtn
         
-        dropdownBtn.MouseEnter:Connect(function() tw(dropdownBtn, { BackgroundColor3 = C.BTNHOV }, 0.12) end)
-        dropdownBtn.MouseLeave:Connect(function() tw(dropdownBtn, { BackgroundColor3 = C.BTN }, 0.12) end)
+        -- Border stroke
+        local btnStroke = Instance.new("UIStroke")
+        btnStroke.Color = C.DIV
+        btnStroke.Thickness = 1
+        btnStroke.Transparency = 0.5
+        btnStroke.Parent = dropdownBtn
+        
+        -- Chevron icon
+        local chevron = Instance.new("ImageLabel")
+        chevron.Size = UDim2.new(0, 12, 0, 12)
+        chevron.Position = UDim2.new(1, -18, 0.5, -6)
+        chevron.BackgroundTransparency = 1
+        chevron.Image = "rbxassetid://6031091004" -- Down arrow/chevron
+        chevron.ImageColor3 = C.ACCENT
+        chevron.Parent = dropdownBtn
+        
+        dropdownBtn.MouseEnter:Connect(function() 
+            tw(dropdownBtn, { BackgroundColor3 = C.BTN }, 0.15)
+            tw(btnStroke, { Color = C.ACCENT, Transparency = 0.3 }, 0.15)
+        end)
+        dropdownBtn.MouseLeave:Connect(function() 
+            tw(dropdownBtn, { BackgroundColor3 = C.DARK }, 0.15)
+            tw(btnStroke, { Color = C.DIV, Transparency = 0.5 }, 0.15)
+        end)
         
         local dropdownFrame = nil
         local optionButtons = {}
         
         local function closeDropdown()
             isOpen = false
+            if chevron then tw(chevron, { Rotation = 0 }, 0.2) end
             if dropdownFrame then
-                dropdownFrame:Destroy()
-                dropdownFrame = nil
+                tw(dropdownFrame, { Size = UDim2.new(0, 110, 0, 0), Position = UDim2.new(0, dropdownBtn.AbsolutePosition.X, 0, dropdownBtn.AbsolutePosition.Y + 28), BackgroundTransparency = 1 }, 0.2)
+                task.delay(0.2, function()
+                    if dropdownFrame then
+                        dropdownFrame:Destroy()
+                        dropdownFrame = nil
+                    end
+                end)
             end
             optionButtons = {}
         end
@@ -1493,35 +1524,79 @@ function MenuLib:Init(config)
             if isOpen then closeDropdown() return end
             isOpen = true
             
-            dropdownFrame = fr(sg, UDim2.new(0, 100, 0, math.min(#options * 28, 140)), 
-                UDim2.new(0, dropdownBtn.AbsolutePosition.X, 0, dropdownBtn.AbsolutePosition.Y + 30), C.BTN, 0, 8)
+            -- Rotate chevron
+            tw(chevron, { Rotation = 180 }, 0.2)
+            
+            -- Better positioned and styled dropdown
+            local btnAbsPos = dropdownBtn.AbsolutePosition
+            local btnAbsSize = dropdownBtn.AbsoluteSize
+            
+            dropdownFrame = fr(sg, UDim2.new(0, 110, 0, 0), 
+                UDim2.new(0, btnAbsPos.X, 0, btnAbsPos.Y + btnAbsSize.Y + 4), C.DARK, 1, 8)
             dropdownFrame.ZIndex = 1000
             dropdownFrame.ClipsDescendants = true
             
+            -- Border for dropdown
+            local dropStroke = Instance.new("UIStroke")
+            dropStroke.Color = C.ACCENT
+            dropStroke.Thickness = 1
+            dropStroke.Transparency = 0.4
+            dropStroke.Parent = dropdownFrame
+            
+            -- Shadow effect
+            local shadow = fr(dropdownFrame, UDim2.new(1, 8, 1, 8), UDim2.new(0, -4, 0, -4), Color3.fromRGB(0, 0, 0), 0.8, 8)
+            shadow.ZIndex = 999
+            
             local scroll = Instance.new("ScrollingFrame")
-            scroll.Size = UDim2.new(1, 0, 1, 0)
+            scroll.Size = UDim2.new(1, -8, 1, -8)
+            scroll.Position = UDim2.new(0, 4, 0, 4)
             scroll.BackgroundTransparency = 1
             scroll.BorderSizePixel = 0
-            scroll.ScrollBarThickness = 2
-            scroll.CanvasSize = UDim2.new(0, 0, 0, #options * 28)
+            scroll.ScrollBarThickness = 3
+            scroll.ScrollBarImageColor3 = C.ACCENT
+            scroll.CanvasSize = UDim2.new(0, 0, 0, #options * 32)
             scroll.Parent = dropdownFrame
             
             local list = Instance.new("UIListLayout")
             list.SortOrder = Enum.SortOrder.LayoutOrder
-            list.Padding = UDim.new(0, 2)
+            list.Padding = UDim.new(0, 4)
             list.Parent = scroll
             
             for i, opt in ipairs(options) do
                 local optBtn = Instance.new("TextButton")
-                optBtn.Size = UDim2.new(1, -4, 0, 26)
+                optBtn.Size = UDim2.new(1, -4, 0, 28)
                 optBtn.Position = UDim2.new(0, 2, 0, 0)
-                optBtn.BackgroundColor3 = i == selectedIndex and C.ACCENT or C.SEL
+                optBtn.BackgroundColor3 = i == selectedIndex and C.ACCENT or C.BTN
                 optBtn.Text = opt
                 optBtn.TextColor3 = C.TEXT
-                optBtn.TextSize = 10
-                optBtn.Font = Enum.Font.Gotham
+                optBtn.TextSize = 11
+                optBtn.Font = Enum.Font.GothamBold
                 optBtn.Parent = scroll
-                Instance.new("UICorner").Parent = optBtn
+                optBtn.LayoutOrder = i
+                local optCorner = Instance.new("UICorner")
+                optCorner.CornerRadius = UDim.new(0, 6)
+                optCorner.Parent = optBtn
+                
+                -- Selection indicator
+                if i == selectedIndex then
+                    local selGrad = Instance.new("UIGradient")
+                    selGrad.Color = ColorSequence.new({
+                        ColorSequenceKeypoint.new(0, C.ACCENT),
+                        ColorSequenceKeypoint.new(1, C.ACCENT2)
+                    })
+                    selGrad.Parent = optBtn
+                end
+                
+                optBtn.MouseEnter:Connect(function()
+                    if i ~= selectedIndex then
+                        tw(optBtn, { BackgroundColor3 = C.BTNHOV }, 0.15)
+                    end
+                end)
+                optBtn.MouseLeave:Connect(function()
+                    if i ~= selectedIndex then
+                        tw(optBtn, { BackgroundColor3 = C.BTN }, 0.15)
+                    end
+                end)
                 
                 optBtn.MouseButton1Click:Connect(function()
                     selectedIndex = i
@@ -1532,6 +1607,10 @@ function MenuLib:Init(config)
                 
                 table.insert(optionButtons, optBtn)
             end
+            
+            -- Animate open
+            local targetHeight = math.min(#options * 32 + 8, 180)
+            tw(dropdownFrame, { Size = UDim2.new(0, 110, 0, targetHeight), BackgroundTransparency = 0 }, 0.25)
             
             task.delay(0.1, function()
                 local conn
