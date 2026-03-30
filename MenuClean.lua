@@ -1508,12 +1508,17 @@ function MenuLib:Init(config)
         local function closeDropdown()
             isOpen = false
             if chevron then tw(chevron, { Rotation = 0 }, 0.2) end
+            if shadow then tw(shadow, { Size = UDim2.new(0, 118, 0, 0) }, 0.2) end
             if dropdownFrame then
-                tw(dropdownFrame, { Size = UDim2.new(0, 110, 0, 0), Position = UDim2.new(0, dropdownBtn.AbsolutePosition.X, 0, dropdownBtn.AbsolutePosition.Y + 28), BackgroundTransparency = 1 }, 0.2)
+                tw(dropdownFrame, { Size = UDim2.new(0, 110, 0, 0), BackgroundTransparency = 1 }, 0.2)
                 task.delay(0.2, function()
                     if dropdownFrame then
                         dropdownFrame:Destroy()
                         dropdownFrame = nil
+                    end
+                    if shadow then
+                        shadow:Destroy()
+                        shadow = nil
                     end
                 end)
             end
@@ -1543,8 +1548,9 @@ function MenuLib:Init(config)
             dropStroke.Transparency = 0.4
             dropStroke.Parent = dropdownFrame
             
-            -- Shadow effect
-            local shadow = fr(dropdownFrame, UDim2.new(1, 8, 1, 8), UDim2.new(0, -4, 0, -4), Color3.fromRGB(0, 0, 0), 0.8, 8)
+            -- Shadow effect (behind dropdown)
+            local shadow = fr(sg, UDim2.new(0, 110, 0, 0), 
+                UDim2.new(0, btnAbsPos.X - 4, 0, btnAbsPos.Y + btnAbsSize.Y), Color3.fromRGB(0, 0, 0), 0.8, 8)
             shadow.ZIndex = 999
             
             local scroll = Instance.new("ScrollingFrame")
@@ -1577,14 +1583,14 @@ function MenuLib:Init(config)
                 optCorner.CornerRadius = UDim.new(0, 6)
                 optCorner.Parent = optBtn
                 
-                -- Selection indicator
+                -- Selection indicator (subtle)
                 if i == selectedIndex then
-                    local selGrad = Instance.new("UIGradient")
-                    selGrad.Color = ColorSequence.new({
-                        ColorSequenceKeypoint.new(0, C.ACCENT),
-                        ColorSequenceKeypoint.new(1, C.ACCENT2)
-                    })
-                    selGrad.Parent = optBtn
+                    optBtn.BackgroundColor3 = C.SEL
+                    local selStroke = Instance.new("UIStroke")
+                    selStroke.Color = C.ACCENT
+                    selStroke.Thickness = 1
+                    selStroke.Transparency = 0.5
+                    selStroke.Parent = optBtn
                 end
                 
                 optBtn.MouseEnter:Connect(function()
@@ -1610,6 +1616,7 @@ function MenuLib:Init(config)
             
             -- Animate open
             local targetHeight = math.min(#options * 32 + 8, 180)
+            tw(shadow, { Size = UDim2.new(0, 118, 0, targetHeight) }, 0.25)
             tw(dropdownFrame, { Size = UDim2.new(0, 110, 0, targetHeight), BackgroundTransparency = 0 }, 0.25)
             
             task.delay(0.1, function()
@@ -1873,7 +1880,7 @@ function MenuLib:Init(config)
             setSidebarWidth(SIDE_W, false)
         end
     end)
-    firstTab:Select()
+    firstTab._sel()
     
     return API
 end
