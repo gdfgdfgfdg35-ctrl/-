@@ -1268,6 +1268,299 @@ function MenuLib:Init(config)
         return btn
     end
     
+    API.AddSlider = function(tabName, label, min, max, callback, default)
+        local scrollFrame = tabContents[tabName]
+        if not scrollFrame then return nil end
+        
+        local card = scrollFrame:FindFirstChildWhichIsA("Frame")
+        if not card then
+            card = fr(scrollFrame, UDim2.new(1, -4, 0, 0), nil, C.HEADER, 0, 16)
+            card.AutomaticSize = Enum.AutomaticSize.Y
+            local v = Instance.new("UIListLayout")
+            v.SortOrder = Enum.SortOrder.LayoutOrder
+            v.Padding = UDim.new(0, 8)
+            v.Parent = card
+            pad(card, 16, 16, 16, 16)
+        end
+        
+        local row = fr(card, UDim2.new(1, 0, 0, 50), nil, C.SEL, 0, 10)
+        row.LayoutOrder = #card:GetChildren()
+        local stripe = fr(row, UDim2.new(0, 3, 1, -8), UDim2.new(0, 0, 0, 4), C.ACCENT, 0, 0)
+        gradV(stripe, C.ACCENT, C.ACCENT2)
+        
+        lbl(row, label, UDim2.new(1, -20, 0, 20), UDim2.new(0, 14, 0, 4), 12, C.TEXT)
+        local valueLbl = lbl(row, tostring(default or min), UDim2.new(0, 40, 0, 20), UDim2.new(1, -50, 0, 4), 12, C.ACCENT, Enum.Font.GothamBold)
+        valueLbl.TextXAlignment = Enum.TextXAlignment.Right
+        
+        local track = fr(row, UDim2.new(1, -28, 0, 6), UDim2.new(0, 14, 0, 28), Color3.fromRGB(40, 20, 70), 0, 3)
+        local fill = fr(track, UDim2.new(0, 0, 1, 0), nil, C.ACCENT, 0, 3)
+        gradV(fill, C.ACCENT, C.ACCENT2)
+        
+        local knob = fr(track, UDim2.new(0, 12, 0, 12), nil, C.TEXT, 0, 6)
+        
+        local value = default or min
+        local range = max - min
+        
+        local function updateVisuals(animate)
+            local percent = math.clamp((value - min) / range, 0, 1)
+            local targetWidth = UDim2.new(percent, 0, 1, 0)
+            local targetPos = UDim2.new(percent, -6, 0, -3)
+            if animate then
+                tw(fill, { Size = targetWidth }, 0.1)
+                tw(knob, { Position = targetPos }, 0.1)
+            else
+                fill.Size = targetWidth
+                knob.Position = targetPos
+            end
+            valueLbl.Text = tostring(math.round(value))
+        end
+        
+        updateVisuals(false)
+        
+        local dragging = false
+        track.InputBegan:Connect(function(inp)
+            if inp.UserInputType == Enum.UserInputType.MouseButton1 then
+                dragging = true
+                local absX = inp.Position.X - track.AbsolutePosition.X
+                local percent = math.clamp(absX / track.AbsoluteSize.X, 0, 1)
+                value = min + (percent * range)
+                updateVisuals(true)
+                if callback then callback(value) end
+            end
+        end)
+        
+        UserInputService.InputChanged:Connect(function(inp)
+            if dragging and inp.UserInputType == Enum.UserInputType.MouseMovement then
+                local absX = inp.Position.X - track.AbsolutePosition.X
+                local percent = math.clamp(absX / track.AbsoluteSize.X, 0, 1)
+                value = min + (percent * range)
+                updateVisuals(true)
+                if callback then callback(value) end
+            end
+        end)
+        
+        UserInputService.InputEnded:Connect(function(inp)
+            if inp.UserInputType == Enum.UserInputType.MouseButton1 then
+                dragging = false
+            end
+        end)
+        
+        return { Get = function() return value end, Set = function(v) value = math.clamp(v, min, max) updateVisuals(true) if callback then callback(value) end end }
+    end
+    
+    API.AddColorPicker = function(tabName, label, callback, defaultColor)
+        local scrollFrame = tabContents[tabName]
+        if not scrollFrame then return nil end
+        
+        local card = scrollFrame:FindFirstChildWhichIsA("Frame")
+        if not card then
+            card = fr(scrollFrame, UDim2.new(1, -4, 0, 0), nil, C.HEADER, 0, 16)
+            card.AutomaticSize = Enum.AutomaticSize.Y
+            local v = Instance.new("UIListLayout")
+            v.SortOrder = Enum.SortOrder.LayoutOrder
+            v.Padding = UDim.new(0, 8)
+            v.Parent = card
+            pad(card, 16, 16, 16, 16)
+        end
+        
+        local row = fr(card, UDim2.new(1, 0, 0, 40), nil, C.SEL, 0, 10)
+        row.LayoutOrder = #card:GetChildren()
+        local stripe = fr(row, UDim2.new(0, 3, 1, -8), UDim2.new(0, 0, 0, 4), C.ACCENT, 0, 0)
+        gradV(stripe, C.ACCENT, C.ACCENT2)
+        
+        lbl(row, label, UDim2.new(1, -70, 1, 0), UDim2.new(0, 14, 0, 0), 12, C.TEXT)
+        
+        local color = defaultColor or Color3.fromRGB(255, 255, 255)
+        local preview = fr(row, UDim2.new(0, 36, 0, 24), UDim2.new(1, -50, 0.5, -12), color, 0, 6)
+        
+        local btn = Instance.new("TextButton")
+        btn.Size = UDim2.new(0, 50, 0, 26)
+        btn.Position = UDim2.new(1, -56, 0.5, -13)
+        btn.BackgroundColor3 = C.BTN
+        btn.Text = "Pick"
+        btn.TextColor3 = C.TEXT
+        btn.TextSize = 11
+        btn.Font = Enum.Font.GothamBold
+        btn.Parent = row
+        Instance.new("UICorner").Parent = btn
+        
+        btn.MouseEnter:Connect(function() tw(btn, { BackgroundColor3 = C.BTNHOV }, 0.12) end)
+        btn.MouseLeave:Connect(function() tw(btn, { BackgroundColor3 = C.BTN }, 0.12) end)
+        
+        btn.MouseButton1Click:Connect(function()
+            local colors = {
+                Color3.fromRGB(255, 0, 0), Color3.fromRGB(0, 255, 0), Color3.fromRGB(0, 0, 255),
+                Color3.fromRGB(255, 255, 0), Color3.fromRGB(255, 0, 255), Color3.fromRGB(0, 255, 255),
+                Color3.fromRGB(255, 105, 180), Color3.fromRGB(255, 165, 0), Color3.fromRGB(128, 0, 128),
+                Color3.fromRGB(255, 255, 255), Color3.fromRGB(0, 0, 0), Color3.fromRGB(128, 128, 128)
+            }
+            
+            local picker = fr(sg, UDim2.new(0, 200, 0, 140), UDim2.new(0.5, -100, 0.5, -70), C.HEADER, 0, 12)
+            picker.ZIndex = 1000
+            
+            local grid = Instance.new("UIGridLayout")
+            grid.CellSize = UDim2.new(0, 40, 0, 30)
+            grid.CellPadding = UDim2.new(0, 8, 0, 8)
+            grid.Parent = picker
+            pad(picker, 12, 12, 12, 12)
+            
+            for i, c in ipairs(colors) do
+                local swatch = Instance.new("TextButton")
+                swatch.Size = UDim2.new(0, 40, 0, 30)
+                swatch.BackgroundColor3 = c
+                swatch.Text = ""
+                swatch.Parent = picker
+                Instance.new("UICorner").Parent = swatch
+                
+                swatch.MouseButton1Click:Connect(function()
+                    color = c
+                    preview.BackgroundColor3 = c
+                    if callback then callback(c) end
+                    picker:Destroy()
+                end)
+            end
+            
+            task.delay(0.1, function()
+                local conn
+                conn = UserInputService.InputBegan:Connect(function(inp)
+                    if inp.UserInputType == Enum.UserInputType.MouseButton1 then
+                        local pos = UserInputService:GetMouseLocation()
+                        if pos.X < picker.AbsolutePosition.X or pos.X > picker.AbsolutePosition.X + picker.AbsoluteSize.X or
+                           pos.Y < picker.AbsolutePosition.Y or pos.Y > picker.AbsolutePosition.Y + picker.AbsoluteSize.Y then
+                            picker:Destroy()
+                            conn:Disconnect()
+                        end
+                    end
+                end)
+            end)
+        end)
+        
+        return { Get = function() return color end, Set = function(c) color = c preview.BackgroundColor3 = c if callback then callback(c) end end }
+    end
+    
+    API.AddDropdown = function(tabName, label, options, callback, defaultIndex)
+        local scrollFrame = tabContents[tabName]
+        if not scrollFrame then return nil end
+        
+        local card = scrollFrame:FindFirstChildWhichIsA("Frame")
+        if not card then
+            card = fr(scrollFrame, UDim2.new(1, -4, 0, 0), nil, C.HEADER, 0, 16)
+            card.AutomaticSize = Enum.AutomaticSize.Y
+            local v = Instance.new("UIListLayout")
+            v.SortOrder = Enum.SortOrder.LayoutOrder
+            v.Padding = UDim.new(0, 8)
+            v.Parent = card
+            pad(card, 16, 16, 16, 16)
+        end
+        
+        local row = fr(card, UDim2.new(1, 0, 0, 40), nil, C.SEL, 0, 10)
+        row.LayoutOrder = #card:GetChildren()
+        local stripe = fr(row, UDim2.new(0, 3, 1, -8), UDim2.new(0, 0, 0, 4), C.ACCENT, 0, 0)
+        gradV(stripe, C.ACCENT, C.ACCENT2)
+        
+        lbl(row, label, UDim2.new(1, -110, 1, 0), UDim2.new(0, 14, 0, 0), 12, C.TEXT)
+        
+        local selectedIndex = defaultIndex or 1
+        local isOpen = false
+        
+        local dropdownBtn = Instance.new("TextButton")
+        dropdownBtn.Size = UDim2.new(0, 100, 0, 26)
+        dropdownBtn.Position = UDim2.new(1, -106, 0.5, -13)
+        dropdownBtn.BackgroundColor3 = C.BTN
+        dropdownBtn.Text = options[selectedIndex] or "Select"
+        dropdownBtn.TextColor3 = C.TEXT
+        dropdownBtn.TextSize = 11
+        dropdownBtn.Font = Enum.Font.GothamBold
+        dropdownBtn.Parent = row
+        Instance.new("UICorner").Parent = dropdownBtn
+        
+        dropdownBtn.MouseEnter:Connect(function() tw(dropdownBtn, { BackgroundColor3 = C.BTNHOV }, 0.12) end)
+        dropdownBtn.MouseLeave:Connect(function() tw(dropdownBtn, { BackgroundColor3 = C.BTN }, 0.12) end)
+        
+        local dropdownFrame = nil
+        local optionButtons = {}
+        
+        local function closeDropdown()
+            isOpen = false
+            if dropdownFrame then
+                dropdownFrame:Destroy()
+                dropdownFrame = nil
+            end
+            optionButtons = {}
+        end
+        
+        local function openDropdown()
+            if isOpen then closeDropdown() return end
+            isOpen = true
+            
+            dropdownFrame = fr(sg, UDim2.new(0, 100, 0, math.min(#options * 28, 140)), 
+                UDim2.new(0, dropdownBtn.AbsolutePosition.X, 0, dropdownBtn.AbsolutePosition.Y + 30), C.BTN, 0, 8)
+            dropdownFrame.ZIndex = 1000
+            dropdownFrame.ClipsDescendants = true
+            
+            local scroll = Instance.new("ScrollingFrame")
+            scroll.Size = UDim2.new(1, 0, 1, 0)
+            scroll.BackgroundTransparency = 1
+            scroll.BorderSizePixel = 0
+            scroll.ScrollBarThickness = 2
+            scroll.CanvasSize = UDim2.new(0, 0, 0, #options * 28)
+            scroll.Parent = dropdownFrame
+            
+            local list = Instance.new("UIListLayout")
+            list.SortOrder = Enum.SortOrder.LayoutOrder
+            list.Padding = UDim.new(0, 2)
+            list.Parent = scroll
+            
+            for i, opt in ipairs(options) do
+                local optBtn = Instance.new("TextButton")
+                optBtn.Size = UDim2.new(1, -4, 0, 26)
+                optBtn.Position = UDim2.new(0, 2, 0, 0)
+                optBtn.BackgroundColor3 = i == selectedIndex and C.ACCENT or C.SEL
+                optBtn.Text = opt
+                optBtn.TextColor3 = C.TEXT
+                optBtn.TextSize = 10
+                optBtn.Font = Enum.Font.Gotham
+                optBtn.Parent = scroll
+                Instance.new("UICorner").Parent = optBtn
+                
+                optBtn.MouseButton1Click:Connect(function()
+                    selectedIndex = i
+                    dropdownBtn.Text = opt
+                    if callback then callback(opt, i) end
+                    closeDropdown()
+                end)
+                
+                table.insert(optionButtons, optBtn)
+            end
+            
+            task.delay(0.1, function()
+                local conn
+                conn = UserInputService.InputBegan:Connect(function(inp)
+                    if inp.UserInputType == Enum.UserInputType.MouseButton1 then
+                        local pos = UserInputService:GetMouseLocation()
+                        if pos.X < dropdownFrame.AbsolutePosition.X or pos.X > dropdownFrame.AbsolutePosition.X + dropdownFrame.AbsoluteSize.X or
+                           pos.Y < dropdownFrame.AbsolutePosition.Y or pos.Y > dropdownFrame.AbsolutePosition.Y + dropdownFrame.AbsoluteSize.Y then
+                            if pos.X < dropdownBtn.AbsolutePosition.X or pos.X > dropdownBtn.AbsolutePosition.X + dropdownBtn.AbsoluteSize.X or
+                               pos.Y < dropdownBtn.AbsolutePosition.Y or pos.Y > dropdownBtn.AbsolutePosition.Y + dropdownBtn.AbsoluteSize.Y then
+                                closeDropdown()
+                                conn:Disconnect()
+                            end
+                        end
+                    end
+                end)
+            end)
+        end
+        
+        dropdownBtn.MouseButton1Click:Connect(openDropdown)
+        
+        return { 
+            Get = function() return options[selectedIndex], selectedIndex end, 
+            Set = function(idx) selectedIndex = idx dropdownBtn.Text = options[idx] if callback then callback(options[idx], idx) end end,
+            GetOptions = function() return options end,
+            SetOptions = function(newOpts) options = newOpts selectedIndex = 1 dropdownBtn.Text = options[1] or "Select" end
+        }
+    end
+    
     API.AddSetting = function(tabName, label, toggleCallback, default)
         return addSettingOption(tabName, label, true, toggleCallback, default)
     end
