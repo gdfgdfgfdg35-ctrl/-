@@ -1463,7 +1463,7 @@ function MenuLib:Init(config)
         local selectedIndex = defaultIndex or 1
         local isOpen = false
         
-        -- Modern dropdown button with chevron
+        -- Modern dropdown button with chevron - CENTERED TEXT
         local dropdownBtn = Instance.new("TextButton")
         dropdownBtn.Size = UDim2.new(0, 110, 0, 28)
         dropdownBtn.Position = UDim2.new(1, -118, 0.5, -14)
@@ -1472,6 +1472,8 @@ function MenuLib:Init(config)
         dropdownBtn.TextColor3 = C.TEXT
         dropdownBtn.TextSize = 11
         dropdownBtn.Font = Enum.Font.GothamBold
+        dropdownBtn.TextXAlignment = Enum.TextXAlignment.Center
+        dropdownBtn.TextTruncate = Enum.TextTruncate.AtEnd
         dropdownBtn.Parent = row
         local btnCorner = Instance.new("UICorner")
         btnCorner.CornerRadius = UDim.new(0, 6)
@@ -1505,10 +1507,11 @@ function MenuLib:Init(config)
         local dropdownFrame = nil
         local optionButtons = {}
         local shadow = nil
-        local ignoreNextCheck = false
+        local closeConn = nil
         
         local function closeDropdown()
             isOpen = false
+            if closeConn then closeConn:Disconnect() closeConn = nil end
             if chevron then tw(chevron, { Rotation = 0 }, 0.2) end
             if shadow then tw(shadow, { Size = UDim2.new(0, 118, 0, 0) }, 0.2) end
             if dropdownFrame then
@@ -1525,7 +1528,6 @@ function MenuLib:Init(config)
                 end)
             end
             optionButtons = {}
-            ignoreNextCheck = false
         end
         
         local function openDropdown()
@@ -1535,127 +1537,143 @@ function MenuLib:Init(config)
             -- Rotate chevron
             tw(chevron, { Rotation = 180 }, 0.2)
             
-            -- Better positioned and styled dropdown
+            -- Get button position
             local btnAbsPos = dropdownBtn.AbsolutePosition
             local btnAbsSize = dropdownBtn.AbsoluteSize
             
+            -- Shadow behind dropdown (unrolled paper effect)
+            shadow = fr(sg, UDim2.new(0, 110, 0, 0), 
+                UDim2.new(0, btnAbsPos.X, 0, btnAbsPos.Y + btnAbsSize.Y), C.DARK, 0.9, 8)
+            shadow.ZIndex = 998
+            
+            -- Main dropdown frame - UNROLLED PAPER STYLE
             dropdownFrame = fr(sg, UDim2.new(0, 110, 0, 0), 
-                UDim2.new(0, btnAbsPos.X, 0, btnAbsPos.Y + btnAbsSize.Y + 4), C.DARK, 1, 8)
+                UDim2.new(0, btnAbsPos.X, 0, btnAbsPos.Y + btnAbsSize.Y + 2), C.DARK, 1, 8)
             dropdownFrame.ZIndex = 1000
             dropdownFrame.ClipsDescendants = true
             
-            -- Border for dropdown
+            -- Gradient border effect for unrolled paper look
             local dropStroke = Instance.new("UIStroke")
             dropStroke.Color = C.ACCENT
-            dropStroke.Thickness = 1
-            dropStroke.Transparency = 0.4
+            dropStroke.Thickness = 1.5
+            dropStroke.Transparency = 0.3
             dropStroke.Parent = dropdownFrame
             
-            -- Shadow effect (behind dropdown)
-            shadow = fr(sg, UDim2.new(0, 110, 0, 0), 
-                UDim2.new(0, btnAbsPos.X - 4, 0, btnAbsPos.Y + btnAbsSize.Y), Color3.fromRGB(0, 0, 0), 0.8, 8)
-            shadow.ZIndex = 999
+            -- Inner glow for paper effect
+            local innerGlow = Instance.new("UIGradient")
+            innerGlow.Color = ColorSequence.new({
+                ColorSequenceKeypoint.new(0, C.DARK),
+                ColorSequenceKeypoint.new(0.5, Color3.fromRGB(20, 10, 40)),
+                ColorSequenceKeypoint.new(1, C.DARK)
+            })
+            innerGlow.Rotation = 0
+            innerGlow.Parent = dropdownFrame
+            
+            -- Top highlight line (unrolled paper edge)
+            local topLine = fr(dropdownFrame, UDim2.new(1, -4, 0, 2), UDim2.new(0, 2, 0, 2), C.ACCENT, 0.6, 0)
+            gradV(topLine, C.ACCENT, C.ACCENT2)
             
             local scroll = Instance.new("ScrollingFrame")
-            scroll.Size = UDim2.new(1, -8, 1, -8)
-            scroll.Position = UDim2.new(0, 4, 0, 4)
+            scroll.Size = UDim2.new(1, -8, 1, -12)
+            scroll.Position = UDim2.new(0, 4, 0, 8)
             scroll.BackgroundTransparency = 1
             scroll.BorderSizePixel = 0
-            scroll.ScrollBarThickness = 3
+            scroll.ScrollBarThickness = 2
             scroll.ScrollBarImageColor3 = C.ACCENT
-            scroll.CanvasSize = UDim2.new(0, 0, 0, #options * 32)
+            scroll.CanvasSize = UDim2.new(0, 0, 0, #options * 30)
             scroll.Parent = dropdownFrame
             
             local list = Instance.new("UIListLayout")
             list.SortOrder = Enum.SortOrder.LayoutOrder
-            list.Padding = UDim.new(0, 4)
+            list.Padding = UDim.new(0, 2)
             list.Parent = scroll
             
             for i, opt in ipairs(options) do
                 local optBtn = Instance.new("TextButton")
-                optBtn.Size = UDim2.new(1, -4, 0, 28)
-                optBtn.Position = UDim2.new(0, 2, 0, 0)
-                optBtn.BackgroundColor3 = i == selectedIndex and C.ACCENT or C.BTN
+                optBtn.Size = UDim2.new(1, 0, 0, 28)
+                optBtn.BackgroundColor3 = i == selectedIndex and C.SEL or C.DARK
                 optBtn.Text = opt
                 optBtn.TextColor3 = C.TEXT
                 optBtn.TextSize = 11
                 optBtn.Font = Enum.Font.GothamBold
+                optBtn.TextXAlignment = Enum.TextXAlignment.Center
+                optBtn.TextTruncate = Enum.TextTruncate.AtEnd
                 optBtn.Parent = scroll
                 optBtn.LayoutOrder = i
+                optBtn.ZIndex = 1001
                 local optCorner = Instance.new("UICorner")
-                optCorner.CornerRadius = UDim.new(0, 6)
+                optCorner.CornerRadius = UDim.new(0, 4)
                 optCorner.Parent = optBtn
                 
-                -- Selection indicator (subtle)
+                -- Selection indicator for selected item
                 if i == selectedIndex then
-                    optBtn.BackgroundColor3 = C.SEL
                     local selStroke = Instance.new("UIStroke")
                     selStroke.Color = C.ACCENT
                     selStroke.Thickness = 1
                     selStroke.Transparency = 0.5
                     selStroke.Parent = optBtn
+                    optBtn.BackgroundColor3 = Color3.fromRGB(40, 20, 70)
                 end
                 
                 optBtn.MouseEnter:Connect(function()
                     if i ~= selectedIndex then
-                        tw(optBtn, { BackgroundColor3 = C.BTNHOV }, 0.15)
+                        tw(optBtn, { BackgroundColor3 = C.BTN }, 0.15)
                     end
                 end)
                 optBtn.MouseLeave:Connect(function()
                     if i ~= selectedIndex then
-                        tw(optBtn, { BackgroundColor3 = C.BTN }, 0.15)
+                        tw(optBtn, { BackgroundColor3 = C.DARK }, 0.15)
                     end
                 end)
                 
-                optBtn.MouseButton1Click:Connect(function()
-                    selectedIndex = i
-                    dropdownBtn.Text = opt
-                    ignoreNextCheck = true
-                    if callback then callback(opt, i) end
-                    closeDropdown()
+                -- Use InputEnded instead of MouseButton1Click for better reliability
+                optBtn.InputEnded:Connect(function(input)
+                    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                        selectedIndex = i
+                        dropdownBtn.Text = opt
+                        if callback then callback(opt, i) end
+                        closeDropdown()
+                    end
                 end)
                 
                 table.insert(optionButtons, optBtn)
             end
             
-            -- Animate open
-            local targetHeight = math.min(#options * 32 + 8, 180)
-            tw(shadow, { Size = UDim2.new(0, 118, 0, targetHeight) }, 0.25)
-            tw(dropdownFrame, { Size = UDim2.new(0, 110, 0, targetHeight), BackgroundTransparency = 0 }, 0.25)
+            -- Animate open with unroll effect
+            local targetHeight = math.min(#options * 30 + 16, 160)
+            tw(shadow, { Size = UDim2.new(0, 110, 0, targetHeight) }, 0.3)
+            tw(dropdownFrame, { Size = UDim2.new(0, 110, 0, targetHeight), BackgroundTransparency = 0 }, 0.3)
             
-            -- Fixed click-outside detection - use Heartbeat instead of InputBegan to avoid conflicts
-            local checkConn
-            local function checkClick()
-                if not isOpen then
-                    checkConn:Disconnect()
-                    return
-                end
-                if ignoreNextCheck then
-                    ignoreNextCheck = false
-                    return
-                end
-                if UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) then
-                    local pos = UserInputService:GetMouseLocation()
-                    local dropPos = dropdownFrame.AbsolutePosition
-                    local dropSize = dropdownFrame.AbsoluteSize
-                    local btnPos = dropdownBtn.AbsolutePosition
-                    local btnSize = dropdownBtn.AbsoluteSize
-                    
-                    local inDropdown = pos.X >= dropPos.X and pos.X <= dropPos.X + dropSize.X and
-                                      pos.Y >= dropPos.Y and pos.Y <= dropPos.Y + dropSize.Y
-                    local inButton = pos.X >= btnPos.X and pos.X <= btnPos.X + btnSize.X and
-                                    pos.Y >= btnPos.Y and pos.Y <= btnPos.Y + btnSize.Y
-                    
-                    if not inDropdown and not inButton then
-                        closeDropdown()
-                        checkConn:Disconnect()
+            -- Click-outside detection using InputBegan on dropdownFrame
+            closeConn = dropdownFrame.InputBegan:Connect(function(input)
+                -- This won't fire for children, only when clicking on the frame itself
+            end)
+            
+            -- Also detect clicks outside using a separate input handler
+            task.delay(0.1, function()
+                if not isOpen then return end
+                closeConn = UserInputService.InputBegan:Connect(function(input, gpe)
+                    if not isOpen then
+                        if closeConn then closeConn:Disconnect() closeConn = nil end
+                        return
                     end
-                end
-            end
-            task.delay(0.3, function()
-                if isOpen then
-                    checkConn = RunService.Heartbeat:Connect(checkClick)
-                end
+                    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                        local pos = UserInputService:GetMouseLocation()
+                        local dropPos = dropdownFrame.AbsolutePosition
+                        local dropSize = dropdownFrame.AbsoluteSize
+                        local btnPos = dropdownBtn.AbsolutePosition
+                        local btnSize = dropdownBtn.AbsoluteSize
+                        
+                        local inDropdown = pos.X >= dropPos.X and pos.X <= dropPos.X + dropSize.X and
+                                          pos.Y >= dropPos.Y and pos.Y <= dropPos.Y + dropSize.Y
+                        local inButton = pos.X >= btnPos.X and pos.X <= btnPos.X + btnSize.X and
+                                        pos.Y >= btnPos.Y and pos.Y <= btnPos.Y + btnSize.Y
+                        
+                        if not inDropdown and not inButton then
+                            closeDropdown()
+                        end
+                    end
+                end)
             end)
         end
         
