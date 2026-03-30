@@ -1666,6 +1666,10 @@ function MenuLib:Init(config)
         return addSettingOption(tabName, label, true, toggleCallback, default)
     end
     
+    API.AddKeybindOption = function(tabName, label, key, onChange)
+        return addKeybindOption(tabName, label, key, onChange)
+    end
+    
     API.SetESPColor = function(color)
         _G._ESPColour = color
     end
