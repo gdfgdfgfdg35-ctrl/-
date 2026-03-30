@@ -855,9 +855,20 @@ function MenuLib:Init(config)
         keyBtn.Size = UDim2.new(0, 70, 0, 26)
         keyBtn.Position = UDim2.new(1, -82, 0.5, -13)
         keyBtn.BackgroundColor3 = C.SEL
-        keyBtn.Text = key.Name
+        local keyText = ""
+        if typeof(key) == "EnumItem" then
+            if key.EnumType == Enum.KeyCode then
+                keyText = key.Name
+            elseif key.EnumType == Enum.UserInputType then
+                keyText = key.Name:gsub("MouseButton", "MB")
+            end
+        else
+            keyText = tostring(key)
+        end
+        keyBtn.Text = keyText
         keyBtn.TextColor3 = C.TEXT
-        keyBtn.TextSize = 12
+        keyBtn.TextSize = 11
+        keyBtn.TextTruncate = Enum.TextTruncate.AtEnd
         keyBtn.Font = Enum.Font.GothamBold
         keyBtn.Parent = row
         Instance.new("UICorner").Parent = keyBtn
@@ -868,11 +879,20 @@ function MenuLib:Init(config)
             local conn
             conn = UserInputService.InputBegan:Connect(function(inp, gpe)
                 if gpe then return end
+                local selectedKey = nil
+                local displayText = ""
                 if inp.KeyCode and inp.KeyCode ~= Enum.KeyCode.Unknown then
+                    selectedKey = inp.KeyCode
+                    displayText = inp.KeyCode.Name
+                elseif inp.UserInputType and (inp.UserInputType.Name:match("MouseButton") or inp.UserInputType.Name:match("MouseWheel")) then
+                    selectedKey = inp.UserInputType
+                    displayText = inp.UserInputType.Name:gsub("MouseButton", "MB")
+                end
+                if selectedKey then
                     conn:Disconnect()
-                    keyBtn.Text = inp.KeyCode.Name
+                    keyBtn.Text = displayText
                     keyBtn.BackgroundColor3 = C.SEL
-                    onChange(inp.KeyCode)
+                    onChange(selectedKey)
                     task.defer(function()
                         _G._SettingKeybind = false
                     end)
@@ -882,7 +902,7 @@ function MenuLib:Init(config)
                 if conn.Connected then
                     conn:Disconnect()
                     _G._SettingKeybind = false
-                    keyBtn.Text = key.Name
+                    keyBtn.Text = keyText
                     keyBtn.BackgroundColor3 = C.SEL
                 end
             end)
@@ -898,6 +918,7 @@ function MenuLib:Init(config)
     local function openSettings()
         if inSettings then return end
         inSettings = true
+        _G._MenuOpen = true
         tw(homeBtn, { Rotation = homeBtn.Rotation + 360 }, 0.5)
         tw(homeBtnIcon1, { ImageTransparency = 1 }, 0.25)
         tw(homeBtnIcon2, { ImageTransparency = 0 }, 0.25)
@@ -934,6 +955,7 @@ function MenuLib:Init(config)
     local function closeSettings()
         if not inSettings then return end
         inSettings = false
+        _G._MenuOpen = true
         tw(homeBtn, { Rotation = homeBtn.Rotation - 360 }, 0.5)
         tw(homeBtnIcon1, { ImageTransparency = 0 }, 0.25)
         tw(homeBtnIcon2, { ImageTransparency = 1 }, 0.25)
@@ -950,6 +972,7 @@ function MenuLib:Init(config)
     local function closeMenu()
         if not win.Visible and not settingsPanel.Visible then return end
         isOpen = false
+        _G._MenuOpen = false
         if blurPart and _G._BlurEnabled then
             tw(blurPart, {Size = 0}, 0.15)
             local currentBlur = blurPart
@@ -973,6 +996,7 @@ function MenuLib:Init(config)
     local function openMenu()
         if win.Visible or settingsPanel.Visible then return end
         isOpen = true
+        _G._MenuOpen = true
         lockInput()
         hudBar.Visible = true
         if _G._BlurEnabled then
