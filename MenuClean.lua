@@ -1976,27 +1976,6 @@ function MenuLib:Init(config)
         lbl(card, "Misc", UDim2.new(1, 0, 0, 0), nil, 18, C.TEXT, Enum.Font.GothamBold)
     end)
     
-    API.AddTab("Keybinds", ICON.keyboard, function(f)
-        local scroll = Instance.new("ScrollingFrame")
-        scroll.Size = UDim2.new(1, 0, 1, 0)
-        scroll.BackgroundTransparency = 1
-        scroll.BorderSizePixel = 0
-        scroll.ScrollBarThickness = 0
-        scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-        scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
-        scroll.Parent = f
-        pad(scroll, 8, 10, 8, 8)
-        
-        local card = fr(scroll, UDim2.new(1, -4, 0, 0), nil, C.HEADER, 0, 16)
-        card.AutomaticSize = Enum.AutomaticSize.Y
-        local v = Instance.new("UIListLayout")
-        v.SortOrder = Enum.SortOrder.LayoutOrder
-        v.Padding = UDim.new(0, 8)
-        v.Parent = card
-        pad(card, 16, 16, 16, 16)
-        lbl(card, "Keybinds", UDim2.new(1, 0, 0, 0), nil, 18, C.TEXT, Enum.Font.GothamBold)
-    end)
-    
     API.AddTab("Protections", ICON.protection, function(f)
         local scroll = Instance.new("ScrollingFrame")
         scroll.Size = UDim2.new(1, 0, 1, 0)
@@ -2059,89 +2038,179 @@ function MenuLib:Init(config)
         pad(card, 16, 16, 16, 16)
         lbl(card, "Configuration", UDim2.new(1, 0, 0, 0), nil, 18, C.TEXT, Enum.Font.GothamBold)
         
-        -- Config UI
-        local leftPanel = fr(card, UDim2.new(1, 0, 0, 180), nil, C.SEL, 0, 12)
+        -- Left Panel: Create/Load
+        local leftPanel = fr(card, UDim2.new(0.45, 0, 0, 200), nil, C.SEL, 0, 12)
         leftPanel.LayoutOrder = 1
         
-        local nameTitle = lbl(leftPanel, "Config Name", UDim2.new(1, -20, 0, 20), UDim2.new(0, 14, 0, 10), 12, C.TEXT, Enum.Font.GothamBold)
-        
-        local nameBox = Instance.new("TextBox")
-        nameBox.Size = UDim2.new(1, -28, 0, 36)
-        nameBox.Position = UDim2.new(0, 14, 0, 35)
-        nameBox.BackgroundColor3 = C.DARK
-        nameBox.TextColor3 = C.TEXT
-        nameBox.TextSize = 12
-        nameBox.Font = Enum.Font.Gotham
-        nameBox.PlaceholderText = "Enter config name..."
-        nameBox.ClearTextOnFocus = false
-        nameBox.Parent = leftPanel
-        Instance.new("UICorner", nameBox).CornerRadius = UDim.new(0, 8)
-        
         local createBtn = Instance.new("TextButton")
-        createBtn.Size = UDim2.new(1, -28, 0, 36)
-        createBtn.Position = UDim2.new(0, 14, 0, 80)
+        createBtn.Size = UDim2.new(1, -28, 0, 44)
+        createBtn.Position = UDim2.new(0, 14, 0, 20)
         createBtn.BackgroundColor3 = C.ACCENT
         createBtn.Text = "Create Config"
         createBtn.TextColor3 = C.TEXT
-        createBtn.TextSize = 12
+        createBtn.TextSize = 14
         createBtn.Font = Enum.Font.GothamBold
         createBtn.AutoButtonColor = false
         createBtn.Parent = leftPanel
-        Instance.new("UICorner", createBtn).CornerRadius = UDim.new(0, 8)
+        Instance.new("UICorner", createBtn).CornerRadius = UDim.new(0, 10)
         
-        local statusLbl = lbl(leftPanel, "", UDim2.new(1, -28, 0, 20), UDim2.new(0, 14, 0, 120), 11, C.GREEN)
+        local loadBtn = Instance.new("TextButton")
+        loadBtn.Size = UDim2.new(1, -28, 0, 44)
+        loadBtn.Position = UDim2.new(0, 14, 0, 75)
+        loadBtn.BackgroundColor3 = C.GREEN
+        loadBtn.Text = "Load Selected"
+        loadBtn.TextColor3 = C.TEXT
+        loadBtn.TextSize = 14
+        loadBtn.Font = Enum.Font.GothamBold
+        loadBtn.AutoButtonColor = false
+        loadBtn.Parent = leftPanel
+        Instance.new("UICorner", loadBtn).CornerRadius = UDim.new(0, 10)
         
-        -- Config List
-        local listCard = fr(card, UDim2.new(1, 0, 0, 250), nil, C.SEL, 0, 12)
-        listCard.LayoutOrder = 2
-        listCard.ClipsDescendants = true
+        local statusLbl = lbl(leftPanel, "", UDim2.new(1, -28, 0, 20), UDim2.new(0, 14, 0, 135), 11, C.GREEN)
         
-        local listTitle = lbl(listCard, "Saved Configs", UDim2.new(1, -20, 0, 30), UDim2.new(0, 14, 0, 10), 14, C.TEXT, Enum.Font.GothamBold)
+        -- Right Panel: Config List
+        local rightPanel = fr(card, UDim2.new(0.5, -10, 0, 350), nil, C.SEL, 0, 12)
+        rightPanel.LayoutOrder = 2
+        
+        local listTitle = lbl(rightPanel, "Saved Configs", UDim2.new(1, -20, 0, 30), UDim2.new(0, 14, 0, 10), 14, C.TEXT, Enum.Font.GothamBold)
         
         local configScroll = Instance.new("ScrollingFrame")
-        configScroll.Size = UDim2.new(1, -20, 1, -45)
-        configScroll.Position = UDim2.new(0, 10, 0, 40)
+        configScroll.Size = UDim2.new(1, -20, 1, -90)
+        configScroll.Position = UDim2.new(0, 10, 0, 45)
         configScroll.BackgroundTransparency = 1
         configScroll.BorderSizePixel = 0
         configScroll.ScrollBarThickness = 4
         configScroll.ScrollBarImageColor3 = C.ACCENT
         configScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
         configScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
-        configScroll.Parent = listCard
+        configScroll.Parent = rightPanel
         
         local listLayout = Instance.new("UIListLayout")
         listLayout.SortOrder = Enum.SortOrder.LayoutOrder
         listLayout.Padding = UDim.new(0, 6)
         listLayout.Parent = configScroll
         
+        local selectedConfig = nil
+        local selectedRow = nil
+        
+        -- Rename popup (hidden by default)
+        local renameFrame = fr(rightPanel, UDim2.new(1, -20, 0, 40), UDim2.new(0, 10, 1, -45), C.DARK, 0, 8)
+        renameFrame.Visible = false
+        renameFrame.ZIndex = 10
+        
+        local renameBox = Instance.new("TextBox")
+        renameBox.Size = UDim2.new(0.6, -10, 1, -10)
+        renameBox.Position = UDim2.new(0, 5, 0, 5)
+        renameBox.BackgroundColor3 = C.SEL
+        renameBox.TextColor3 = C.TEXT
+        renameBox.TextSize = 12
+        renameBox.Font = Enum.Font.Gotham
+        renameBox.PlaceholderText = "New name..."
+        renameBox.Parent = renameFrame
+        Instance.new("UICorner", renameBox).CornerRadius = UDim.new(0, 6)
+        
+        local renameConfirm = Instance.new("TextButton")
+        renameConfirm.Size = UDim2.new(0.2, -5, 1, -10)
+        renameConfirm.Position = UDim2.new(0.6, 5, 0, 5)
+        renameConfirm.BackgroundColor3 = C.GREEN
+        renameConfirm.Text = "OK"
+        renameConfirm.TextColor3 = C.TEXT
+        renameConfirm.TextSize = 12
+        renameConfirm.Font = Enum.Font.GothamBold
+        renameConfirm.Parent = renameFrame
+        Instance.new("UICorner", renameConfirm).CornerRadius = UDim.new(0, 6)
+        
+        local renameCancel = Instance.new("TextButton")
+        renameCancel.Size = UDim2.new(0.2, -5, 1, -10)
+        renameCancel.Position = UDim2.new(0.8, 0, 0, 5)
+        renameCancel.BackgroundColor3 = C.RED
+        renameCancel.Text = "X"
+        renameCancel.TextColor3 = C.TEXT
+        renameCancel.TextSize = 12
+        renameCancel.Font = Enum.Font.GothamBold
+        renameCancel.Parent = renameFrame
+        Instance.new("UICorner", renameCancel).CornerRadius = UDim.new(0, 6)
+        
+        -- Create popup (hidden by default)
+        local createFrame = fr(leftPanel, UDim2.new(1, -28, 0, 40), UDim2.new(0, 14, 0, 130), C.DARK, 0, 8)
+        createFrame.Visible = false
+        createFrame.ZIndex = 10
+        
+        local createBox = Instance.new("TextBox")
+        createBox.Size = UDim2.new(0.6, -10, 1, -10)
+        createBox.Position = UDim2.new(0, 5, 0, 5)
+        createBox.BackgroundColor3 = C.SEL
+        createBox.TextColor3 = C.TEXT
+        createBox.TextSize = 12
+        createBox.Font = Enum.Font.Gotham
+        createBox.PlaceholderText = "Config name..."
+        createBox.Parent = createFrame
+        Instance.new("UICorner", createBox).CornerRadius = UDim.new(0, 6)
+        
+        local createConfirm = Instance.new("TextButton")
+        createConfirm.Size = UDim2.new(0.2, -5, 1, -10)
+        createConfirm.Position = UDim2.new(0.6, 5, 0, 5)
+        createConfirm.BackgroundColor3 = C.GREEN
+        createConfirm.Text = "OK"
+        createConfirm.TextColor3 = C.TEXT
+        createConfirm.TextSize = 12
+        createConfirm.Font = Enum.Font.GothamBold
+        createConfirm.Parent = createFrame
+        Instance.new("UICorner", createConfirm).CornerRadius = UDim.new(0, 6)
+        
+        local createCancel = Instance.new("TextButton")
+        createCancel.Size = UDim2.new(0.2, -5, 1, -10)
+        createCancel.Position = UDim2.new(0.8, 0, 0, 5)
+        createCancel.BackgroundColor3 = C.RED
+        createCancel.Text = "X"
+        createCancel.TextColor3 = C.TEXT
+        createCancel.TextSize = 12
+        createCancel.Font = Enum.Font.GothamBold
+        createCancel.Parent = createFrame
+        Instance.new("UICorner", createCancel).CornerRadius = UDim.new(0, 6)
+        
         local function RefreshConfigList()
             for _, child in ipairs(configScroll:GetChildren()) do
                 if child:IsA("Frame") then child:Destroy() end
             end
+            selectedConfig = nil
+            selectedRow = nil
             
             for name, data in pairs(_G._ConfigList or {}) do
-                local row = fr(configScroll, UDim2.new(1, 0, 0, 40), nil, C.DARK, 0, 8)
+                local row = fr(configScroll, UDim2.new(1, 0, 0, 44), nil, C.DARK, 0, 8)
                 row.LayoutOrder = #configScroll:GetChildren()
                 
                 local nameLbl = lbl(row, name, UDim2.new(0.5, 0, 1, 0), UDim2.new(0, 10, 0, 0), 12, C.TEXT, Enum.Font.GothamBold)
                 
-                local loadBtn = Instance.new("TextButton")
-                loadBtn.Size = UDim2.new(0, 50, 0, 26)
-                loadBtn.Position = UDim2.new(1, -110, 0.5, -13)
-                loadBtn.BackgroundColor3 = C.GREEN
-                loadBtn.Text = "Load"
-                loadBtn.TextColor3 = C.TEXT
-                loadBtn.TextSize = 11
-                loadBtn.Font = Enum.Font.GothamBold
-                loadBtn.AutoButtonColor = false
-                loadBtn.Parent = row
-                Instance.new("UICorner", loadBtn).CornerRadius = UDim.new(0, 6)
+                local selBtn = Instance.new("TextButton")
+                selBtn.Size = UDim2.new(0, 80, 0, 30)
+                selBtn.Position = UDim2.new(1, -170, 0.5, -15)
+                selBtn.BackgroundColor3 = C.ACCENT
+                selBtn.Text = "Select"
+                selBtn.TextColor3 = C.TEXT
+                selBtn.TextSize = 11
+                selBtn.Font = Enum.Font.GothamBold
+                selBtn.AutoButtonColor = false
+                selBtn.Parent = row
+                Instance.new("UICorner", selBtn).CornerRadius = UDim.new(0, 6)
+                
+                local renameBtn = Instance.new("TextButton")
+                renameBtn.Size = UDim2.new(0, 40, 0, 30)
+                renameBtn.Position = UDim2.new(1, -85, 0.5, -15)
+                renameBtn.BackgroundColor3 = C.YELLOW or Color3.fromRGB(255, 200, 50)
+                renameBtn.Text = "Ren"
+                renameBtn.TextColor3 = C.TEXT
+                renameBtn.TextSize = 11
+                renameBtn.Font = Enum.Font.GothamBold
+                renameBtn.AutoButtonColor = false
+                renameBtn.Parent = row
+                Instance.new("UICorner", renameBtn).CornerRadius = UDim.new(0, 6)
                 
                 local delBtn = Instance.new("TextButton")
-                delBtn.Size = UDim2.new(0, 50, 0, 26)
-                delBtn.Position = UDim2.new(1, -55, 0.5, -13)
+                delBtn.Size = UDim2.new(0, 40, 0, 30)
+                delBtn.Position = UDim2.new(1, -40, 0.5, -15)
                 delBtn.BackgroundColor3 = C.RED
-                delBtn.Text = "Delete"
+                delBtn.Text = "Del"
                 delBtn.TextColor3 = C.TEXT
                 delBtn.TextSize = 11
                 delBtn.Font = Enum.Font.GothamBold
@@ -2149,18 +2218,55 @@ function MenuLib:Init(config)
                 delBtn.Parent = row
                 Instance.new("UICorner", delBtn).CornerRadius = UDim.new(0, 6)
                 
-                loadBtn.MouseButton1Click:Connect(function()
-                    if _G.LoadConfigData then
-                        _G.LoadConfigData(data)
-                        statusLbl.Text = "Loaded: " .. name
-                        statusLbl.TextColor3 = C.GREEN
-                        _G._CurrentConfig = name
+                selBtn.MouseButton1Click:Connect(function()
+                    selectedConfig = name
+                    selectedRow = row
+                    statusLbl.Text = "Selected: " .. name
+                    statusLbl.TextColor3 = C.ACCENT
+                    for _, child in ipairs(configScroll:GetChildren()) do
+                        if child:IsA("Frame") then
+                            child.BackgroundColor3 = C.DARK
+                        end
                     end
+                    row.BackgroundColor3 = Color3.fromRGB(60, 40, 100)
+                end)
+                
+                renameBtn.MouseButton1Click:Connect(function()
+                    renameFrame.Visible = true
+                    renameBox.Text = name
+                    renameBox:CaptureFocus()
+                    
+                    local oldName = name
+                    
+                    renameConfirm.MouseButton1Click:Connect(function()
+                        local newName = renameBox.Text:gsub("^%s+", ""):gsub("%s+$", "")
+                        if newName ~= "" and newName ~= oldName then
+                            if not _G._ConfigList[newName] then
+                                _G._ConfigList[newName] = _G._ConfigList[oldName]
+                                _G._ConfigList[oldName] = nil
+                                statusLbl.Text = "Renamed to: " .. newName
+                                statusLbl.TextColor3 = C.GREEN
+                                RefreshConfigList()
+                            else
+                                statusLbl.Text = "Name already exists!"
+                                statusLbl.TextColor3 = C.RED
+                            end
+                        end
+                        renameFrame.Visible = false
+                    end)
+                    
+                    renameCancel.MouseButton1Click:Connect(function()
+                        renameFrame.Visible = false
+                    end)
                 end)
                 
                 delBtn.MouseButton1Click:Connect(function()
                     if _G._ConfigList then
                         _G._ConfigList[name] = nil
+                        if selectedConfig == name then
+                            selectedConfig = nil
+                            selectedRow = nil
+                        end
                         row:Destroy()
                         statusLbl.Text = "Deleted: " .. name
                         statusLbl.TextColor3 = C.RED
@@ -2170,24 +2276,50 @@ function MenuLib:Init(config)
         end
         
         createBtn.MouseButton1Click:Connect(function()
-            local name = nameBox.Text:gsub("^%s+", ""):gsub("%s+$", "")
+            createFrame.Visible = true
+            createBox.Text = ""
+            createBox:CaptureFocus()
+        end)
+        
+        createConfirm.MouseButton1Click:Connect(function()
+            local name = createBox.Text:gsub("^%s+", ""):gsub("%s+$", "")
             if name == "" then
-                statusLbl.Text = "Please enter a config name"
+                statusLbl.Text = "Please enter a name"
                 statusLbl.TextColor3 = C.RED
+                createFrame.Visible = false
                 return
             end
             if not _G._ConfigList then _G._ConfigList = {} end
             if _G._ConfigList[name] then
                 statusLbl.Text = "Config already exists!"
                 statusLbl.TextColor3 = C.RED
+                createFrame.Visible = false
                 return
             end
             if _G.GetConfigData then
                 _G._ConfigList[name] = _G.GetConfigData()
                 statusLbl.Text = "Created: " .. name
                 statusLbl.TextColor3 = C.GREEN
-                nameBox.Text = ""
                 RefreshConfigList()
+            end
+            createFrame.Visible = false
+        end)
+        
+        createCancel.MouseButton1Click:Connect(function()
+            createFrame.Visible = false
+        end)
+        
+        loadBtn.MouseButton1Click:Connect(function()
+            if selectedConfig and _G._ConfigList[selectedConfig] then
+                if _G.LoadConfigData then
+                    _G.LoadConfigData(_G._ConfigList[selectedConfig])
+                    statusLbl.Text = "Loaded: " .. selectedConfig
+                    statusLbl.TextColor3 = C.GREEN
+                    _G._CurrentConfig = selectedConfig
+                end
+            else
+                statusLbl.Text = "No config selected!"
+                statusLbl.TextColor3 = C.RED
             end
         end)
         
