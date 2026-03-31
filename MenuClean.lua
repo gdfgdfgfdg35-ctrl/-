@@ -2038,48 +2038,58 @@ function MenuLib:Init(config)
         pad(card, 16, 16, 16, 16)
         lbl(card, "Configuration", UDim2.new(1, 0, 0, 0), nil, 18, C.TEXT, Enum.Font.GothamBold)
         
-        -- Left Panel: Create/Load
-        local leftPanel = fr(card, UDim2.new(0.45, 0, 0, 200), nil, C.SEL, 0, 12)
-        leftPanel.LayoutOrder = 1
+        -- Config UI - Side by side layout (LEFT: buttons, RIGHT: list)
+        local mainRow = fr(card, UDim2.new(1, 0, 0, 280), nil, C.HEADER, 1, 0)
+        mainRow.LayoutOrder = 1
         
+        local leftPanel = fr(mainRow, UDim2.new(0.35, -8, 1, 0), UDim2.new(0, 0, 0, 0), C.SEL, 0, 10)
+        local rightPanel = fr(mainRow, UDim2.new(0.65, -8, 1, 0), UDim2.new(0.35, 8, 0, 0), C.SEL, 0, 10)
+        
+        -- LEFT PANEL: Buttons
         local createBtn = Instance.new("TextButton")
-        createBtn.Size = UDim2.new(1, -28, 0, 44)
-        createBtn.Position = UDim2.new(0, 14, 0, 20)
+        createBtn.Size = UDim2.new(1, -16, 0, 32)
+        createBtn.Position = UDim2.new(0, 8, 0, 10)
         createBtn.BackgroundColor3 = C.ACCENT
         createBtn.Text = "Create Config"
         createBtn.TextColor3 = C.TEXT
-        createBtn.TextSize = 14
+        createBtn.TextSize = 12
         createBtn.Font = Enum.Font.GothamBold
         createBtn.AutoButtonColor = false
         createBtn.Parent = leftPanel
-        Instance.new("UICorner", createBtn).CornerRadius = UDim.new(0, 10)
+        local createCorner = Instance.new("UICorner", createBtn)
+        createCorner.CornerRadius = UDim.new(0, 8)
+        local createGrad = Instance.new("UIGradient", createBtn)
+        createGrad.Color = ColorSequence.new({ ColorSequenceKeypoint.new(0, C.ACCENT), ColorSequenceKeypoint.new(1, C.ACCENT2) })
+        createGrad.Rotation = 90
         
         local loadBtn = Instance.new("TextButton")
-        loadBtn.Size = UDim2.new(1, -28, 0, 44)
-        loadBtn.Position = UDim2.new(0, 14, 0, 75)
+        loadBtn.Size = UDim2.new(1, -16, 0, 32)
+        loadBtn.Position = UDim2.new(0, 8, 0, 50)
         loadBtn.BackgroundColor3 = C.GREEN
         loadBtn.Text = "Load Selected"
         loadBtn.TextColor3 = C.TEXT
-        loadBtn.TextSize = 14
+        loadBtn.TextSize = 12
         loadBtn.Font = Enum.Font.GothamBold
         loadBtn.AutoButtonColor = false
         loadBtn.Parent = leftPanel
-        Instance.new("UICorner", loadBtn).CornerRadius = UDim.new(0, 10)
+        local loadCorner = Instance.new("UICorner", loadBtn)
+        loadCorner.CornerRadius = UDim.new(0, 8)
+        local loadGrad = Instance.new("UIGradient", loadBtn)
+        loadGrad.Color = ColorSequence.new({ ColorSequenceKeypoint.new(0, C.GREEN), ColorSequenceKeypoint.new(1, Color3.fromRGB(35, 180, 75)) })
+        loadGrad.Rotation = 90
         
-        local statusLbl = lbl(leftPanel, "", UDim2.new(1, -28, 0, 20), UDim2.new(0, 14, 0, 135), 11, C.GREEN)
+        local statusLbl = lbl(leftPanel, "", UDim2.new(1, -16, 0, 16), UDim2.new(0, 8, 0, 92), 10, C.GREEN)
+        statusLbl.TextXAlignment = Enum.TextXAlignment.Center
         
-        -- Right Panel: Config List
-        local rightPanel = fr(card, UDim2.new(0.5, -10, 0, 350), nil, C.SEL, 0, 12)
-        rightPanel.LayoutOrder = 2
-        
-        local listTitle = lbl(rightPanel, "Saved Configs", UDim2.new(1, -20, 0, 30), UDim2.new(0, 14, 0, 10), 14, C.TEXT, Enum.Font.GothamBold)
+        -- RIGHT PANEL: Config List
+        local listTitle = lbl(rightPanel, "Saved Configs", UDim2.new(1, -16, 0, 20), UDim2.new(0, 10, 0, 8), 12, C.TEXT, Enum.Font.GothamBold)
         
         local configScroll = Instance.new("ScrollingFrame")
-        configScroll.Size = UDim2.new(1, -20, 1, -90)
-        configScroll.Position = UDim2.new(0, 10, 0, 45)
+        configScroll.Size = UDim2.new(1, -16, 1, -32)
+        configScroll.Position = UDim2.new(0, 8, 0, 28)
         configScroll.BackgroundTransparency = 1
         configScroll.BorderSizePixel = 0
-        configScroll.ScrollBarThickness = 4
+        configScroll.ScrollBarThickness = 3
         configScroll.ScrollBarImageColor3 = C.ACCENT
         configScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
         configScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
@@ -2087,87 +2097,90 @@ function MenuLib:Init(config)
         
         local listLayout = Instance.new("UIListLayout")
         listLayout.SortOrder = Enum.SortOrder.LayoutOrder
-        listLayout.Padding = UDim.new(0, 6)
+        listLayout.Padding = UDim.new(0, 4)
         listLayout.Parent = configScroll
         
         local selectedConfig = nil
         local selectedRow = nil
         
-        -- Rename popup (hidden by default)
-        local renameFrame = fr(rightPanel, UDim2.new(1, -20, 0, 40), UDim2.new(0, 10, 1, -45), C.DARK, 0, 8)
-        renameFrame.Visible = false
-        renameFrame.ZIndex = 10
+        -- CENTERED POPUP OVERLAY (for both create and rename)
+        local popupOverlay = fr(f, UDim2.new(1, 0, 1, 0), UDim2.new(0, 0, 0, 0), Color3.fromRGB(0, 0, 0), 0.6, 0)
+        popupOverlay.Visible = false
+        popupOverlay.ZIndex = 100
         
-        local renameBox = Instance.new("TextBox")
-        renameBox.Size = UDim2.new(0.6, -10, 1, -10)
-        renameBox.Position = UDim2.new(0, 5, 0, 5)
-        renameBox.BackgroundColor3 = C.SEL
-        renameBox.TextColor3 = C.TEXT
-        renameBox.TextSize = 12
-        renameBox.Font = Enum.Font.Gotham
-        renameBox.PlaceholderText = "New name..."
-        renameBox.Parent = renameFrame
-        Instance.new("UICorner", renameBox).CornerRadius = UDim.new(0, 6)
+        local popupFrame = fr(popupOverlay, UDim2.new(0, 280, 0, 120), UDim2.new(0.5, -140, 0.5, -60), C.HEADER, 0, 16)
+        popupFrame.ZIndex = 101
         
-        local renameConfirm = Instance.new("TextButton")
-        renameConfirm.Size = UDim2.new(0.2, -5, 1, -10)
-        renameConfirm.Position = UDim2.new(0.6, 5, 0, 5)
-        renameConfirm.BackgroundColor3 = C.GREEN
-        renameConfirm.Text = "OK"
-        renameConfirm.TextColor3 = C.TEXT
-        renameConfirm.TextSize = 12
-        renameConfirm.Font = Enum.Font.GothamBold
-        renameConfirm.Parent = renameFrame
-        Instance.new("UICorner", renameConfirm).CornerRadius = UDim.new(0, 6)
+        local popupTitle = lbl(popupFrame, "Enter Config Name", UDim2.new(1, -20, 0, 24), UDim2.new(0, 10, 0, 12), 14, C.TEXT, Enum.Font.GothamBold)
+        popupTitle.TextXAlignment = Enum.TextXAlignment.Center
         
-        local renameCancel = Instance.new("TextButton")
-        renameCancel.Size = UDim2.new(0.2, -5, 1, -10)
-        renameCancel.Position = UDim2.new(0.8, 0, 0, 5)
-        renameCancel.BackgroundColor3 = C.RED
-        renameCancel.Text = "X"
-        renameCancel.TextColor3 = C.TEXT
-        renameCancel.TextSize = 12
-        renameCancel.Font = Enum.Font.GothamBold
-        renameCancel.Parent = renameFrame
-        Instance.new("UICorner", renameCancel).CornerRadius = UDim.new(0, 6)
+        local popupBox = Instance.new("TextBox")
+        popupBox.Size = UDim2.new(1, -20, 0, 28)
+        popupBox.Position = UDim2.new(0, 10, 0, 44)
+        popupBox.BackgroundColor3 = C.SEL
+        popupBox.TextColor3 = C.TEXT
+        popupBox.TextSize = 12
+        popupBox.Font = Enum.Font.Gotham
+        popupBox.PlaceholderText = "Config name..."
+        popupBox.ClearTextOnFocus = false
+        popupBox.Parent = popupFrame
+        popupBox.ZIndex = 102
+        Instance.new("UICorner", popupBox).CornerRadius = UDim.new(0, 8)
         
-        -- Create popup (hidden by default)
-        local createFrame = fr(leftPanel, UDim2.new(1, -28, 0, 40), UDim2.new(0, 14, 0, 130), C.DARK, 0, 8)
-        createFrame.Visible = false
-        createFrame.ZIndex = 10
+        local popupBtnRow = fr(popupFrame, UDim2.new(1, -20, 0, 28), UDim2.new(0, 10, 0, 80), C.HEADER, 1, 0)
+        popupBtnRow.ZIndex = 102
         
-        local createBox = Instance.new("TextBox")
-        createBox.Size = UDim2.new(0.6, -10, 1, -10)
-        createBox.Position = UDim2.new(0, 5, 0, 5)
-        createBox.BackgroundColor3 = C.SEL
-        createBox.TextColor3 = C.TEXT
-        createBox.TextSize = 12
-        createBox.Font = Enum.Font.Gotham
-        createBox.PlaceholderText = "Config name..."
-        createBox.Parent = createFrame
-        Instance.new("UICorner", createBox).CornerRadius = UDim.new(0, 6)
+        local popupConfirm = Instance.new("TextButton")
+        popupConfirm.Size = UDim2.new(0.48, 0, 1, 0)
+        popupConfirm.Position = UDim2.new(0, 0, 0, 0)
+        popupConfirm.BackgroundColor3 = C.GREEN
+        popupConfirm.Text = "OK"
+        popupConfirm.TextColor3 = C.TEXT
+        popupConfirm.TextSize = 12
+        popupConfirm.Font = Enum.Font.GothamBold
+        popupConfirm.Parent = popupBtnRow
+        popupConfirm.ZIndex = 103
+        Instance.new("UICorner", popupConfirm).CornerRadius = UDim.new(0, 6)
+        local confirmGrad = Instance.new("UIGradient", popupConfirm)
+        confirmGrad.Color = ColorSequence.new({ ColorSequenceKeypoint.new(0, C.GREEN), ColorSequenceKeypoint.new(1, Color3.fromRGB(35, 180, 75)) })
+        confirmGrad.Rotation = 90
         
-        local createConfirm = Instance.new("TextButton")
-        createConfirm.Size = UDim2.new(0.2, -5, 1, -10)
-        createConfirm.Position = UDim2.new(0.6, 5, 0, 5)
-        createConfirm.BackgroundColor3 = C.GREEN
-        createConfirm.Text = "OK"
-        createConfirm.TextColor3 = C.TEXT
-        createConfirm.TextSize = 12
-        createConfirm.Font = Enum.Font.GothamBold
-        createConfirm.Parent = createFrame
-        Instance.new("UICorner", createConfirm).CornerRadius = UDim.new(0, 6)
+        local popupCancel = Instance.new("TextButton")
+        popupCancel.Size = UDim2.new(0.48, 0, 1, 0)
+        popupCancel.Position = UDim2.new(0.52, 0, 0, 0)
+        popupCancel.BackgroundColor3 = C.RED
+        popupCancel.Text = "Cancel"
+        popupCancel.TextColor3 = C.TEXT
+        popupCancel.TextSize = 12
+        popupCancel.Font = Enum.Font.GothamBold
+        popupCancel.Parent = popupBtnRow
+        popupCancel.ZIndex = 103
+        Instance.new("UICorner", popupCancel).CornerRadius = UDim.new(0, 6)
+        local cancelGrad = Instance.new("UIGradient", popupCancel)
+        cancelGrad.Color = ColorSequence.new({ ColorSequenceKeypoint.new(0, C.RED), ColorSequenceKeypoint.new(1, Color3.fromRGB(190, 45, 45)) })
+        cancelGrad.Rotation = 90
         
-        local createCancel = Instance.new("TextButton")
-        createCancel.Size = UDim2.new(0.2, -5, 1, -10)
-        createCancel.Position = UDim2.new(0.8, 0, 0, 5)
-        createCancel.BackgroundColor3 = C.RED
-        createCancel.Text = "X"
-        createCancel.TextColor3 = C.TEXT
-        createCancel.TextSize = 12
-        createCancel.Font = Enum.Font.GothamBold
-        createCancel.Parent = createFrame
-        Instance.new("UICorner", createCancel).CornerRadius = UDim.new(0, 6)
+        local popupMode = "create" -- "create" or "rename"
+        local renameOldName = nil
+        
+        local function showPopup(mode, title, defaultText)
+            popupMode = mode
+            popupTitle.Text = title
+            popupBox.Text = defaultText or ""
+            popupOverlay.Visible = true
+            popupOverlay.BackgroundTransparency = 1
+            popupFrame.Size = UDim2.new(0, 200, 0, 100)
+            popupFrame.Position = UDim2.new(0.5, -100, 0.5, -50)
+            tw(popupOverlay, {BackgroundTransparency = 0.6}, 0.2)
+            tw(popupFrame, {Size = UDim2.new(0, 280, 0, 120), Position = UDim2.new(0.5, -140, 0.5, -60)}, 0.25, Enum.EasingStyle.Back)
+            task.delay(0.15, function() popupBox:CaptureFocus() end)
+        end
+        
+        local function hidePopup()
+            tw(popupFrame, {Size = UDim2.new(0, 200, 0, 100), Position = UDim2.new(0.5, -100, 0.5, -50)}, 0.2)
+            tw(popupOverlay, {BackgroundTransparency = 1}, 0.2)
+            task.delay(0.2, function() popupOverlay.Visible = false end)
+        end
         
         local function RefreshConfigList()
             for _, child in ipairs(configScroll:GetChildren()) do
@@ -2175,48 +2188,59 @@ function MenuLib:Init(config)
             end
             selectedConfig = nil
             selectedRow = nil
+            statusLbl.Text = ""
             
             for name, data in pairs(_G._ConfigList or {}) do
-                local row = fr(configScroll, UDim2.new(1, 0, 0, 44), nil, C.DARK, 0, 8)
+                local row = fr(configScroll, UDim2.new(1, 0, 0, 32), nil, C.DARK, 0, 6)
                 row.LayoutOrder = #configScroll:GetChildren()
                 
-                local nameLbl = lbl(row, name, UDim2.new(0.5, 0, 1, 0), UDim2.new(0, 10, 0, 0), 12, C.TEXT, Enum.Font.GothamBold)
+                local nameLbl = lbl(row, name, UDim2.new(0.45, 0, 1, 0), UDim2.new(0, 8, 0, 0), 11, C.TEXT, Enum.Font.Gotham)
+                nameLbl.TextTruncate = Enum.TextTruncate.AtEnd
                 
                 local selBtn = Instance.new("TextButton")
-                selBtn.Size = UDim2.new(0, 80, 0, 30)
-                selBtn.Position = UDim2.new(1, -170, 0.5, -15)
+                selBtn.Size = UDim2.new(0, 50, 0, 22)
+                selBtn.Position = UDim2.new(1, -158, 0.5, -11)
                 selBtn.BackgroundColor3 = C.ACCENT
                 selBtn.Text = "Select"
                 selBtn.TextColor3 = C.TEXT
-                selBtn.TextSize = 11
+                selBtn.TextSize = 10
                 selBtn.Font = Enum.Font.GothamBold
                 selBtn.AutoButtonColor = false
                 selBtn.Parent = row
-                Instance.new("UICorner", selBtn).CornerRadius = UDim.new(0, 6)
+                Instance.new("UICorner", selBtn).CornerRadius = UDim.new(0, 5)
+                local selGrad = Instance.new("UIGradient", selBtn)
+                selGrad.Color = ColorSequence.new({ ColorSequenceKeypoint.new(0, C.ACCENT), ColorSequenceKeypoint.new(1, C.ACCENT2) })
+                selGrad.Rotation = 90
                 
                 local renameBtn = Instance.new("TextButton")
-                renameBtn.Size = UDim2.new(0, 40, 0, 30)
-                renameBtn.Position = UDim2.new(1, -85, 0.5, -15)
-                renameBtn.BackgroundColor3 = C.YELLOW or Color3.fromRGB(255, 200, 50)
-                renameBtn.Text = "Ren"
+                renameBtn.Size = UDim2.new(0, 50, 0, 22)
+                renameBtn.Position = UDim2.new(1, -104, 0.5, -11)
+                renameBtn.BackgroundColor3 = C.YELLOW
+                renameBtn.Text = "Rename"
                 renameBtn.TextColor3 = C.TEXT
-                renameBtn.TextSize = 11
+                renameBtn.TextSize = 10
                 renameBtn.Font = Enum.Font.GothamBold
                 renameBtn.AutoButtonColor = false
                 renameBtn.Parent = row
-                Instance.new("UICorner", renameBtn).CornerRadius = UDim.new(0, 6)
+                Instance.new("UICorner", renameBtn).CornerRadius = UDim.new(0, 5)
+                local renGrad = Instance.new("UIGradient", renameBtn)
+                renGrad.Color = ColorSequence.new({ ColorSequenceKeypoint.new(0, C.YELLOW), ColorSequenceKeypoint.new(1, Color3.fromRGB(230, 160, 20)) })
+                renGrad.Rotation = 90
                 
                 local delBtn = Instance.new("TextButton")
-                delBtn.Size = UDim2.new(0, 40, 0, 30)
-                delBtn.Position = UDim2.new(1, -40, 0.5, -15)
+                delBtn.Size = UDim2.new(0, 50, 0, 22)
+                delBtn.Position = UDim2.new(1, -50, 0.5, -11)
                 delBtn.BackgroundColor3 = C.RED
-                delBtn.Text = "Del"
+                delBtn.Text = "Delete"
                 delBtn.TextColor3 = C.TEXT
-                delBtn.TextSize = 11
+                delBtn.TextSize = 10
                 delBtn.Font = Enum.Font.GothamBold
                 delBtn.AutoButtonColor = false
                 delBtn.Parent = row
-                Instance.new("UICorner", delBtn).CornerRadius = UDim.new(0, 6)
+                Instance.new("UICorner", delBtn).CornerRadius = UDim.new(0, 5)
+                local delGrad = Instance.new("UIGradient", delBtn)
+                delGrad.Color = ColorSequence.new({ ColorSequenceKeypoint.new(0, C.RED), ColorSequenceKeypoint.new(1, Color3.fromRGB(190, 45, 45)) })
+                delGrad.Rotation = 90
                 
                 selBtn.MouseButton1Click:Connect(function()
                     selectedConfig = name
@@ -2228,36 +2252,12 @@ function MenuLib:Init(config)
                             child.BackgroundColor3 = C.DARK
                         end
                     end
-                    row.BackgroundColor3 = Color3.fromRGB(60, 40, 100)
+                    row.BackgroundColor3 = Color3.fromRGB(50, 30, 80)
                 end)
                 
                 renameBtn.MouseButton1Click:Connect(function()
-                    renameFrame.Visible = true
-                    renameBox.Text = name
-                    renameBox:CaptureFocus()
-                    
-                    local oldName = name
-                    
-                    renameConfirm.MouseButton1Click:Connect(function()
-                        local newName = renameBox.Text:gsub("^%s+", ""):gsub("%s+$", "")
-                        if newName ~= "" and newName ~= oldName then
-                            if not _G._ConfigList[newName] then
-                                _G._ConfigList[newName] = _G._ConfigList[oldName]
-                                _G._ConfigList[oldName] = nil
-                                statusLbl.Text = "Renamed to: " .. newName
-                                statusLbl.TextColor3 = C.GREEN
-                                RefreshConfigList()
-                            else
-                                statusLbl.Text = "Name already exists!"
-                                statusLbl.TextColor3 = C.RED
-                            end
-                        end
-                        renameFrame.Visible = false
-                    end)
-                    
-                    renameCancel.MouseButton1Click:Connect(function()
-                        renameFrame.Visible = false
-                    end)
+                    renameOldName = name
+                    showPopup("rename", "Rename Config", name)
                 end)
                 
                 delBtn.MouseButton1Click:Connect(function()
@@ -2266,48 +2266,59 @@ function MenuLib:Init(config)
                         if selectedConfig == name then
                             selectedConfig = nil
                             selectedRow = nil
+                            statusLbl.Text = ""
                         end
                         row:Destroy()
-                        statusLbl.Text = "Deleted: " .. name
-                        statusLbl.TextColor3 = C.RED
                     end
                 end)
             end
         end
         
         createBtn.MouseButton1Click:Connect(function()
-            createFrame.Visible = true
-            createBox.Text = ""
-            createBox:CaptureFocus()
+            showPopup("create", "Create New Config", "")
         end)
         
-        createConfirm.MouseButton1Click:Connect(function()
-            local name = createBox.Text:gsub("^%s+", ""):gsub("%s+$", "")
+        popupConfirm.MouseButton1Click:Connect(function()
+            local name = popupBox.Text:gsub("^%s+", ""):gsub("%s+$", "")
             if name == "" then
-                statusLbl.Text = "Please enter a name"
+                statusLbl.Text = "Name cannot be empty!"
                 statusLbl.TextColor3 = C.RED
-                createFrame.Visible = false
+                hidePopup()
                 return
             end
+            
             if not _G._ConfigList then _G._ConfigList = {} end
-            if _G._ConfigList[name] then
-                statusLbl.Text = "Config already exists!"
-                statusLbl.TextColor3 = C.RED
-                createFrame.Visible = false
-                return
+            
+            if popupMode == "create" then
+                if _G._ConfigList[name] then
+                    statusLbl.Text = "Config already exists!"
+                    statusLbl.TextColor3 = C.RED
+                else
+                    if _G.GetConfigData then
+                        _G._ConfigList[name] = _G.GetConfigData()
+                        statusLbl.Text = "Created: " .. name
+                        statusLbl.TextColor3 = C.GREEN
+                        RefreshConfigList()
+                    end
+                end
+            elseif popupMode == "rename" and renameOldName then
+                if name == renameOldName then
+                    -- Same name, do nothing
+                elseif _G._ConfigList[name] then
+                    statusLbl.Text = "Name already exists!"
+                    statusLbl.TextColor3 = C.RED
+                else
+                    _G._ConfigList[name] = _G._ConfigList[renameOldName]
+                    _G._ConfigList[renameOldName] = nil
+                    statusLbl.Text = "Renamed to: " .. name
+                    statusLbl.TextColor3 = C.GREEN
+                    RefreshConfigList()
+                end
             end
-            if _G.GetConfigData then
-                _G._ConfigList[name] = _G.GetConfigData()
-                statusLbl.Text = "Created: " .. name
-                statusLbl.TextColor3 = C.GREEN
-                RefreshConfigList()
-            end
-            createFrame.Visible = false
+            hidePopup()
         end)
         
-        createCancel.MouseButton1Click:Connect(function()
-            createFrame.Visible = false
-        end)
+        popupCancel.MouseButton1Click:Connect(hidePopup)
         
         loadBtn.MouseButton1Click:Connect(function()
             if selectedConfig and _G._ConfigList[selectedConfig] then
