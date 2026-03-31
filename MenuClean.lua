@@ -2038,12 +2038,12 @@ function MenuLib:Init(config)
         pad(card, 16, 16, 16, 16)
         lbl(card, "Configuration", UDim2.new(1, 0, 0, 0), nil, 18, C.TEXT, Enum.Font.GothamBold)
         
-        -- Config UI - Side by side layout (LEFT: buttons, RIGHT: list)
-        local mainRow = fr(card, UDim2.new(1, 0, 0, 280), nil, C.HEADER, 1, 0)
+        -- Config UI - Side by side layout (LEFT: buttons, RIGHT: list) - EQUAL WIDTH
+        local mainRow = fr(card, UDim2.new(1, 0, 1, -60), nil, C.HEADER, 1, 0)
         mainRow.LayoutOrder = 1
         
-        local leftPanel = fr(mainRow, UDim2.new(0.35, -8, 1, 0), UDim2.new(0, 0, 0, 0), C.SEL, 0, 10)
-        local rightPanel = fr(mainRow, UDim2.new(0.65, -8, 1, 0), UDim2.new(0.35, 8, 0, 0), C.SEL, 0, 10)
+        local leftPanel = fr(mainRow, UDim2.new(0.5, -6, 1, 0), UDim2.new(0, 0, 0, 0), C.SEL, 0, 10)
+        local rightPanel = fr(mainRow, UDim2.new(0.5, -6, 1, 0), UDim2.new(0.5, 6, 0, 0), C.SEL, 0, 10)
         
         -- LEFT PANEL: Buttons
         local createBtn = Instance.new("TextButton")
@@ -2103,10 +2103,11 @@ function MenuLib:Init(config)
         local selectedConfig = nil
         local selectedRow = nil
         
-        -- CENTERED POPUP OVERLAY (for both create and rename)
-        local popupOverlay = fr(f, UDim2.new(1, 0, 1, 0), UDim2.new(0, 0, 0, 0), Color3.fromRGB(0, 0, 0), 0.6, 0)
+        -- CENTERED POPUP OVERLAY (for both create and rename) - ON TOP OF EVERYTHING
+        local popupOverlay = fr(sg, UDim2.new(1, 0, 1, 0), UDim2.new(0, 0, 0, 0), Color3.fromRGB(0, 0, 0), 0.6, 0)
         popupOverlay.Visible = false
-        popupOverlay.ZIndex = 100
+        popupOverlay.ZIndex = 1000
+        popupOverlay.Active = false -- Let mouse pass through for cursor
         
         local popupFrame = fr(popupOverlay, UDim2.new(0, 280, 0, 120), UDim2.new(0.5, -140, 0.5, -60), C.HEADER, 0, 16)
         popupFrame.ZIndex = 101
@@ -2190,7 +2191,20 @@ function MenuLib:Init(config)
             selectedRow = nil
             statusLbl.Text = ""
             
-            for name, data in pairs(_G._ConfigList or {}) do
+            -- Ensure config list exists
+            if not _G._ConfigList then
+                _G._ConfigList = {}
+            end
+            
+            -- Debug: show if empty
+            local count = 0
+            for _ in pairs(_G._ConfigList) do count = count + 1 end
+            if count == 0 then
+                local emptyLbl = lbl(configScroll, "No configs saved", UDim2.new(1, 0, 0, 30), UDim2.new(0, 0, 0, 5), 11, C.DIM)
+                emptyLbl.TextXAlignment = Enum.TextXAlignment.Center
+            end
+            
+            for name, data in pairs(_G._ConfigList) do
                 local row = fr(configScroll, UDim2.new(1, 0, 0, 32), nil, C.DARK, 0, 6)
                 row.LayoutOrder = #configScroll:GetChildren()
                 
