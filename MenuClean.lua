@@ -2334,7 +2334,8 @@ function MenuLib:Init(config)
         scroll.Size = UDim2.new(1, 0, 1, 0)
         scroll.BackgroundTransparency = 1
         scroll.BorderSizePixel = 0
-        scroll.ScrollBarThickness = 0
+        scroll.ScrollBarThickness = 3
+        scroll.ScrollBarImageColor3 = C.ACCENT
         scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
         scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
         scroll.Parent = f
@@ -2347,7 +2348,6 @@ function MenuLib:Init(config)
         v.Padding = UDim.new(0, 8)
         v.Parent = card
         pad(card, 16, 16, 16, 16)
-        lbl(card, "Skin Changer", UDim2.new(1, 0, 0, 0), nil, 18, C.TEXT, Enum.Font.GothamBold)
     end)
     
     API.AddTab("Misc", ICON.misc, function(f)
