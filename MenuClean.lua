@@ -1866,8 +1866,19 @@ function MenuLib:Init(config)
         scroll.Parent = f
         pad(scroll, 8, 10, 8, 8)
         
-        -- Two panel layout for Aimbot (left: main, right: Silent Aim)
-        local mainRow = fr(scroll, UDim2.new(1, -4, 0, 0), nil, C.HEADER, 0, 0)
+        -- Main card container like Configuration tab
+        local card = fr(scroll, UDim2.new(1, -4, 0, 0), nil, C.HEADER, 0, 16)
+        card.AutomaticSize = Enum.AutomaticSize.Y
+        local v = Instance.new("UIListLayout")
+        v.SortOrder = Enum.SortOrder.LayoutOrder
+        v.Padding = UDim.new(0, 8)
+        v.Parent = card
+        pad(card, 16, 16, 16, 16)
+        lbl(card, "Aimbot", UDim2.new(1, 0, 0, 0), nil, 18, C.TEXT, Enum.Font.GothamBold)
+        
+        -- Two panel layout (left: main, right: Silent Aim)
+        local mainRow = fr(card, UDim2.new(1, 0, 0, 0), nil, C.HEADER, 1, 0)
+        mainRow.LayoutOrder = 1
         mainRow.AutomaticSize = Enum.AutomaticSize.Y
         local rowLayout = Instance.new("UIListLayout")
         rowLayout.SortOrder = Enum.SortOrder.LayoutOrder
@@ -1875,25 +1886,25 @@ function MenuLib:Init(config)
         rowLayout.FillDirection = Enum.FillDirection.Horizontal
         rowLayout.Parent = mainRow
         
-        local leftPanel = fr(mainRow, UDim2.new(0.5, -4, 0, 0), nil, C.HEADER, 0, 16)
+        local leftPanel = fr(mainRow, UDim2.new(0.5, -4, 0, 0), UDim2.new(0, 0, 0, 0), C.SEL, 0, 10)
         leftPanel.AutomaticSize = Enum.AutomaticSize.Y
         leftPanel.LayoutOrder = 1
         local leftV = Instance.new("UIListLayout")
         leftV.SortOrder = Enum.SortOrder.LayoutOrder
         leftV.Padding = UDim.new(0, 8)
         leftV.Parent = leftPanel
-        pad(leftPanel, 16, 16, 16, 16)
-        lbl(leftPanel, "Aimbot", UDim2.new(1, 0, 0, 0), nil, 18, C.TEXT, Enum.Font.GothamBold)
+        pad(leftPanel, 12, 12, 12, 12)
+        lbl(leftPanel, "Main", UDim2.new(1, 0, 0, 0), nil, 14, C.TEXT, Enum.Font.GothamBold)
         
-        local rightPanel = fr(mainRow, UDim2.new(0.5, -4, 0, 0), nil, C.HEADER, 0, 16)
+        local rightPanel = fr(mainRow, UDim2.new(0.5, -4, 0, 0), UDim2.new(0.5, 4, 0, 0), C.SEL, 0, 10)
         rightPanel.AutomaticSize = Enum.AutomaticSize.Y
         rightPanel.LayoutOrder = 2
         local rightV = Instance.new("UIListLayout")
         rightV.SortOrder = Enum.SortOrder.LayoutOrder
         rightV.Padding = UDim.new(0, 8)
         rightV.Parent = rightPanel
-        pad(rightPanel, 16, 16, 16, 16)
-        lbl(rightPanel, "Silent Aim", UDim2.new(1, 0, 0, 0), nil, 18, C.TEXT, Enum.Font.GothamBold)
+        pad(rightPanel, 12, 12, 12, 12)
+        lbl(rightPanel, "Silent Aim", UDim2.new(1, 0, 0, 0), nil, 14, C.TEXT, Enum.Font.GothamBold)
         
         -- Store panels for API use
         tabPanels["Aimbot"] = { leftPanel = leftPanel, rightPanel = rightPanel }
@@ -1911,8 +1922,19 @@ function MenuLib:Init(config)
         scroll.Parent = f
         pad(scroll, 8, 10, 8, 8)
         
-        -- Two panel layout for Players (left: ESP, right: Crosshair)
-        local mainRow = fr(scroll, UDim2.new(1, -4, 0, 0), nil, C.HEADER, 0, 0)
+        -- Main card container like Configuration tab
+        local card = fr(scroll, UDim2.new(1, -4, 0, 0), nil, C.HEADER, 0, 16)
+        card.AutomaticSize = Enum.AutomaticSize.Y
+        local v = Instance.new("UIListLayout")
+        v.SortOrder = Enum.SortOrder.LayoutOrder
+        v.Padding = UDim.new(0, 8)
+        v.Parent = card
+        pad(card, 16, 16, 16, 16)
+        lbl(card, "Players", UDim2.new(1, 0, 0, 0), nil, 18, C.TEXT, Enum.Font.GothamBold)
+        
+        -- Two panel layout (left: ESP, right: Crosshair)
+        local mainRow = fr(card, UDim2.new(1, 0, 0, 0), nil, C.HEADER, 1, 0)
+        mainRow.LayoutOrder = 1
         mainRow.AutomaticSize = Enum.AutomaticSize.Y
         local rowLayout = Instance.new("UIListLayout")
         rowLayout.SortOrder = Enum.SortOrder.LayoutOrder
@@ -1920,25 +1942,25 @@ function MenuLib:Init(config)
         rowLayout.FillDirection = Enum.FillDirection.Horizontal
         rowLayout.Parent = mainRow
         
-        local leftPanel = fr(mainRow, UDim2.new(0.5, -4, 0, 0), nil, C.HEADER, 0, 16)
+        local leftPanel = fr(mainRow, UDim2.new(0.5, -4, 0, 0), UDim2.new(0, 0, 0, 0), C.SEL, 0, 10)
         leftPanel.AutomaticSize = Enum.AutomaticSize.Y
         leftPanel.LayoutOrder = 1
         local leftV = Instance.new("UIListLayout")
         leftV.SortOrder = Enum.SortOrder.LayoutOrder
         leftV.Padding = UDim.new(0, 8)
         leftV.Parent = leftPanel
-        pad(leftPanel, 16, 16, 16, 16)
-        lbl(leftPanel, "ESP", UDim2.new(1, 0, 0, 0), nil, 18, C.TEXT, Enum.Font.GothamBold)
+        pad(leftPanel, 12, 12, 12, 12)
+        lbl(leftPanel, "ESP", UDim2.new(1, 0, 0, 0), nil, 14, C.TEXT, Enum.Font.GothamBold)
         
-        local rightPanel = fr(mainRow, UDim2.new(0.5, -4, 0, 0), nil, C.HEADER, 0, 16)
+        local rightPanel = fr(mainRow, UDim2.new(0.5, -4, 0, 0), UDim2.new(0.5, 4, 0, 0), C.SEL, 0, 10)
         rightPanel.AutomaticSize = Enum.AutomaticSize.Y
         rightPanel.LayoutOrder = 2
         local rightV = Instance.new("UIListLayout")
         rightV.SortOrder = Enum.SortOrder.LayoutOrder
         rightV.Padding = UDim.new(0, 8)
         rightV.Parent = rightPanel
-        pad(rightPanel, 16, 16, 16, 16)
-        lbl(rightPanel, "Crosshair", UDim2.new(1, 0, 0, 0), nil, 18, C.TEXT, Enum.Font.GothamBold)
+        pad(rightPanel, 12, 12, 12, 12)
+        lbl(rightPanel, "Crosshair", UDim2.new(1, 0, 0, 0), nil, 14, C.TEXT, Enum.Font.GothamBold)
         
         -- Store panels for API use
         tabPanels["Players"] = { leftPanel = leftPanel, rightPanel = rightPanel }
