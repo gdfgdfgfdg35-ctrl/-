@@ -44,6 +44,7 @@ function MenuLib:Init(config)
         keyboard = "rbxassetid://7734022107",
         fire = "rbxassetid://14502433595",
         protection = "rbxassetid://73332630842054",
+        skin = "rbxassetid://81837937089566",
     }
     
     local function normalizeIconId(id)
@@ -233,11 +234,14 @@ function MenuLib:Init(config)
     local espFilled = {}
     
     local function updateESP()
+        -- Always hide all ESP first, then show only if enabled
+        for player, box in pairs(espLines) do
+            for _, line in ipairs(box) do line.Visible = false end
+        end
+        for _, filled in pairs(espFilled) do filled.Visible = false end
+        
+        -- Early return if ESP disabled
         if not (_G._BoxESPEnabled or _G._FilledBoxESPEnabled) then
-            for _, box in pairs(espLines) do
-                for _, line in ipairs(box) do line.Visible = false end
-            end
-            for _, box in pairs(espFilled) do box.Visible = false end
             return
         end
         
@@ -263,6 +267,7 @@ function MenuLib:Init(config)
                             local width = height * 0.6
                             local x, y = headPos.X - width / 2, headPos.Y
                             
+                            -- Create ESP elements if they don't exist
                             if not espLines[player] then
                                 local box = {}
                                 for i = 1, 4 do
@@ -281,10 +286,11 @@ function MenuLib:Init(config)
                                 espFilled[player] = filled
                             end
                             
-                            local color = _G._ESPColour
+                            local color = _G._ESPColour or C.ACCENT
                             local box = espLines[player]
                             local filled = espFilled[player]
                             
+                            -- Update visibility based on settings
                             if _G._BoxESPEnabled then
                                 box[1].Size = UDim2.new(0, width, 0, 2)
                                 box[1].Position = UDim2.new(0, x, 0, y)
@@ -302,8 +308,6 @@ function MenuLib:Init(config)
                                 box[4].Position = UDim2.new(0, x + width - 2, 0, y)
                                 box[4].BackgroundColor3 = color
                                 box[4].Visible = true
-                            else
-                                for _, line in ipairs(box) do line.Visible = false end
                             end
                             
                             if _G._FilledBoxESPEnabled then
@@ -312,18 +316,14 @@ function MenuLib:Init(config)
                                 filled.BackgroundColor3 = color
                                 filled.BackgroundTransparency = 0.7
                                 filled.Visible = true
-                            else
-                                filled.Visible = false
                             end
-                        else
-                            if espLines[player] then for _, line in ipairs(espLines[player]) do line.Visible = false end end
-                            if espFilled[player] then espFilled[player].Visible = false end
                         end
                     end
                 end
             end
         end
         
+        -- Cleanup disconnected players
         for player, _ in pairs(espLines) do
             if not player.Parent then
                 for _, line in ipairs(espLines[player]) do line:Destroy() end
@@ -791,7 +791,13 @@ function MenuLib:Init(config)
         local stripe = fr(row, UDim2.new(0, 3, 1, -8), UDim2.new(0, 0, 0, 4), C.ACCENT, 0, 0)
         gradV(stripe, C.ACCENT, C.ACCENT2)
         lbl(row, labelText, UDim2.new(1, -70, 1, 0), UDim2.new(0, 14, 0, 0), 12, C.TEXT)
-        if hasToggle then return mkToggle(row, -56, initValue or false, callback) end
+        if hasToggle then 
+            local toggle = mkToggle(row, -56, initValue or false, callback)
+            -- Store reference for config loading
+            if not _G._MenuToggles then _G._MenuToggles = {} end
+            _G._MenuToggles[labelText] = toggle
+            return toggle
+        end
         return row
     end
     
@@ -1402,7 +1408,11 @@ function MenuLib:Init(config)
         local stripe = fr(row, UDim2.new(0, 3, 1, -8), UDim2.new(0, 0, 0, 4), C.ACCENT, 0, 0)
         gradV(stripe, C.ACCENT, C.ACCENT2)
         lbl(row, label, UDim2.new(1, -70, 1, 0), UDim2.new(0, 14, 0, 0), 12, C.TEXT)
-        return mkToggle(row, -56, default or false, callback)
+        local toggle = mkToggle(row, -56, default or false, callback)
+        -- Store reference for config loading
+        if not _G._MenuToggles then _G._MenuToggles = {} end
+        _G._MenuToggles[label] = toggle
+        return toggle
     end
     
     API.AddButton = function(tabName, label, callback)
@@ -1868,6 +1878,62 @@ function MenuLib:Init(config)
         return addKeybindOption(tabName, label, key, onChange)
     end
     
+    API.AddButton = function(tabName, label, callback)
+        local scrollFrame = tabContents[tabName]
+        if not scrollFrame then return nil end
+        
+        local card = scrollFrame:FindFirstChildWhichIsA("Frame")
+        if not card then
+            card = fr(scrollFrame, UDim2.new(1, -4, 0, 0), nil, C.HEADER, 0, 16)
+            card.AutomaticSize = Enum.AutomaticSize.Y
+            local v = Instance.new("UIListLayout")
+            v.SortOrder = Enum.SortOrder.LayoutOrder
+            v.Padding = UDim.new(0, 8)
+            v.Parent = card
+            pad(card, 16, 16, 16, 16)
+        end
+        
+        local row = fr(card, UDim2.new(1, 0, 0, 44), nil, C.SEL, 0, 10)
+        row.LayoutOrder = #card:GetChildren()
+        local stripe = fr(row, UDim2.new(0, 3, 1, -8), UDim2.new(0, 0, 0, 4), C.ACCENT, 0, 0)
+        gradV(stripe, C.ACCENT, C.ACCENT2)
+        
+        lbl(row, label, UDim2.new(1, -130, 1, 0), UDim2.new(0, 14, 0, 0), 12, C.TEXT)
+        
+        local btn = Instance.new("TextButton")
+        btn.Size = UDim2.new(0, 110, 0, 28)
+        btn.Position = UDim2.new(1, -118, 0.5, -14)
+        btn.BackgroundColor3 = C.ACCENT
+        btn.Text = "Execute"
+        btn.TextColor3 = C.TEXT
+        btn.TextSize = 11
+        btn.Font = Enum.Font.GothamBold
+        btn.Parent = row
+        btn.AutoButtonColor = false
+        local btnCorner = Instance.new("UICorner")
+        btnCorner.CornerRadius = UDim.new(0, 6)
+        btnCorner.Parent = btn
+        local btnGrad = Instance.new("UIGradient")
+        btnGrad.Color = ColorSequence.new({ ColorSequenceKeypoint.new(0, C.ACCENT), ColorSequenceKeypoint.new(1, C.ACCENT2) })
+        btnGrad.Rotation = 90
+        btnGrad.Parent = btn
+        
+        btn.MouseEnter:Connect(function()
+            tw(btn, { BackgroundColor3 = Color3.fromRGB(140, 50, 255) }, 0.12)
+        end)
+        btn.MouseLeave:Connect(function()
+            tw(btn, { BackgroundColor3 = C.ACCENT }, 0.12)
+        end)
+        
+        btn.MouseButton1Click:Connect(function()
+            if callback then
+                pcall(callback)
+            end
+        end)
+        
+        return { Click = function() pcall(callback) end }
+    end
+    
     API.SetESPColor = function(color)
         _G._ESPColour = color
     end
@@ -1952,6 +2018,27 @@ function MenuLib:Init(config)
         v.Parent = card
         pad(card, 16, 16, 16, 16)
         lbl(card, "World", UDim2.new(1, 0, 0, 0), nil, 18, C.TEXT, Enum.Font.GothamBold)
+    end)
+    
+    API.AddTab("Skin Changer", ICON.skin, function(f)
+        local scroll = Instance.new("ScrollingFrame")
+        scroll.Size = UDim2.new(1, 0, 1, 0)
+        scroll.BackgroundTransparency = 1
+        scroll.BorderSizePixel = 0
+        scroll.ScrollBarThickness = 0
+        scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+        scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+        scroll.Parent = f
+        pad(scroll, 8, 10, 8, 8)
+        
+        local card = fr(scroll, UDim2.new(1, -4, 0, 0), nil, C.HEADER, 0, 16)
+        card.AutomaticSize = Enum.AutomaticSize.Y
+        local v = Instance.new("UIListLayout")
+        v.SortOrder = Enum.SortOrder.LayoutOrder
+        v.Padding = UDim.new(0, 8)
+        v.Parent = card
+        pad(card, 16, 16, 16, 16)
+        lbl(card, "Skin Changer", UDim2.new(1, 0, 0, 0), nil, 18, C.TEXT, Enum.Font.GothamBold)
     end)
     
     addSection("MISC")
@@ -2055,8 +2142,7 @@ function MenuLib:Init(config)
         createBtn.Font = Enum.Font.GothamBold
         createBtn.AutoButtonColor = false
         createBtn.Parent = leftPanel
-        local createCorner = Instance.new("UICorner", createBtn)
-        createCorner.CornerRadius = UDim.new(0, 8)
+        Instance.new("UICorner", createBtn).CornerRadius = UDim.new(0, 8)
         local createGrad = Instance.new("UIGradient", createBtn)
         createGrad.Color = ColorSequence.new({ ColorSequenceKeypoint.new(0, C.ACCENT), ColorSequenceKeypoint.new(1, C.ACCENT2) })
         createGrad.Rotation = 90
@@ -2071,14 +2157,12 @@ function MenuLib:Init(config)
         loadBtn.Font = Enum.Font.GothamBold
         loadBtn.AutoButtonColor = false
         loadBtn.Parent = leftPanel
-        local loadCorner = Instance.new("UICorner", loadBtn)
-        loadCorner.CornerRadius = UDim.new(0, 8)
+        Instance.new("UICorner", loadBtn).CornerRadius = UDim.new(0, 8)
         local loadGrad = Instance.new("UIGradient", loadBtn)
         loadGrad.Color = ColorSequence.new({ ColorSequenceKeypoint.new(0, C.ACCENT), ColorSequenceKeypoint.new(1, C.ACCENT2) })
         loadGrad.Rotation = 90
         
-        local statusLbl = lbl(leftPanel, "", UDim2.new(1, -16, 0, 16), UDim2.new(0, 8, 0, 92), 10, C.GREEN)
-        statusLbl.TextXAlignment = Enum.TextXAlignment.Center
+        -- No status label - removed
         
         -- RIGHT PANEL: Config List
         local listTitle = lbl(rightPanel, "Saved Configs", UDim2.new(1, -16, 0, 20), UDim2.new(0, 10, 0, 8), 12, C.TEXT, Enum.Font.GothamBold)
@@ -2094,10 +2178,98 @@ function MenuLib:Init(config)
         configScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
         configScroll.Parent = rightPanel
         
-        local listLayout = Instance.new("UIListLayout")
-        listLayout.SortOrder = Enum.SortOrder.LayoutOrder
-        listLayout.Padding = UDim.new(0, 4)
-        listLayout.Parent = configScroll
+        -- FILE PERSISTENCE FOR CONFIGS
+        local configFolder = "MenuLibConfigs"
+        local configFile = configFolder .. "/" .. tostring(lp.UserId) .. "_configs.json"
+        
+        -- Load saved configs from file
+        local function LoadConfigsFromFile()
+            if isfile and isfile(configFile) then
+                local success, content = pcall(function()
+                    return readfile(configFile)
+                end)
+                if success and content then
+                    local success2, decoded = pcall(function()
+                        return HttpService:JSONDecode(content)
+                    end)
+                    if success2 and decoded then
+                        _G._ConfigList = decoded
+                        return true
+                    end
+                end
+            end
+            _G._ConfigList = _G._ConfigList or {}
+            return false
+        end
+        
+        -- Save configs to file
+        local function SaveConfigsToFile()
+            if not _G._ConfigList then return end
+            if makefolder and not isfolder(configFolder) then
+                pcall(function() makefolder(configFolder) end)
+            end
+            local success, encoded = pcall(function()
+                return HttpService:JSONEncode(_G._ConfigList)
+            end)
+            if success and encoded and writefile then
+                pcall(function()
+                    writefile(configFile, encoded)
+                end)
+            end
+        end
+        
+        -- Initial load
+        LoadConfigsFromFile()
+        
+        -- Bottom action buttons (Rename/Delete) - always parented, slides in/out
+        local bottomActions = fr(rightPanel, UDim2.new(1, -16, 0, 32), UDim2.new(0, 8, 1, -36), C.SEL, 0, 8)
+        bottomActions.ClipsDescendants = true
+        
+        -- Start hidden (off-screen at bottom)
+        bottomActions.Position = UDim2.new(0, 8, 1, 0)
+        
+        local renameBtnBottom = Instance.new("TextButton")
+        renameBtnBottom.Size = UDim2.new(0.48, 0, 0, 28)
+        renameBtnBottom.Position = UDim2.new(0, 0, 0, 0)
+        renameBtnBottom.BackgroundColor3 = C.YELLOW
+        renameBtnBottom.Text = "Rename"
+        renameBtnBottom.TextColor3 = C.TEXT
+        renameBtnBottom.TextSize = 11
+        renameBtnBottom.Font = Enum.Font.GothamBold
+        renameBtnBottom.AutoButtonColor = false
+        renameBtnBottom.Parent = bottomActions
+        Instance.new("UICorner", renameBtnBottom).CornerRadius = UDim.new(0, 6)
+        local renGradB = Instance.new("UIGradient", renameBtnBottom)
+        renGradB.Color = ColorSequence.new({ ColorSequenceKeypoint.new(0, C.YELLOW), ColorSequenceKeypoint.new(1, Color3.fromRGB(230, 160, 20)) })
+        renGradB.Rotation = 90
+        
+        local delBtnBottom = Instance.new("TextButton")
+        delBtnBottom.Size = UDim2.new(0.48, 0, 0, 28)
+        delBtnBottom.Position = UDim2.new(0.52, 0, 0, 0)
+        delBtnBottom.BackgroundColor3 = C.RED
+        delBtnBottom.Text = "Delete"
+        delBtnBottom.TextColor3 = C.TEXT
+        delBtnBottom.TextSize = 11
+        delBtnBottom.Font = Enum.Font.GothamBold
+        delBtnBottom.AutoButtonColor = false
+        delBtnBottom.Parent = bottomActions
+        Instance.new("UICorner", delBtnBottom).CornerRadius = UDim.new(0, 6)
+        local delGradB = Instance.new("UIGradient", delBtnBottom)
+        delGradB.Color = ColorSequence.new({ ColorSequenceKeypoint.new(0, C.RED), ColorSequenceKeypoint.new(1, Color3.fromRGB(190, 45, 45)) })
+        delGradB.Rotation = 90
+        
+        -- Hide scroll when no selection, adjust size when selected
+        local function updateBottomActions()
+            if selectedConfig then
+                configScroll.Size = UDim2.new(1, -16, 1, -72)
+                -- Slide up from bottom
+                tw(bottomActions, {Position = UDim2.new(0, 8, 1, -36)}, 0.25, Enum.EasingStyle.Back)
+            else
+                configScroll.Size = UDim2.new(1, -16, 1, -32)
+                -- Slide down off-screen
+                tw(bottomActions, {Position = UDim2.new(0, 8, 1, 0)}, 0.2)
+            end
+        end
         
         local selectedConfig = nil
         local selectedRow = nil
@@ -2188,116 +2360,80 @@ function MenuLib:Init(config)
             end
             selectedConfig = nil
             selectedRow = nil
-            statusLbl.Text = ""
             
             -- Ensure config list exists
             if not _G._ConfigList then
                 _G._ConfigList = {}
             end
             
-            -- Debug: show if empty
-            local count = 0
-            for _ in pairs(_G._ConfigList) do count = count + 1 end
-            if count == 0 then
-                local emptyLbl = lbl(configScroll, "No configs saved", UDim2.new(1, 0, 0, 30), UDim2.new(0, 0, 0, 5), 11, C.DIM)
-                emptyLbl.TextXAlignment = Enum.TextXAlignment.Center
-            end
+            -- Reset selection
+            selectedConfig = nil
+            selectedRow = nil
             
             for name, data in pairs(_G._ConfigList) do
-                local row = fr(configScroll, UDim2.new(1, 0, 0, 36), nil, C.DARK, 0, 6)
+                local row = fr(configScroll, UDim2.new(1, 0, 0, 32), nil, C.DARK, 1, 6)
                 row.LayoutOrder = #configScroll:GetChildren()
                 
                 -- Config name label
-                local nameLbl = lbl(row, name, UDim2.new(1, -12, 1, 0), UDim2.new(0, 12, 0, 0), 12, C.TEXT, Enum.Font.GothamBold)
+                local nameLbl = lbl(row, name, UDim2.new(1, -16, 1, 0), UDim2.new(0, 12, 0, 0), 12, C.TEXT, Enum.Font.GothamBold)
                 nameLbl.TextTruncate = Enum.TextTruncate.AtEnd
-                nameLbl.ZIndex = 2
                 
-                -- Click to select (invisible button over whole row)
+                -- Selection indicator (left stripe)
+                local stripe = fr(row, UDim2.new(0, 4, 0.6, 0), UDim2.new(0, 0, 0.2, 0), C.ACCENT, 1, 2)
+                gradV(stripe, C.ACCENT, C.ACCENT2)
+                
+                -- Click to select
                 local clickBtn = Instance.new("TextButton")
                 clickBtn.Size = UDim2.new(1, 0, 1, 0)
                 clickBtn.BackgroundTransparency = 1
                 clickBtn.Text = ""
-                clickBtn.ZIndex = 3
                 clickBtn.Parent = row
                 
-                -- Selection indicator (left stripe)
-                local stripe = fr(row, UDim2.new(0, 4, 0.7, 0), UDim2.new(0, 0, 0.15, 0), C.ACCENT, 1, 2)
-                gradV(stripe, C.ACCENT, C.ACCENT2)
-                
-                -- Action buttons container (slides in from right)
-                local actionsFrame = fr(row, UDim2.new(0, 0, 1, -4), UDim2.new(1, 0, 0, 2), C.SEL, 0, 0)
-                actionsFrame.ClipsDescendants = true
-                
-                local renameBtn = Instance.new("TextButton")
-                renameBtn.Size = UDim2.new(0, 50, 0, 28)
-                renameBtn.Position = UDim2.new(0, 4, 0.5, -14)
-                renameBtn.BackgroundColor3 = C.YELLOW
-                renameBtn.Text = "Rename"
-                renameBtn.TextColor3 = C.TEXT
-                renameBtn.TextSize = 10
-                renameBtn.Font = Enum.Font.GothamBold
-                renameBtn.AutoButtonColor = false
-                renameBtn.Parent = actionsFrame
-                Instance.new("UICorner", renameBtn).CornerRadius = UDim.new(0, 5)
-                local renGrad = Instance.new("UIGradient", renameBtn)
-                renGrad.Color = ColorSequence.new({ ColorSequenceKeypoint.new(0, C.YELLOW), ColorSequenceKeypoint.new(1, Color3.fromRGB(230, 160, 20)) })
-                renGrad.Rotation = 90
-                
-                local delBtn = Instance.new("TextButton")
-                delBtn.Size = UDim2.new(0, 50, 0, 28)
-                delBtn.Position = UDim2.new(0, 58, 0.5, -14)
-                delBtn.BackgroundColor3 = C.RED
-                delBtn.Text = "Delete"
-                delBtn.TextColor3 = C.TEXT
-                delBtn.TextSize = 10
-                delBtn.Font = Enum.Font.GothamBold
-                delBtn.AutoButtonColor = false
-                delBtn.Parent = actionsFrame
-                Instance.new("UICorner", delBtn).CornerRadius = UDim.new(0, 5)
-                local delGrad = Instance.new("UIGradient", delBtn)
-                delGrad.Color = ColorSequence.new({ ColorSequenceKeypoint.new(0, C.RED), ColorSequenceKeypoint.new(1, Color3.fromRGB(190, 45, 45)) })
-                delGrad.Rotation = 90
-                
-                -- Selection logic
+                -- Selection logic with pop animation
                 local function selectThis()
                     selectedConfig = name
                     selectedRow = row
-                    statusLbl.Text = "Selected: " .. name
-                    statusLbl.TextColor3 = C.ACCENT
                     
-                    -- Hide all other action frames, reset other rows
+                    -- Reset all rows
                     for _, child in ipairs(configScroll:GetChildren()) do
-                        if child:IsA("Frame") and child ~= row then
-                            tw(child, {BackgroundColor3 = C.DARK}, 0.15)
-                            for _, c in ipairs(child:GetChildren()) do
-                                if c:IsA("Frame") and c.Position.X.Scale == 1 then
-                                    tw(c, {Size = UDim2.new(0, 0, 1, -4)}, 0.2)
-                                end
+                        if child:IsA("Frame") then
+                            tw(child, {BackgroundTransparency = 1}, 0.15)
+                            local sInd = child:FindFirstChildOfClass("Frame")
+                            if sInd then
+                                tw(sInd, {BackgroundTransparency = 1}, 0.15)
                             end
                         end
                     end
                     
-                    -- Animate this row selection
-                    tw(row, {BackgroundColor3 = Color3.fromRGB(50, 30, 80)}, 0.2)
+                    -- Pop animation - expand then settle
+                    row.Size = UDim2.new(1, 0, 0, 38)
+                    tw(row, {Size = UDim2.new(1, 0, 0, 32)}, 0.2, Enum.EasingStyle.Back)
+                    
+                    -- Highlight this row with purple background
+                    tw(row, {BackgroundColor3 = C.ACCENT, BackgroundTransparency = 0.3}, 0.2)
                     tw(stripe, {BackgroundTransparency = 0}, 0.25)
-                    tw(actionsFrame, {Size = UDim2.new(0, 110, 1, -4)}, 0.25, Enum.EasingStyle.Back)
+                    
+                    -- Show bottom buttons
+                    updateBottomActions()
                 end
                 
                 clickBtn.MouseButton1Click:Connect(selectThis)
                 
-                renameBtn.MouseButton1Click:Connect(function()
-                    renameOldName = name
-                    showPopup("rename", "Rename Config", name)
+                -- Bottom button connections
+                renameBtnBottom.MouseButton1Click:Connect(function()
+                    if selectedConfig == name then
+                        renameOldName = name
+                        showPopup("rename", "Rename Config", name)
+                    end
                 end)
                 
-                delBtn.MouseButton1Click:Connect(function()
-                    if _G._ConfigList then
+                delBtnBottom.MouseButton1Click:Connect(function()
+                    if selectedConfig == name and _G._ConfigList then
                         _G._ConfigList[name] = nil
-                        if selectedConfig == name then
-                            selectedConfig = nil
-                            selectedRow = nil
-                            statusLbl.Text = ""
-                        end
+                        SaveConfigsToFile() -- SAVE TO FILE
+                        selectedConfig = nil
+                        selectedRow = nil
+                        updateBottomActions()
                         tw(row, {Size = UDim2.new(1, 0, 0, 0)}, 0.15)
                         task.delay(0.15, function() row:Destroy() end)
                     end
@@ -2311,7 +2447,7 @@ function MenuLib:Init(config)
                 end)
                 clickBtn.MouseLeave:Connect(function()
                     if selectedConfig ~= name then
-                        tw(row, {BackgroundColor3 = C.DARK}, 0.1)
+                        tw(row, {BackgroundTransparency = 1}, 0.1)
                     end
                 end)
             end
@@ -2324,8 +2460,6 @@ function MenuLib:Init(config)
         popupConfirm.MouseButton1Click:Connect(function()
             local name = popupBox.Text:gsub("^%s+", ""):gsub("%s+$", "")
             if name == "" then
-                statusLbl.Text = "Name cannot be empty!"
-                statusLbl.TextColor3 = C.RED
                 hidePopup()
                 return
             end
@@ -2334,13 +2468,11 @@ function MenuLib:Init(config)
             
             if popupMode == "create" then
                 if _G._ConfigList[name] then
-                    statusLbl.Text = "Config already exists!"
-                    statusLbl.TextColor3 = C.RED
+                    -- Config already exists, do nothing silently
                 else
                     if _G.GetConfigData then
                         _G._ConfigList[name] = _G.GetConfigData()
-                        statusLbl.Text = "Created: " .. name
-                        statusLbl.TextColor3 = C.GREEN
+                        SaveConfigsToFile() -- SAVE TO FILE
                         RefreshConfigList()
                     end
                 end
@@ -2348,13 +2480,11 @@ function MenuLib:Init(config)
                 if name == renameOldName then
                     -- Same name, do nothing
                 elseif _G._ConfigList[name] then
-                    statusLbl.Text = "Name already exists!"
-                    statusLbl.TextColor3 = C.RED
+                    -- Name already exists, do nothing
                 else
                     _G._ConfigList[name] = _G._ConfigList[renameOldName]
                     _G._ConfigList[renameOldName] = nil
-                    statusLbl.Text = "Renamed to: " .. name
-                    statusLbl.TextColor3 = C.GREEN
+                    SaveConfigsToFile() -- SAVE TO FILE
                     RefreshConfigList()
                 end
             end
@@ -2367,30 +2497,61 @@ function MenuLib:Init(config)
             if selectedConfig and _G._ConfigList[selectedConfig] then
                 if _G.LoadConfigData then
                     _G.LoadConfigData(_G._ConfigList[selectedConfig])
-                    statusLbl.Text = "Loaded: " .. selectedConfig
-                    statusLbl.TextColor3 = C.GREEN
                     _G._CurrentConfig = selectedConfig
                 end
-            else
-                statusLbl.Text = "No config selected!"
-                statusLbl.TextColor3 = C.RED
             end
         end)
         
-        -- Ensure config functions exist
+        -- Store all toggle/slider references for config loading
+        _G._MenuToggles = {}
+        _G._MenuSliders = {}
+        _G._MenuDropdowns = {}
+        
+        -- Ensure config functions exist - MUST be defined BEFORE any UI creation
         if not _G.GetConfigData then
             _G.GetConfigData = function()
                 local data = {}
-                -- Collect global settings
+                -- Collect ALL global settings
                 data._MenuSettings = {
+                    -- Menu settings
                     BlurEnabled = _G._BlurEnabled,
                     LightingDimEnabled = _G._LightingDimEnabled,
                     MenuToggleKey = tostring(_G._MenuToggleKey),
                     UnloadKey = tostring(_G._UnloadKey),
                     SmoothAnimations = _G._SmoothAnimations,
+                    -- ESP settings
                     BoxESPEnabled = _G._BoxESPEnabled,
                     FilledBoxESPEnabled = _G._FilledBoxESPEnabled,
-                    ESPColour = {r = _G._ESPColour.R, g = _G._ESPColour.G, b = _G._ESPColour.B}
+                    ESPColour = _G._ESPColour and {r = _G._ESPColour.R, g = _G._ESPColour.G, b = _G._ESPColour.B} or nil,
+                    -- Aimbot settings
+                    AimbotEnabled = _G._AimbotEnabled,
+                    ShowFOVCircle = _G._ShowFOVCircle,
+                    AimbotTargetMode = _G._AimbotTargetMode,
+                    AimbotFOV = _G._AimbotFOV,
+                    AimbotMaxDistance = _G._AimbotMaxDistance,
+                    AimbotSmoothness = _G._AimbotSmoothness,
+                    TeamCheck = _G._TeamCheck,
+                    AimKeybind = _G._AimKeybind and tostring(_G._AimKeybind.Name) or nil,
+                    -- More ESP settings
+                    NameESPEnabled = _G._NameESPEnabled,
+                    DistanceESPEnabled = _G._DistanceESPEnabled,
+                    HealthESPEnabled = _G._HealthESPEnabled,
+                    OutlineESPEnabled = _G._OutlineESPEnabled,
+                    ChamsEnabled = _G._ChamsEnabled,
+                    MaxESPDistance = _G._MaxESPDistance,
+                    -- World settings
+                    WorldModulationEnabled = _G._WorldModulationEnabled,
+                    ParticlesEnabled = _G._ParticlesEnabled,
+                    -- Protection settings
+                    AntiFlingEnabled = _G._AntiFlingEnabled,
+                    AntiKatanaEnabled = _G._AntiKatanaEnabled,
+                    -- HUD settings (from settings tab)
+                    ShowFPS = _G._ShowFPS,
+                    ShowPing = _G._ShowPing,
+                    ShowClock = _G._ShowClock,
+                    ShowWatermark = _G._ShowWatermark,
+                    CompactSidebar = _G._CompactSidebar,
+                    LowQualityMode = _G._LowQualityMode,
                 }
                 return data
             end
@@ -2399,17 +2560,51 @@ function MenuLib:Init(config)
         if not _G.LoadConfigData then
             _G.LoadConfigData = function(data)
                 if not data then return end
-                -- Load global settings
+                -- Load ALL global settings
                 if data._MenuSettings then
                     local s = data._MenuSettings
+                    -- Menu settings
                     _G._BlurEnabled = s.BlurEnabled
                     _G._LightingDimEnabled = s.LightingDimEnabled
                     _G._SmoothAnimations = s.SmoothAnimations
+                    if s.MenuToggleKey then pcall(function() _G._MenuToggleKey = Enum.KeyCode[s.MenuToggleKey] end) end
+                    if s.UnloadKey then pcall(function() _G._UnloadKey = Enum.KeyCode[s.UnloadKey] end) end
+                    -- ESP settings
                     _G._BoxESPEnabled = s.BoxESPEnabled
                     _G._FilledBoxESPEnabled = s.FilledBoxESPEnabled
-                    if s.ESPColour then
-                        _G._ESPColour = Color3.new(s.ESPColour.r, s.ESPColour.g, s.ESPColour.b)
-                    end
+                    if s.ESPColour then pcall(function() _G._ESPColour = Color3.new(s.ESPColour.r, s.ESPColour.g, s.ESPColour.b) end) end
+                    -- Aimbot settings
+                    _G._AimbotEnabled = s.AimbotEnabled
+                    _G._ShowFOVCircle = s.ShowFOVCircle
+                    _G._AimbotTargetMode = s.AimbotTargetMode
+                    _G._AimbotFOV = s.AimbotFOV
+                    _G._AimbotMaxDistance = s.AimbotMaxDistance
+                    _G._AimbotSmoothness = s.AimbotSmoothness
+                    _G._TeamCheck = s.TeamCheck
+                    if s.AimKeybind then pcall(function() _G._AimKeybind = Enum.KeyCode[s.AimKeybind] end) end
+                    -- More ESP
+                    _G._NameESPEnabled = s.NameESPEnabled
+                    _G._DistanceESPEnabled = s.DistanceESPEnabled
+                    _G._HealthESPEnabled = s.HealthESPEnabled
+                    _G._OutlineESPEnabled = s.OutlineESPEnabled
+                    _G._ChamsEnabled = s.ChamsEnabled
+                    _G._MaxESPDistance = s.MaxESPDistance
+                    -- World
+                    _G._WorldModulationEnabled = s.WorldModulationEnabled
+                    _G._ParticlesEnabled = s.ParticlesEnabled
+                    -- Protections
+                    _G._AntiFlingEnabled = s.AntiFlingEnabled
+                    _G._AntiKatanaEnabled = s.AntiKatanaEnabled
+                    -- HUD
+                    _G._ShowFPS = s.ShowFPS
+                    _G._ShowPing = s.ShowPing
+                    _G._ShowClock = s.ShowClock
+                    _G._ShowWatermark = s.ShowWatermark
+                    _G._CompactSidebar = s.CompactSidebar
+                    _G._LowQualityMode = s.LowQualityMode
+                    
+                    -- Trigger config loaded event for external scripts
+                    _G._ConfigLoaded = tick()
                 end
             end
         end
