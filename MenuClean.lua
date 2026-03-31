@@ -681,6 +681,10 @@ function MenuLib:Init(config)
         return entry, tf
     end
 
+    -- Forward-declared so setTabLayout can call it once settings elements exist
+    local applySettingsLayout = nil
+    local compactEnabled = false
+    
     -- Switch between vertical sidebar and horizontal top bar layout
     local function setTabLayout(horizontal, animate)
         tabBarIsHorizontal = horizontal
@@ -710,11 +714,13 @@ function MenuLib:Init(config)
                 Position = UDim2.new(0, 2, 1, -32)
             }, t, ease)
         else
-            -- Show sidebar, hide top bar
+            -- Show sidebar, hide top bar (respect compact state)
+            local targetW = compactEnabled and 52 or 160
+            SIDE_W = targetW
             sidebar.Visible = true
             sidebarDivider.Visible = true
-            tw(sidebar, { Size = UDim2.new(0, SIDE_W, 1, -4) }, t, ease)
-            tw(sidebarDivider, { BackgroundTransparency = 0, Position = UDim2.new(0, SIDE_W, 0, 4) }, t, ease)
+            tw(sidebar, { Size = UDim2.new(0, targetW, 1, -4) }, t, ease)
+            tw(sidebarDivider, { BackgroundTransparency = 0, Position = UDim2.new(0, targetW, 0, 4) }, t, ease)
             tw(topTabBar, { BackgroundTransparency = 1 }, t, ease)
             tw(topTabDivider, { BackgroundTransparency = 1 }, t, ease)
             task.delay(t, function()
@@ -722,14 +728,16 @@ function MenuLib:Init(config)
                 topTabDivider.Visible = false
             end)
             tw(contentArea, {
-                Size = UDim2.new(1, -SIDE_W - 2, 1, -32),
-                Position = UDim2.new(0, SIDE_W + 2, 0, 4)
+                Size = UDim2.new(1, -targetW - 2, 1, -32),
+                Position = UDim2.new(0, targetW + 2, 0, 4)
             }, t, ease)
             tw(statusBar, {
-                Size = UDim2.new(1, -SIDE_W - 2, 0, 28),
-                Position = UDim2.new(0, SIDE_W + 2, 1, -32)
+                Size = UDim2.new(1, -targetW - 2, 0, 28),
+                Position = UDim2.new(0, targetW + 2, 1, -32)
             }, t, ease)
         end
+        
+        if applySettingsLayout then applySettingsLayout(horizontal, t, ease) end
     end
     
     -- Settings Panel (sibling of win, not child)
@@ -754,8 +762,9 @@ function MenuLib:Init(config)
     
     local settingsLeft = fr(settingsBodyShell, UDim2.new(0, SIDE_W, 1, -4), UDim2.new(0, 0, 0, 4), C.SIDEBAR, 0, 14)
     settingsLeft.ZIndex = 2
+    settingsLeft.ClipsDescendants = true
     
-    fr(settingsBodyShell, UDim2.new(0, 1, 1, -4), UDim2.new(0, SIDE_W, 0, 4), C.DIV)
+    local settingsDivider = fr(settingsBodyShell, UDim2.new(0, 1, 1, -4), UDim2.new(0, SIDE_W, 0, 4), C.DIV)
     
     local catItems = { "General", "Appearance", "Performance", "Keybinds" }
     local catKeys = { ICON.general, ICON.appearance, ICON.performance, ICON.keyboard }
@@ -861,8 +870,8 @@ function MenuLib:Init(config)
     sRight.ZIndex = 2
     
     local function setSidebarWidth(w, animate)
-        if tabBarIsHorizontal then return end -- don't resize sidebar in horizontal mode
         SIDE_W = w
+        if tabBarIsHorizontal then return end
         local cw = UDim2.new(1, -SIDE_W - 2, 1, -32)
         local cp = UDim2.new(0, SIDE_W + 2, 0, 4)
         local sw = UDim2.new(0, SIDE_W, 1, -4)
@@ -929,6 +938,111 @@ function MenuLib:Init(config)
     local titleRow = fr(sRight, UDim2.new(1, 0, 0, 40), nil, C.HEADER, 0, 0)
     lbl(titleRow, "Settings", UDim2.new(1, -16, 1, 0), UDim2.new(0, 14, 0, 0), 16, C.TEXT, Enum.Font.GothamBold)
     
+    local SCAT_BAR_H = 36
+    local settingsCatBar = fr(sRight, UDim2.new(1, 0, 0, SCAT_BAR_H), UDim2.new(0, 0, 0, 40), C.SIDEBAR, 0, 0)
+    settingsCatBar.Visible = false
+    settingsCatBar.ClipsDescendants = true
+    local scatBarScroll = Instance.new("ScrollingFrame")
+    scatBarScroll.Size = UDim2.new(1, 0, 1, 0)
+    scatBarScroll.BackgroundTransparency = 1
+    scatBarScroll.BorderSizePixel = 0
+    scatBarScroll.ScrollBarThickness = 0
+    scatBarScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+    scatBarScroll.AutomaticCanvasSize = Enum.AutomaticSize.X
+    scatBarScroll.ScrollingDirection = Enum.ScrollingDirection.X
+    scatBarScroll.Parent = settingsCatBar
+    pad(scatBarScroll, 6, 6, 4, 4)
+    local scatBarLayout = Instance.new("UIListLayout")
+    scatBarLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    scatBarLayout.FillDirection = Enum.FillDirection.Horizontal
+    scatBarLayout.Padding = UDim.new(0, 4)
+    scatBarLayout.Parent = scatBarScroll
+    
+    local hCatBtns = {}
+    for i, cat in ipairs(catItems) do
+        local hcBtn = Instance.new("TextButton")
+        hcBtn.Size = UDim2.new(0, math.max(#cat * 7 + 36, 70), 1, -8)
+        hcBtn.BackgroundTransparency = 1
+        hcBtn.Text = ""
+        hcBtn.LayoutOrder = i
+        hcBtn.Parent = scatBarScroll
+        Instance.new("UICorner").Parent = hcBtn
+        local hcBg = fr(hcBtn, UDim2.new(1, 0, 1, 0), nil, C.SEL, 1, 10)
+        local hcLine = fr(hcBtn, UDim2.new(0.5, 0, 0, 0), UDim2.new(0.25, 0, 1, -3), C.ACCENT, 1, 2)
+        gradV(hcLine, C.ACCENT2, C.ACCENT)
+        local hcIco = Instance.new("ImageLabel")
+        hcIco.Size = UDim2.new(0, 16, 0, 16)
+        hcIco.Position = UDim2.new(0, 6, 0.5, -8)
+        hcIco.BackgroundTransparency = 1
+        hcIco.Image = normalizeIconId(catKeys[i]) or ""
+        hcIco.ScaleType = Enum.ScaleType.Fit
+        hcIco.ImageColor3 = C.DIM
+        hcIco.Parent = hcBtn
+        local hcLbl = lbl(hcBtn, cat, UDim2.new(1, -28, 1, 0), UDim2.new(0, 26, 0, 0), 11, C.DIM, Enum.Font.GothamBold)
+        hCatBtns[i] = { btn = hcBtn, bg = hcBg, line = hcLine, ico = hcIco, lbl = hcLbl }
+    end
+    
+    local function updateHCatVisuals()
+        for j, hc in ipairs(hCatBtns) do
+            if j == activeSettingTab then
+                tw(hc.bg, { BackgroundTransparency = 0 }, 0.25)
+                tw(hc.line, { BackgroundTransparency = 0, Size = UDim2.new(0.5, 0, 0, 3) }, 0.25)
+                tw(hc.ico, { ImageColor3 = C.TEXT }, 0.2)
+                tw(hc.lbl, { TextColor3 = C.TEXT }, 0.2)
+            else
+                tw(hc.bg, { BackgroundTransparency = 1 }, 0.2)
+                tw(hc.line, { BackgroundTransparency = 1, Size = UDim2.new(0.5, 0, 0, 0) }, 0.15)
+                tw(hc.ico, { ImageColor3 = C.DIM }, 0.15)
+                tw(hc.lbl, { TextColor3 = C.DIM }, 0.15)
+            end
+        end
+    end
+    
+    for i, hc in ipairs(hCatBtns) do
+        hc.btn.MouseEnter:Connect(function()
+            if activeSettingTab ~= i then tw(hc.bg, { BackgroundTransparency = 0.5 }, 0.12) end
+        end)
+        hc.btn.MouseLeave:Connect(function()
+            if activeSettingTab ~= i then tw(hc.bg, { BackgroundTransparency = 1 }, 0.12) end
+        end)
+        hc.btn.MouseButton1Click:Connect(function()
+            if activeSettingTab ~= i then
+                local oldContent = settingsTabContents[activeSettingTab]
+                local newContent = settingsTabContents[i]
+                local oldIdx = activeSettingTab
+                activeSettingTab = i
+                
+                local function updateTabVisuals(idx, isActive)
+                    local btn = catBtns[idx]
+                    if not btn then return end
+                    local isCompact = (SIDE_W <= 100)
+                    if isActive then
+                        tw(btn.bg, { BackgroundTransparency = 0 }, 0.25)
+                        tw(btn.line, { BackgroundTransparency = isCompact and 1 or 0, Size = UDim2.new(0, 4, 0.5, 0) }, 0.25)
+                        tw(btn.lbl, { TextColor3 = C.TEXT }, 0.2)
+                        tw(btn.icon, { ImageColor3 = C.TEXT }, 0.2)
+                    else
+                        tw(btn.bg, { BackgroundTransparency = 1 }, 0.2)
+                        tw(btn.line, { BackgroundTransparency = 1, Size = UDim2.new(0, 4, 0, 0) }, 0.15)
+                        tw(btn.lbl, { TextColor3 = C.DIM }, 0.15)
+                        tw(btn.icon, { ImageColor3 = C.DIM }, 0.15)
+                    end
+                end
+                updateTabVisuals(oldIdx, false)
+                updateTabVisuals(i, true)
+                updateHCatVisuals()
+                
+                if oldContent then
+                    tw(oldContent, { Position = UDim2.new(0, -15, 0, 0) }, 0.12)
+                    oldContent.Visible = false
+                end
+                newContent.Visible = true
+                newContent.Position = UDim2.new(0, 15, 0, 0)
+                tw(newContent, { Position = UDim2.new(0, 0, 0, 0) }, 0.15)
+            end
+        end)
+    end
+    
     local sHolder = fr(sRight, UDim2.new(1, 0, 1, -46), UDim2.new(0, 0, 0, 40), C.CONTENT, 1, 0)
     
     for i = 1, 4 do
@@ -949,6 +1063,39 @@ function MenuLib:Init(config)
         sLayout.Parent = sScroll
         table.insert(settingsTabContents, sScroll)
         settingsTabs[catItems[i]] = sScroll
+    end
+    
+    applySettingsLayout = function(horizontal, t, ease)
+        if horizontal then
+            tw(settingsLeft, { Size = UDim2.new(0, 0, 1, -4) }, t, ease)
+            tw(settingsDivider, { BackgroundTransparency = 1, Position = UDim2.new(0, 0, 0, 4) }, t, ease)
+            task.delay(t, function()
+                settingsLeft.Visible = false
+                settingsDivider.Visible = false
+            end)
+            tw(sRight, {
+                Size = UDim2.new(1, -4, 1, -32),
+                Position = UDim2.new(0, 2, 0, 4)
+            }, t, ease)
+            settingsCatBar.Visible = true
+            settingsCatBar.BackgroundTransparency = 1
+            tw(settingsCatBar, { BackgroundTransparency = 0 }, t, ease)
+            tw(sHolder, { Size = UDim2.new(1, 0, 1, -46 - SCAT_BAR_H), Position = UDim2.new(0, 0, 0, 40 + SCAT_BAR_H) }, t, ease)
+            updateHCatVisuals()
+        else
+            local targetW = compactEnabled and 52 or 160
+            settingsLeft.Visible = true
+            settingsDivider.Visible = true
+            tw(settingsLeft, { Size = UDim2.new(0, targetW, 1, -4) }, t, ease)
+            tw(settingsDivider, { BackgroundTransparency = 0, Position = UDim2.new(0, targetW, 0, 4) }, t, ease)
+            tw(settingsCatBar, { BackgroundTransparency = 1 }, t, ease)
+            task.delay(t, function() settingsCatBar.Visible = false end)
+            tw(sRight, {
+                Size = UDim2.new(1, -targetW - 2, 1, -32),
+                Position = UDim2.new(0, targetW + 2, 0, 4)
+            }, t, ease)
+            tw(sHolder, { Size = UDim2.new(1, 0, 1, -46), Position = UDim2.new(0, 0, 0, 40) }, t, ease)
+        end
     end
     
     local function addSettingOption(tabName, labelText, hasToggle, callback, initValue)
@@ -986,8 +1133,10 @@ function MenuLib:Init(config)
     addSettingOption("General", "Show watermark", true, function(on) hudBar.Visible = on end, true)
     
     addSettingOption("Appearance", "Compact sidebar", true, function(on)
-        if tabBarIsHorizontal then return end -- no compact in horizontal mode
-        setSidebarWidth(on and 52 or 160, true)
+        compactEnabled = on
+        if not tabBarIsHorizontal then
+            setSidebarWidth(on and 52 or 160, true)
+        end
     end, false)
 
     -- Tab layout dropdown in settings
@@ -2179,7 +2328,6 @@ function MenuLib:Init(config)
     end
     
     -- Add default tabs
-    addSection("COMBAT")
     local firstTab = API.AddTab("Aimbot", ICON.aim, function(f)
         local scroll = Instance.new("ScrollingFrame")
         scroll.Size = UDim2.new(1, 0, 1, 0)
@@ -2235,7 +2383,6 @@ function MenuLib:Init(config)
         tabPanels["Aimbot"] = { leftPanel = leftPanel, rightPanel = rightPanel }
     end)
     
-    addSection("VISUALS")
     API.AddTab("Players", ICON.players, function(f)
         local scroll = Instance.new("ScrollingFrame")
         scroll.Size = UDim2.new(1, 0, 1, 0)
@@ -2255,7 +2402,6 @@ function MenuLib:Init(config)
         v.Padding = UDim.new(0, 8)
         v.Parent = card
         pad(card, 16, 16, 16, 16)
-        lbl(card, "Players", UDim2.new(1, 0, 0, 0), nil, 18, C.TEXT, Enum.Font.GothamBold)
         
         -- Two panel layout (left: ESP, right: Crosshair)
         local mainRow = fr(card, UDim2.new(1, 0, 0, 0), nil, C.HEADER, 1, 0)
@@ -2275,7 +2421,6 @@ function MenuLib:Init(config)
         leftV.Padding = UDim.new(0, 8)
         leftV.Parent = leftPanel
         pad(leftPanel, 12, 12, 12, 12)
-        lbl(leftPanel, "ESP", UDim2.new(1, 0, 0, 0), nil, 14, C.TEXT, Enum.Font.GothamBold)
         
         local rightPanel = fr(mainRow, UDim2.new(0.5, -4, 0, 0), UDim2.new(0.5, 4, 0, 0), C.SEL, 0, 10)
         rightPanel.AutomaticSize = Enum.AutomaticSize.Y
@@ -2285,7 +2430,6 @@ function MenuLib:Init(config)
         rightV.Padding = UDim.new(0, 8)
         rightV.Parent = rightPanel
         pad(rightPanel, 12, 12, 12, 12)
-        lbl(rightPanel, "Crosshair", UDim2.new(1, 0, 0, 0), nil, 14, C.TEXT, Enum.Font.GothamBold)
         
         -- Store panels for API use
         tabPanels["Players"] = { leftPanel = leftPanel, rightPanel = rightPanel }
@@ -2333,7 +2477,6 @@ function MenuLib:Init(config)
         lbl(card, "Skin Changer", UDim2.new(1, 0, 0, 0), nil, 18, C.TEXT, Enum.Font.GothamBold)
     end)
     
-    addSection("MISC")
     API.AddTab("Misc", ICON.misc, function(f)
         local scroll = Instance.new("ScrollingFrame")
         scroll.Size = UDim2.new(1, 0, 1, 0)
