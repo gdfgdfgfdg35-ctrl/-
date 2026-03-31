@@ -756,7 +756,7 @@ function MenuLib:Init(config)
     
     local sHolder = fr(sRight, UDim2.new(1, 0, 1, -46), UDim2.new(0, 0, 0, 40), C.CONTENT, 1, 0)
     
-    for i = 1, 5 do
+    for i = 1, 4 do
         local sScroll = Instance.new("ScrollingFrame")
         sScroll.Size = UDim2.new(1, 0, 1, 0)
         sScroll.ZIndex = 2
