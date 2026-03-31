@@ -1869,6 +1869,7 @@ function MenuLib:Init(config)
         local rowLayout = Instance.new("UIListLayout")
         rowLayout.SortOrder = Enum.SortOrder.LayoutOrder
         rowLayout.Padding = UDim.new(0, 8)
+        rowLayout.FillDirection = Enum.FillDirection.Horizontal
         rowLayout.Parent = mainRow
         
         local leftPanel = fr(mainRow, UDim2.new(0.5, -4, 0, 0), nil, C.HEADER, 0, 16)
@@ -1913,6 +1914,7 @@ function MenuLib:Init(config)
         local rowLayout = Instance.new("UIListLayout")
         rowLayout.SortOrder = Enum.SortOrder.LayoutOrder
         rowLayout.Padding = UDim.new(0, 8)
+        rowLayout.FillDirection = Enum.FillDirection.Horizontal
         rowLayout.Parent = mainRow
         
         local leftPanel = fr(mainRow, UDim2.new(0.5, -4, 0, 0), nil, C.HEADER, 0, 16)
