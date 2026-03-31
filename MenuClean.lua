@@ -2206,25 +2206,31 @@ function MenuLib:Init(config)
             for name, data in pairs(_G._ConfigList) do
                 local row = fr(configScroll, UDim2.new(1, 0, 0, 36), nil, C.DARK, 0, 6)
                 row.LayoutOrder = #configScroll:GetChildren()
-                row.ClipsDescendants = true
                 
-                -- Main row button (click anywhere to select)
-                local rowBtn = Instance.new("TextButton")
-                rowBtn.Size = UDim2.new(1, 0, 1, 0)
-                rowBtn.BackgroundTransparency = 1
-                rowBtn.Text = ""
-                rowBtn.Parent = row
-                
-                local nameLbl = lbl(row, name, UDim2.new(1, -100, 1, 0), UDim2.new(0, 12, 0, 0), 12, C.TEXT, Enum.Font.GothamBold)
+                -- Config name label
+                local nameLbl = lbl(row, name, UDim2.new(1, -12, 1, 0), UDim2.new(0, 12, 0, 0), 12, C.TEXT, Enum.Font.GothamBold)
                 nameLbl.TextTruncate = Enum.TextTruncate.AtEnd
+                nameLbl.ZIndex = 2
                 
-                -- Action buttons container at bottom (hidden by default)
-                local actionsFrame = fr(row, UDim2.new(1, 0, 0, 0), UDim2.new(0, 0, 1, 0), C.SEL, 1, 0)
+                -- Click to select (invisible button over whole row)
+                local clickBtn = Instance.new("TextButton")
+                clickBtn.Size = UDim2.new(1, 0, 1, 0)
+                clickBtn.BackgroundTransparency = 1
+                clickBtn.Text = ""
+                clickBtn.ZIndex = 3
+                clickBtn.Parent = row
+                
+                -- Selection indicator (left stripe)
+                local stripe = fr(row, UDim2.new(0, 4, 0.7, 0), UDim2.new(0, 0, 0.15, 0), C.ACCENT, 1, 2)
+                gradV(stripe, C.ACCENT, C.ACCENT2)
+                
+                -- Action buttons container (slides in from right)
+                local actionsFrame = fr(row, UDim2.new(0, 0, 1, -4), UDim2.new(1, 0, 0, 2), C.SEL, 0, 0)
                 actionsFrame.ClipsDescendants = true
                 
                 local renameBtn = Instance.new("TextButton")
-                renameBtn.Size = UDim2.new(0.5, -6, 0, 24)
-                renameBtn.Position = UDim2.new(0, 8, 0, 6)
+                renameBtn.Size = UDim2.new(0, 50, 0, 28)
+                renameBtn.Position = UDim2.new(0, 4, 0.5, -14)
                 renameBtn.BackgroundColor3 = C.YELLOW
                 renameBtn.Text = "Rename"
                 renameBtn.TextColor3 = C.TEXT
@@ -2238,8 +2244,8 @@ function MenuLib:Init(config)
                 renGrad.Rotation = 90
                 
                 local delBtn = Instance.new("TextButton")
-                delBtn.Size = UDim2.new(0.5, -6, 0, 24)
-                delBtn.Position = UDim2.new(0.5, 2, 0, 6)
+                delBtn.Size = UDim2.new(0, 50, 0, 28)
+                delBtn.Position = UDim2.new(0, 58, 0.5, -14)
                 delBtn.BackgroundColor3 = C.RED
                 delBtn.Text = "Delete"
                 delBtn.TextColor3 = C.TEXT
@@ -2252,43 +2258,32 @@ function MenuLib:Init(config)
                 delGrad.Color = ColorSequence.new({ ColorSequenceKeypoint.new(0, C.RED), ColorSequenceKeypoint.new(1, Color3.fromRGB(190, 45, 45)) })
                 delGrad.Rotation = 90
                 
-                -- Selection indicator
-                local selIndicator = fr(row, UDim2.new(0, 4, 0.6, 0), UDim2.new(0, 0, 0.2, 0), C.ACCENT, 1, 4)
-                gradV(selIndicator, C.ACCENT, C.ACCENT2)
-                
-                local function selectConfig()
+                -- Selection logic
+                local function selectThis()
                     selectedConfig = name
                     selectedRow = row
                     statusLbl.Text = "Selected: " .. name
                     statusLbl.TextColor3 = C.ACCENT
                     
-                    -- Deselect all other rows
+                    -- Hide all other action frames, reset other rows
                     for _, child in ipairs(configScroll:GetChildren()) do
                         if child:IsA("Frame") and child ~= row then
-                            local otherNameLbl = child:FindFirstChildOfClass("TextLabel")
-                            if otherNameLbl and otherNameLbl.Text ~= name then
-                                tw(child, {BackgroundColor3 = C.DARK}, 0.2)
-                                -- Hide other actions frames
-                                for _, c in ipairs(child:GetChildren()) do
-                                    if c:IsA("Frame") and c ~= child:FindFirstChildOfClass("Frame") then
-                                        tw(c, {Size = UDim2.new(1, 0, 0, 0)}, 0.25)
-                                    end
+                            tw(child, {BackgroundColor3 = C.DARK}, 0.15)
+                            for _, c in ipairs(child:GetChildren()) do
+                                if c:IsA("Frame") and c.Position.X.Scale == 1 then
+                                    tw(c, {Size = UDim2.new(0, 0, 1, -4)}, 0.2)
                                 end
                             end
                         end
                     end
                     
-                    -- Animate selection
-                    tw(row, {BackgroundColor3 = Color3.fromRGB(50, 30, 80)}, 0.25)
-                    tw(selIndicator, {BackgroundTransparency = 0}, 0.3)
-                    tw(actionsFrame, {Size = UDim2.new(1, 0, 0, 36), BackgroundTransparency = 0}, 0.25, Enum.EasingStyle.Back)
-                    
-                    -- Pop animation
-                    row.Size = UDim2.new(1, 0, 0, 76)
-                    tw(row, {Size = UDim2.new(1, 0, 0, 72)}, 0.2, Enum.EasingStyle.Quad)
+                    -- Animate this row selection
+                    tw(row, {BackgroundColor3 = Color3.fromRGB(50, 30, 80)}, 0.2)
+                    tw(stripe, {BackgroundTransparency = 0}, 0.25)
+                    tw(actionsFrame, {Size = UDim2.new(0, 110, 1, -4)}, 0.25, Enum.EasingStyle.Back)
                 end
                 
-                rowBtn.MouseButton1Click:Connect(selectConfig)
+                clickBtn.MouseButton1Click:Connect(selectThis)
                 
                 renameBtn.MouseButton1Click:Connect(function()
                     renameOldName = name
@@ -2303,26 +2298,22 @@ function MenuLib:Init(config)
                             selectedRow = nil
                             statusLbl.Text = ""
                         end
-                        -- Shrink animation then destroy
-                        tw(row, {Size = UDim2.new(1, 0, 0, 0)}, 0.2)
-                        task.delay(0.2, function() row:Destroy() end)
+                        tw(row, {Size = UDim2.new(1, 0, 0, 0)}, 0.15)
+                        task.delay(0.15, function() row:Destroy() end)
                     end
                 end)
                 
-                -- Hover effects
-                rowBtn.MouseEnter:Connect(function()
+                -- Hover effect
+                clickBtn.MouseEnter:Connect(function()
                     if selectedConfig ~= name then
-                        tw(row, {BackgroundColor3 = Color3.fromRGB(35, 20, 60)}, 0.15)
+                        tw(row, {BackgroundColor3 = Color3.fromRGB(35, 20, 60)}, 0.1)
                     end
                 end)
-                rowBtn.MouseLeave:Connect(function()
+                clickBtn.MouseLeave:Connect(function()
                     if selectedConfig ~= name then
-                        tw(row, {BackgroundColor3 = C.DARK}, 0.15)
+                        tw(row, {BackgroundColor3 = C.DARK}, 0.1)
                     end
                 end)
-                
-                -- Initial row size (collapsed)
-                row.Size = UDim2.new(1, 0, 0, 36)
             end
         end
         
