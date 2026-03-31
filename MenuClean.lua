@@ -529,6 +529,9 @@ function MenuLib:Init(config)
             iconX = 2
         elseif iconImage == ICON.world then
             iconSize = 20
+        elseif iconImage == ICON.skin then
+            iconSize = 28
+            iconX = 4
         end
         
         local icoL = Instance.new("ImageLabel")
