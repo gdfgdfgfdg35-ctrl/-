@@ -2204,69 +2204,90 @@ function MenuLib:Init(config)
             end
             
             for name, data in pairs(_G._ConfigList) do
-                local row = fr(configScroll, UDim2.new(1, 0, 0, 32), nil, C.DARK, 0, 6)
+                local row = fr(configScroll, UDim2.new(1, 0, 0, 36), nil, C.DARK, 0, 6)
                 row.LayoutOrder = #configScroll:GetChildren()
+                row.ClipsDescendants = true
                 
-                local nameLbl = lbl(row, name, UDim2.new(0.45, 0, 1, 0), UDim2.new(0, 8, 0, 0), 11, C.TEXT, Enum.Font.Gotham)
+                -- Main row button (click anywhere to select)
+                local rowBtn = Instance.new("TextButton")
+                rowBtn.Size = UDim2.new(1, 0, 1, 0)
+                rowBtn.BackgroundTransparency = 1
+                rowBtn.Text = ""
+                rowBtn.Parent = row
+                
+                local nameLbl = lbl(row, name, UDim2.new(1, -100, 1, 0), UDim2.new(0, 12, 0, 0), 12, C.TEXT, Enum.Font.GothamBold)
                 nameLbl.TextTruncate = Enum.TextTruncate.AtEnd
                 
-                local selBtn = Instance.new("TextButton")
-                selBtn.Size = UDim2.new(0, 50, 0, 22)
-                selBtn.Position = UDim2.new(1, -158, 0.5, -11)
-                selBtn.BackgroundColor3 = C.ACCENT
-                selBtn.Text = "Select"
-                selBtn.TextColor3 = C.TEXT
-                selBtn.TextSize = 10
-                selBtn.Font = Enum.Font.GothamBold
-                selBtn.AutoButtonColor = false
-                selBtn.Parent = row
-                Instance.new("UICorner", selBtn).CornerRadius = UDim.new(0, 5)
-                local selGrad = Instance.new("UIGradient", selBtn)
-                selGrad.Color = ColorSequence.new({ ColorSequenceKeypoint.new(0, C.ACCENT), ColorSequenceKeypoint.new(1, C.ACCENT2) })
-                selGrad.Rotation = 90
+                -- Action buttons container (hidden by default)
+                local actionsFrame = fr(row, UDim2.new(0, 0, 1, 0), UDim2.new(1, 0, 0, 0), C.DARK, 0, 0)
+                actionsFrame.ClipsDescendants = true
                 
                 local renameBtn = Instance.new("TextButton")
-                renameBtn.Size = UDim2.new(0, 50, 0, 22)
-                renameBtn.Position = UDim2.new(1, -104, 0.5, -11)
+                renameBtn.Size = UDim2.new(0, 50, 0, 24)
+                renameBtn.Position = UDim2.new(0, 8, 0.5, -12)
                 renameBtn.BackgroundColor3 = C.YELLOW
                 renameBtn.Text = "Rename"
                 renameBtn.TextColor3 = C.TEXT
                 renameBtn.TextSize = 10
                 renameBtn.Font = Enum.Font.GothamBold
                 renameBtn.AutoButtonColor = false
-                renameBtn.Parent = row
+                renameBtn.Parent = actionsFrame
                 Instance.new("UICorner", renameBtn).CornerRadius = UDim.new(0, 5)
                 local renGrad = Instance.new("UIGradient", renameBtn)
                 renGrad.Color = ColorSequence.new({ ColorSequenceKeypoint.new(0, C.YELLOW), ColorSequenceKeypoint.new(1, Color3.fromRGB(230, 160, 20)) })
                 renGrad.Rotation = 90
                 
                 local delBtn = Instance.new("TextButton")
-                delBtn.Size = UDim2.new(0, 50, 0, 22)
-                delBtn.Position = UDim2.new(1, -50, 0.5, -11)
+                delBtn.Size = UDim2.new(0, 50, 0, 24)
+                delBtn.Position = UDim2.new(0, 64, 0.5, -12)
                 delBtn.BackgroundColor3 = C.RED
                 delBtn.Text = "Delete"
                 delBtn.TextColor3 = C.TEXT
                 delBtn.TextSize = 10
                 delBtn.Font = Enum.Font.GothamBold
                 delBtn.AutoButtonColor = false
-                delBtn.Parent = row
+                delBtn.Parent = actionsFrame
                 Instance.new("UICorner", delBtn).CornerRadius = UDim.new(0, 5)
                 local delGrad = Instance.new("UIGradient", delBtn)
                 delGrad.Color = ColorSequence.new({ ColorSequenceKeypoint.new(0, C.RED), ColorSequenceKeypoint.new(1, Color3.fromRGB(190, 45, 45)) })
                 delGrad.Rotation = 90
                 
-                selBtn.MouseButton1Click:Connect(function()
+                -- Selection indicator
+                local selIndicator = fr(row, UDim2.new(0, 4, 0.6, 0), UDim2.new(0, 0, 0.2, 0), C.ACCENT, 1, 4)
+                gradV(selIndicator, C.ACCENT, C.ACCENT2)
+                
+                local function selectConfig()
                     selectedConfig = name
                     selectedRow = row
                     statusLbl.Text = "Selected: " .. name
                     statusLbl.TextColor3 = C.ACCENT
+                    
+                    -- Deselect all other rows
                     for _, child in ipairs(configScroll:GetChildren()) do
-                        if child:IsA("Frame") then
-                            child.BackgroundColor3 = C.DARK
+                        if child:IsA("Frame") and child ~= row then
+                            tw(child, {BackgroundColor3 = C.DARK}, 0.2)
+                            local otherIndicator = child:FindFirstChildWhichIsA("Frame")
+                            if otherIndicator then
+                                tw(otherIndicator, {BackgroundTransparency = 1}, 0.2)
+                            end
+                            local otherActions = child:FindFirstChild("actionsFrame") or child:FindFirstChildWhichIsA("Frame", function(f) return f.Position.X.Scale == 1 end)
+                            if otherActions then
+                                tw(otherActions, {Size = UDim2.new(0, 0, 1, 0)}, 0.25)
+                            end
                         end
                     end
-                    row.BackgroundColor3 = Color3.fromRGB(50, 30, 80)
-                end)
+                    
+                    -- Animate selection
+                    tw(row, {BackgroundColor3 = Color3.fromRGB(50, 30, 80)}, 0.25)
+                    tw(selIndicator, {BackgroundTransparency = 0}, 0.3)
+                    tw(actionsFrame, {Size = UDim2.new(0, 120, 1, 0)}, 0.25, Enum.EasingStyle.Back)
+                    
+                    -- Pop animation
+                    row.Size = UDim2.new(1, 0, 0, 40)
+                    tw(row, {Size = UDim2.new(1, 0, 0, 36)}, 0.2, Enum.EasingStyle.Quad)
+                end
+                
+                rowBtn.MouseButton1Click:Connect(selectConfig)
                 
                 renameBtn.MouseButton1Click:Connect(function()
                     renameOldName = name
@@ -2281,7 +2302,21 @@ function MenuLib:Init(config)
                             selectedRow = nil
                             statusLbl.Text = ""
                         end
-                        row:Destroy()
+                        -- Shrink animation then destroy
+                        tw(row, {Size = UDim2.new(1, 0, 0, 0)}, 0.2)
+                        task.delay(0.2, function() row:Destroy() end)
+                    end
+                end)
+                
+                -- Hover effects
+                rowBtn.MouseEnter:Connect(function()
+                    if selectedConfig ~= name then
+                        tw(row, {BackgroundColor3 = Color3.fromRGB(35, 20, 60)}, 0.15)
+                    end
+                end)
+                rowBtn.MouseLeave:Connect(function()
+                    if selectedConfig ~= name then
+                        tw(row, {BackgroundColor3 = C.DARK}, 0.15)
                     end
                 end)
             end
