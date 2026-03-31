@@ -1147,7 +1147,7 @@ function MenuLib:Init(config)
                     closeConn = UserInputService.InputBegan:Connect(function(input)
                         if not ddOpen then if closeConn then closeConn:Disconnect() end return end
                         if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                            local pos = UserInputService:GetMouseLocation()
+                            local pos = Vector2.new(input.Position.X, input.Position.Y)
                             local df = dropFrame
                             local bb = layoutDropBtn
                             if not df or not bb then return end
@@ -2072,7 +2072,7 @@ function MenuLib:Init(config)
                         return
                     end
                     if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                        local pos = UserInputService:GetMouseLocation()
+                        local pos = Vector2.new(input.Position.X, input.Position.Y)
                         local df = dropdownFrame
                         local bb = dropdownBtn
                         if not df or not bb then return end
