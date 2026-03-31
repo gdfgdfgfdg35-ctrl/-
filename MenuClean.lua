@@ -1259,21 +1259,20 @@ function MenuLib:Init(config)
         }
     end
     
+    -- Store panel references for tabs that use two-panel layout
+    local tabPanels = {}
+    
     API.AddToggle = function(tabName, label, callback, default, side)
         local scrollFrame = tabContents[tabName]
         if not scrollFrame then return nil end
         
         -- Check if this tab has a two-panel layout
         local parentFrame
-        local contentFrame = scrollFrame:FindFirstChildWhichIsA("Frame")
-        if contentFrame then
-            local leftPanel = contentFrame:GetAttribute("LeftPanel")
-            local rightPanel = contentFrame:GetAttribute("RightPanel")
-            if leftPanel and rightPanel and side == "right" then
-                parentFrame = rightPanel
-            else
-                parentFrame = leftPanel or contentFrame
-            end
+        local panels = tabPanels[tabName]
+        if panels and side == "right" then
+            parentFrame = panels.rightPanel
+        elseif panels then
+            parentFrame = panels.leftPanel
         else
             parentFrame = scrollFrame
         end
@@ -1339,15 +1338,11 @@ function MenuLib:Init(config)
         
         -- Check if this tab has a two-panel layout
         local parentFrame
-        local contentFrame = scrollFrame:FindFirstChildWhichIsA("Frame")
-        if contentFrame then
-            local leftPanel = contentFrame:GetAttribute("LeftPanel")
-            local rightPanel = contentFrame:GetAttribute("RightPanel")
-            if leftPanel and rightPanel and side == "right" then
-                parentFrame = rightPanel
-            else
-                parentFrame = leftPanel or contentFrame
-            end
+        local panels = tabPanels[tabName]
+        if panels and side == "right" then
+            parentFrame = panels.rightPanel
+        elseif panels then
+            parentFrame = panels.leftPanel
         else
             parentFrame = scrollFrame
         end
@@ -1897,8 +1892,7 @@ function MenuLib:Init(config)
         lbl(rightPanel, "Silent Aim", UDim2.new(1, 0, 0, 0), nil, 18, C.TEXT, Enum.Font.GothamBold)
         
         -- Store panels for API use
-        f:SetAttribute("LeftPanel", leftPanel)
-        f:SetAttribute("RightPanel", rightPanel)
+        tabPanels["Aimbot"] = { leftPanel = leftPanel, rightPanel = rightPanel }
     end)
     
     addSection("VISUALS")
@@ -1942,8 +1936,7 @@ function MenuLib:Init(config)
         lbl(rightPanel, "Crosshair", UDim2.new(1, 0, 0, 0), nil, 18, C.TEXT, Enum.Font.GothamBold)
         
         -- Store panels for API use
-        f:SetAttribute("LeftPanel", leftPanel)
-        f:SetAttribute("RightPanel", rightPanel)
+        tabPanels["Players"] = { leftPanel = leftPanel, rightPanel = rightPanel }
     end)
     
     API.AddTab("World", ICON.world, function(f)
