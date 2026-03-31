@@ -25,8 +25,6 @@ function MenuLib:Init(config)
     _G._MenuToggleKey = Enum.KeyCode.Insert
     _G._UnloadKey = Enum.KeyCode.Delete
     _G._SmoothAnimations = true
-    _G._BoxESPEnabled = false
-    _G._FilledBoxESPEnabled = false
     _G._ESPColour = Color3.fromRGB(120, 40, 240)
     
     local ICON = {
@@ -234,114 +232,6 @@ function MenuLib:Init(config)
     local unloaded = false
     local origMouseIconEnabled = UserInputService.MouseIconEnabled
 
-    -- ESP System
-    local espLines = {}
-    local espFilled = {}
-    
-    local function updateESP()
-        if unloaded then return end
-        -- Always hide all ESP first, then show only if enabled
-        for player, box in pairs(espLines) do
-            for _, line in ipairs(box) do pcall(function() line.Visible = false end) end
-        end
-        for _, filled in pairs(espFilled) do pcall(function() filled.Visible = false end) end
-        
-        -- Early return if ESP disabled
-        if not (_G._BoxESPEnabled or _G._FilledBoxESPEnabled) then
-            return
-        end
-        
-        local cam = workspace.CurrentCamera
-        if not cam then return end
-        
-        for _, player in ipairs(Players:GetPlayers()) do
-            if player ~= lp and player.Character then
-                local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
-                local isAlive = false
-                pcall(function() if humanoid then isAlive = humanoid.Health > 0 end end)
-                
-                if isAlive then
-                    local head = player.Character:FindFirstChild("Head")
-                    local hrp = player.Character:FindFirstChild("HumanoidRootPart")
-                    
-                    if head and hrp then
-                        local headPos, headOnScreen = cam:WorldToViewportPoint(head.Position + Vector3.new(0, 0.5, 0))
-                        local feetPos, feetOnScreen = cam:WorldToViewportPoint(hrp.Position - Vector3.new(0, 3, 0))
-                        
-                        if headOnScreen and feetOnScreen then
-                            local height = math.abs(feetPos.Y - headPos.Y)
-                            local width = height * 0.6
-                            local x, y = headPos.X - width / 2, headPos.Y
-                            
-                            -- Create ESP elements if they don't exist
-                            if not espLines[player] then
-                                local box = {}
-                                for i = 1, 4 do
-                                    local line = Instance.new("Frame")
-                                    line.BorderSizePixel = 0
-                                    line.ZIndex = 999
-                                    line.Parent = pg
-                                    box[i] = line
-                                end
-                                espLines[player] = box
-                                
-                                local filled = Instance.new("Frame")
-                                filled.BorderSizePixel = 0
-                                filled.ZIndex = 998
-                                filled.Parent = pg
-                                espFilled[player] = filled
-                            end
-                            
-                            local color = _G._ESPColour or C.ACCENT
-                            local box = espLines[player]
-                            local filled = espFilled[player]
-                            
-                            -- Update visibility based on settings
-                            if _G._BoxESPEnabled then
-                                box[1].Size = UDim2.new(0, width, 0, 2)
-                                box[1].Position = UDim2.new(0, x, 0, y)
-                                box[1].BackgroundColor3 = color
-                                box[1].Visible = true
-                                box[2].Size = UDim2.new(0, width, 0, 2)
-                                box[2].Position = UDim2.new(0, x, 0, y + height - 2)
-                                box[2].BackgroundColor3 = color
-                                box[2].Visible = true
-                                box[3].Size = UDim2.new(0, 2, 0, height)
-                                box[3].Position = UDim2.new(0, x, 0, y)
-                                box[3].BackgroundColor3 = color
-                                box[3].Visible = true
-                                box[4].Size = UDim2.new(0, 2, 0, height)
-                                box[4].Position = UDim2.new(0, x + width - 2, 0, y)
-                                box[4].BackgroundColor3 = color
-                                box[4].Visible = true
-                            end
-                            
-                            if _G._FilledBoxESPEnabled then
-                                filled.Size = UDim2.new(0, width, 0, height)
-                                filled.Position = UDim2.new(0, x, 0, y)
-                                filled.BackgroundColor3 = color
-                                filled.BackgroundTransparency = 0.7
-                                filled.Visible = true
-                            end
-                        end
-                    end
-                end
-            end
-        end
-        
-        -- Cleanup disconnected players
-        for player, _ in pairs(espLines) do
-            if not player.Parent then
-                for _, line in ipairs(espLines[player]) do line:Destroy() end
-                if espFilled[player] then espFilled[player]:Destroy() end
-                espLines[player] = nil
-                espFilled[player] = nil
-            end
-        end
-    end
-    
-    table.insert(conns, RunService.RenderStepped:Connect(updateESP))
-    
     -- UI (sg already created above)
     
     local hudBar = fr(sg, UDim2.new(0, HUD_W, 0, 44), UDim2.new(0.5, -HUD_W / 2, 0, 10), C.DARK, 0, 18)
@@ -1757,14 +1647,6 @@ function MenuLib:Init(config)
             -- Destroy blur
             if blurPart then pcall(function() blurPart:Destroy() end) blurPart = nil end
 
-            -- Destroy ESP elements
-            for player, box in pairs(espLines) do
-                for _, line in ipairs(box) do pcall(function() line:Destroy() end) end
-            end
-            for _, box in pairs(espFilled) do pcall(function() box:Destroy() end) end
-            espLines = {}
-            espFilled = {}
-
             -- Destroy the entire GUI
             pcall(function() sg:Destroy() end)
 
@@ -1778,8 +1660,6 @@ function MenuLib:Init(config)
             _G._MenuToggleKey = nil
             _G._UnloadKey = nil
             _G._SmoothAnimations = nil
-            _G._BoxESPEnabled = nil
-            _G._FilledBoxESPEnabled = nil
             _G._ESPColour = nil
             _G._MenuOpen = nil
             _G._SettingKeybind = nil
@@ -2307,13 +2187,6 @@ function MenuLib:Init(config)
         return { Click = function() pcall(callback) end }
     end
     
-    API.SetESPColor = function(color)
-        _G._ESPColour = color
-    end
-    
-    API.ToggleESP = function()
-        _G._BoxESPEnabled = not _G._BoxESPEnabled
-    end
     
     API.GetScreenGui = function() return sg end
     API.GetWindow = function() return win end
