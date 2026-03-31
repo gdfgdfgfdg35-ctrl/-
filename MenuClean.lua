@@ -451,6 +451,7 @@ function MenuLib:Init(config)
 
     local sidebar = fr(bodyShell, UDim2.new(0, SIDE_W, 1, -4), UDim2.new(0, 0, 0, 4), C.SIDEBAR, 0, 14)
     sidebar.ZIndex = 2
+    sidebar.ClipsDescendants = true
 
     local sidebarDivider = fr(bodyShell, UDim2.new(0, 1, 1, -4), UDim2.new(0, SIDE_W, 0, 4), C.DIV)
 
@@ -683,39 +684,39 @@ function MenuLib:Init(config)
     -- Switch between vertical sidebar and horizontal top bar layout
     local function setTabLayout(horizontal, animate)
         tabBarIsHorizontal = horizontal
-        local t = animate and 0.3 or 0
+        local t = animate and 0.35 or 0
+        local ease = Enum.EasingStyle.Quint
 
         if horizontal then
             -- Hide sidebar, show top bar
-            tw(sidebar, { Size = UDim2.new(0, 0, 1, -4) }, t)
-            tw(sidebarDivider, { BackgroundTransparency = 1 }, t)
+            tw(sidebar, { Size = UDim2.new(0, 0, 1, -4) }, t, ease)
+            tw(sidebarDivider, { BackgroundTransparency = 1, Position = UDim2.new(0, 0, 0, 4) }, t, ease)
             task.delay(t, function()
                 sidebar.Visible = false
                 sidebarDivider.Visible = false
             end)
             topTabBar.Visible = true
             topTabBar.BackgroundTransparency = 1
-            tw(topTabBar, { BackgroundTransparency = 0 }, t)
+            tw(topTabBar, { BackgroundTransparency = 0 }, t, ease)
             topTabDivider.Visible = true
             topTabDivider.BackgroundTransparency = 1
-            tw(topTabDivider, { BackgroundTransparency = 0 }, t)
-            -- Reposition content area below the top bar
+            tw(topTabDivider, { BackgroundTransparency = 0 }, t, ease)
             tw(contentArea, {
                 Size = UDim2.new(1, -4, 1, -TAB_BAR_H - 36),
                 Position = UDim2.new(0, 2, 0, TAB_BAR_H + 6)
-            }, t)
+            }, t, ease)
             tw(statusBar, {
                 Size = UDim2.new(1, -4, 0, 28),
                 Position = UDim2.new(0, 2, 1, -32)
-            }, t)
+            }, t, ease)
         else
             -- Show sidebar, hide top bar
             sidebar.Visible = true
             sidebarDivider.Visible = true
-            tw(sidebar, { Size = UDim2.new(0, SIDE_W, 1, -4) }, t)
-            tw(sidebarDivider, { BackgroundTransparency = 0 }, t)
-            tw(topTabBar, { BackgroundTransparency = 1 }, t)
-            tw(topTabDivider, { BackgroundTransparency = 1 }, t)
+            tw(sidebar, { Size = UDim2.new(0, SIDE_W, 1, -4) }, t, ease)
+            tw(sidebarDivider, { BackgroundTransparency = 0, Position = UDim2.new(0, SIDE_W, 0, 4) }, t, ease)
+            tw(topTabBar, { BackgroundTransparency = 1 }, t, ease)
+            tw(topTabDivider, { BackgroundTransparency = 1 }, t, ease)
             task.delay(t, function()
                 topTabBar.Visible = false
                 topTabDivider.Visible = false
@@ -723,11 +724,11 @@ function MenuLib:Init(config)
             tw(contentArea, {
                 Size = UDim2.new(1, -SIDE_W - 2, 1, -32),
                 Position = UDim2.new(0, SIDE_W + 2, 0, 4)
-            }, t)
+            }, t, ease)
             tw(statusBar, {
                 Size = UDim2.new(1, -SIDE_W - 2, 0, 28),
                 Position = UDim2.new(0, SIDE_W + 2, 1, -32)
-            }, t)
+            }, t, ease)
         end
     end
     
@@ -1576,8 +1577,9 @@ function MenuLib:Init(config)
         if inp.KeyCode == toggleKey and not _G._SettingKeybind then
             toggleMenu()
         elseif inp.KeyCode == unloadKey and not _G._SettingKeybind then
-            -- Flag unloaded immediately to stop all callbacks
+            -- Flag unloaded immediately to stop all callbacks (both local and global)
             unloaded = true
+            _G._UnloadTriggered = true
 
             -- Disconnect ALL tracked connections first
             for _, c in ipairs(conns) do pcall(function() c:Disconnect() end) end
@@ -1640,8 +1642,6 @@ function MenuLib:Init(config)
             _G._ConfigLoaded = nil
             _G.GetConfigData = nil
             _G.LoadConfigData = nil
-
-            _G._UnloadTriggered = true
         end
     end))
     
