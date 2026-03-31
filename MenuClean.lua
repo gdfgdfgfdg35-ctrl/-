@@ -1238,6 +1238,8 @@ function MenuLib:Init(config)
             end
             for _, box in pairs(espFilled) do box:Destroy() end
             sg:Destroy()
+
+            _G._UnloadTriggered = true
         end
     end))
     
