@@ -2029,8 +2029,7 @@ function MenuLib:Init(config)
         scroll.Parent = f
         pad(scroll, 8, 10, 8, 8)
         
-        local card = fr(scroll, UDim2.new(1, -4, 0, 0), nil, C.HEADER, 0, 16)
-        card.AutomaticSize = Enum.AutomaticSize.Y
+        local card = fr(scroll, UDim2.new(1, -4, 1, -16), nil, C.HEADER, 0, 16)
         local v = Instance.new("UIListLayout")
         v.SortOrder = Enum.SortOrder.LayoutOrder
         v.Padding = UDim.new(0, 8)
@@ -2038,8 +2037,8 @@ function MenuLib:Init(config)
         pad(card, 16, 16, 16, 16)
         lbl(card, "Configuration", UDim2.new(1, 0, 0, 0), nil, 18, C.TEXT, Enum.Font.GothamBold)
         
-        -- Config UI - Side by side layout (LEFT: buttons, RIGHT: list) - EQUAL WIDTH
-        local mainRow = fr(card, UDim2.new(1, 0, 1, -60), nil, C.HEADER, 1, 0)
+        -- Config UI - Side by side layout (LEFT: buttons, RIGHT: list) - fills remaining height
+        local mainRow = fr(card, UDim2.new(1, 0, 1, -28), nil, C.HEADER, 1, 0)
         mainRow.LayoutOrder = 1
         
         local leftPanel = fr(mainRow, UDim2.new(0.5, -6, 1, 0), UDim2.new(0, 0, 0, 0), C.SEL, 0, 10)
@@ -2065,7 +2064,7 @@ function MenuLib:Init(config)
         local loadBtn = Instance.new("TextButton")
         loadBtn.Size = UDim2.new(1, -16, 0, 32)
         loadBtn.Position = UDim2.new(0, 8, 0, 50)
-        loadBtn.BackgroundColor3 = C.GREEN
+        loadBtn.BackgroundColor3 = C.ACCENT
         loadBtn.Text = "Load Selected"
         loadBtn.TextColor3 = C.TEXT
         loadBtn.TextSize = 12
@@ -2075,7 +2074,7 @@ function MenuLib:Init(config)
         local loadCorner = Instance.new("UICorner", loadBtn)
         loadCorner.CornerRadius = UDim.new(0, 8)
         local loadGrad = Instance.new("UIGradient", loadBtn)
-        loadGrad.Color = ColorSequence.new({ ColorSequenceKeypoint.new(0, C.GREEN), ColorSequenceKeypoint.new(1, Color3.fromRGB(35, 180, 75)) })
+        loadGrad.Color = ColorSequence.new({ ColorSequenceKeypoint.new(0, C.ACCENT), ColorSequenceKeypoint.new(1, C.ACCENT2) })
         loadGrad.Rotation = 90
         
         local statusLbl = lbl(leftPanel, "", UDim2.new(1, -16, 0, 16), UDim2.new(0, 8, 0, 92), 10, C.GREEN)
@@ -2347,6 +2346,43 @@ function MenuLib:Init(config)
                 statusLbl.TextColor3 = C.RED
             end
         end)
+        
+        -- Ensure config functions exist
+        if not _G.GetConfigData then
+            _G.GetConfigData = function()
+                local data = {}
+                -- Collect global settings
+                data._MenuSettings = {
+                    BlurEnabled = _G._BlurEnabled,
+                    LightingDimEnabled = _G._LightingDimEnabled,
+                    MenuToggleKey = tostring(_G._MenuToggleKey),
+                    UnloadKey = tostring(_G._UnloadKey),
+                    SmoothAnimations = _G._SmoothAnimations,
+                    BoxESPEnabled = _G._BoxESPEnabled,
+                    FilledBoxESPEnabled = _G._FilledBoxESPEnabled,
+                    ESPColour = {r = _G._ESPColour.R, g = _G._ESPColour.G, b = _G._ESPColour.B}
+                }
+                return data
+            end
+        end
+        
+        if not _G.LoadConfigData then
+            _G.LoadConfigData = function(data)
+                if not data then return end
+                -- Load global settings
+                if data._MenuSettings then
+                    local s = data._MenuSettings
+                    _G._BlurEnabled = s.BlurEnabled
+                    _G._LightingDimEnabled = s.LightingDimEnabled
+                    _G._SmoothAnimations = s.SmoothAnimations
+                    _G._BoxESPEnabled = s.BoxESPEnabled
+                    _G._FilledBoxESPEnabled = s.FilledBoxESPEnabled
+                    if s.ESPColour then
+                        _G._ESPColour = Color3.new(s.ESPColour.r, s.ESPColour.g, s.ESPColour.b)
+                    end
+                end
+            end
+        end
         
         RefreshConfigList()
     end)
