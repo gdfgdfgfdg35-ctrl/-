@@ -446,15 +446,44 @@ function MenuLib:Init(config)
     
     local bodyShell = fr(mainLayer, UDim2.new(1, 0, 1, -12), UDim2.new(0, 0, 0, 12), C.BG, 1, 0)
     bodyShell.ZIndex = 2
-    
+
     local sidebar = fr(bodyShell, UDim2.new(0, SIDE_W, 1, -4), UDim2.new(0, 0, 0, 4), C.SIDEBAR, 0, 14)
     sidebar.ZIndex = 2
-    
-    fr(bodyShell, UDim2.new(0, 1, 1, -4), UDim2.new(0, SIDE_W, 0, 4), C.DIV)
-    
+
+    local sidebarDivider = fr(bodyShell, UDim2.new(0, 1, 1, -4), UDim2.new(0, SIDE_W, 0, 4), C.DIV)
+
+    -- Horizontal tab bar (hidden by default, shown in horizontal mode)
+    local TAB_BAR_H = 42
+    local tabBarIsHorizontal = false
+
+    local topTabBar = fr(bodyShell, UDim2.new(1, -4, 0, TAB_BAR_H), UDim2.new(0, 2, 0, 4), C.SIDEBAR, 0, 14)
+    topTabBar.ZIndex = 3
+    topTabBar.Visible = false
+    topTabBar.ClipsDescendants = true
+
+    local topTabScroll = Instance.new("ScrollingFrame")
+    topTabScroll.Size = UDim2.new(1, 0, 1, 0)
+    topTabScroll.BackgroundTransparency = 1
+    topTabScroll.BorderSizePixel = 0
+    topTabScroll.ScrollBarThickness = 0
+    topTabScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+    topTabScroll.AutomaticCanvasSize = Enum.AutomaticSize.X
+    topTabScroll.ScrollingDirection = Enum.ScrollingDirection.X
+    topTabScroll.Parent = topTabBar
+    pad(topTabScroll, 6, 6, 4, 4)
+
+    local topTabLayout = Instance.new("UIListLayout")
+    topTabLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    topTabLayout.FillDirection = Enum.FillDirection.Horizontal
+    topTabLayout.Padding = UDim.new(0, 4)
+    topTabLayout.Parent = topTabScroll
+
+    local topTabDivider = fr(bodyShell, UDim2.new(1, -4, 0, 1), UDim2.new(0, 2, 0, TAB_BAR_H + 4), C.DIV)
+    topTabDivider.Visible = false
+
     local contentArea = fr(bodyShell, UDim2.new(1, -SIDE_W - 2, 1, -32), UDim2.new(0, SIDE_W + 2, 0, 4), C.CONTENT, 0, 16)
     contentArea.ZIndex = 2
-    
+
     local statusBar = fr(bodyShell, UDim2.new(1, -SIDE_W - 2, 0, 28), UDim2.new(0, SIDE_W + 2, 1, -32), C.DARK, 0, 12)
     
     local function mkSmallBtn(parent, txt, size, pos, fn)
@@ -502,30 +531,81 @@ function MenuLib:Init(config)
         return layoutOrd
     end
     
+    local sectionLabels = {}
     local function addSection(name)
         local s = lbl(navScroll, name, UDim2.new(1, -4, 0, 26), nil, 12, C.SEC, Enum.Font.GothamBold)
         s.LayoutOrder = nextOrd()
         pad(s, 6, 0, 6, 0)
+        table.insert(sectionLabels, s)
     end
     
+    local function selectTab(entry)
+        local isCompact = (SIDE_W <= 100)
+        local tf = entry.frame
+        tf.Visible = true
+        tf.Position = UDim2.new(0, 30, 0, 0)
+        tw(tf, { Position = UDim2.new(0, 0, 0, 0), BackgroundTransparency = 0 }, 0.4)
+        -- Vertical sidebar highlight
+        tw(entry.bg, { BackgroundTransparency = 0 }, 0.3)
+        tw(entry.line, { BackgroundTransparency = isCompact and 1 or 0, Size = UDim2.new(0, 4, 0.5, 0) }, 0.35)
+        tw(entry.lbl, { TextColor3 = C.TEXT }, 0.25)
+        tw(entry.ico, { ImageColor3 = C.TEXT, Position = isCompact and UDim2.new(0.5, -entry.iconSize/2, 0.5, -entry.iconSize/2) or UDim2.new(0, entry.iconX + 4, 0.5, -entry.iconSize / 2) }, 0.3)
+        -- Horizontal bar highlight
+        if entry.hBtn then
+            tw(entry.hBg, { BackgroundTransparency = 0 }, 0.3)
+            tw(entry.hLine, { BackgroundTransparency = 0, Size = UDim2.new(0.5, 0, 0, 3) }, 0.35)
+            tw(entry.hIco, { ImageColor3 = C.TEXT }, 0.25)
+            tw(entry.hLbl, { TextColor3 = C.TEXT }, 0.25)
+        end
+    end
+
+    local function deselectTab(entry)
+        local isCompact = (SIDE_W <= 100)
+        local tf = entry.frame
+        tw(tf, { Position = UDim2.new(0, -30, 0, 0), BackgroundTransparency = 1 }, 0.35)
+        -- Vertical sidebar deselect
+        tw(entry.bg, { BackgroundTransparency = 1 }, 0.25)
+        tw(entry.line, { BackgroundTransparency = 1, Size = UDim2.new(0, 4, 0, 0) }, 0.2)
+        tw(entry.lbl, { TextColor3 = C.DIM }, 0.2)
+        tw(entry.ico, { ImageColor3 = C.DIM, Position = isCompact and UDim2.new(0.5, -entry.iconSize/2, 0.5, -entry.iconSize/2) or UDim2.new(0, entry.iconX, 0.5, -entry.iconSize / 2) }, 0.25)
+        task.delay(0.35, function() tf.Visible = false end)
+        -- Horizontal bar deselect
+        if entry.hBtn then
+            tw(entry.hBg, { BackgroundTransparency = 1 }, 0.25)
+            tw(entry.hLine, { BackgroundTransparency = 1, Size = UDim2.new(0.5, 0, 0, 0) }, 0.2)
+            tw(entry.hIco, { ImageColor3 = C.DIM }, 0.2)
+            tw(entry.hLbl, { TextColor3 = C.DIM }, 0.2)
+        end
+    end
+
+    local function doTabSwitch(entry)
+        if activeTab and activeTab ~= entry then deselectTab(activeTab) activeTab.frame.Visible = false end
+        activeTab = entry
+        entry.frame.Visible = true
+        selectTab(entry)
+    end
+
     local function addTab(name, iconImage, buildFn)
         local tf = fr(contentArea, UDim2.new(1, 0, 1, 0), nil, C.CONTENT, 1, 0)
         tf.Visible = false
         tf.ZIndex = 5
         if buildFn then buildFn(tf) end
-        
+
+        local ord = nextOrd()
+
+        -- Vertical sidebar button
         local btn = Instance.new("TextButton")
         btn.Size = UDim2.new(1, -8, 0, 38)
         btn.BackgroundTransparency = 1
         btn.Text = ""
-        btn.LayoutOrder = nextOrd()
+        btn.LayoutOrder = ord
         btn.Parent = navScroll
         Instance.new("UICorner").Parent = btn
-        
+
         local selBg = fr(btn, UDim2.new(1, 0, 1, 0), nil, C.SEL, 1, 12)
         local selLine = fr(btn, UDim2.new(0, 4, 0.5, 0), UDim2.new(1, -5, 0.25, 0), C.ACCENT, 1, 4)
         gradV(selLine, C.ACCENT, C.ACCENT2)
-        
+
         local iconSize = 24
         local iconX = 6
         if iconImage == ICON.aim or iconImage == ICON.players then
@@ -537,7 +617,7 @@ function MenuLib:Init(config)
             iconSize = 28
             iconX = 4
         end
-        
+
         local icoL = Instance.new("ImageLabel")
         icoL.Size = UDim2.new(0, iconSize, 0, iconSize)
         icoL.Position = UDim2.new(0, iconX, 0.5, -iconSize / 2)
@@ -546,46 +626,111 @@ function MenuLib:Init(config)
         icoL.ScaleType = Enum.ScaleType.Fit
         icoL.ImageColor3 = C.DIM
         icoL.Parent = btn
-        
+
         local namL = lbl(btn, name, UDim2.new(1, -52, 1, 0), UDim2.new(0, 44, 0, 0), 12, C.DIM)
-        
-        local entry = { btn = btn, frame = tf, bg = selBg, line = selLine, ico = icoL, lbl = namL, iconSize = iconSize, iconX = iconX }
+
+        -- Horizontal top bar button
+        local hBtn = Instance.new("TextButton")
+        hBtn.Size = UDim2.new(0, 0, 1, -8)
+        hBtn.AutomaticSize = Enum.AutomaticSize.X
+        hBtn.BackgroundTransparency = 1
+        hBtn.Text = ""
+        hBtn.LayoutOrder = ord
+        hBtn.Parent = topTabScroll
+        Instance.new("UICorner").Parent = hBtn
+
+        local hBg = fr(hBtn, UDim2.new(1, 0, 1, 0), nil, C.SEL, 1, 10)
+        local hLine = fr(hBtn, UDim2.new(0.5, 0, 0, 0), UDim2.new(0.25, 0, 1, -3), C.ACCENT, 1, 2)
+        gradV(hLine, C.ACCENT2, C.ACCENT)
+
+        local hIco = Instance.new("ImageLabel")
+        hIco.Size = UDim2.new(0, 18, 0, 18)
+        hIco.Position = UDim2.new(0, 8, 0.5, -9)
+        hIco.BackgroundTransparency = 1
+        hIco.Image = normalizeIconId(iconImage) or ""
+        hIco.ScaleType = Enum.ScaleType.Fit
+        hIco.ImageColor3 = C.DIM
+        hIco.Parent = hBtn
+
+        local hLbl = lbl(hBtn, name, UDim2.new(0, 0, 1, 0), UDim2.new(0, 30, 0, 0), 11, C.DIM, Enum.Font.GothamBold)
+        hLbl.AutomaticSize = Enum.AutomaticSize.X
+        local hPad = Instance.new("UIPadding")
+        hPad.PaddingRight = UDim.new(0, 12)
+        hPad.Parent = hBtn
+
+        local entry = {
+            btn = btn, frame = tf, bg = selBg, line = selLine, ico = icoL, lbl = namL,
+            iconSize = iconSize, iconX = iconX,
+            hBtn = hBtn, hBg = hBg, hLine = hLine, hIco = hIco, hLbl = hLbl
+        }
         table.insert(allTabs, entry)
         tabContents[name] = tf
-        
-        local function deselect()
-            local isCompact = (SIDE_W <= 100)
-            tw(tf, { Position = UDim2.new(0, -30, 0, 0), BackgroundTransparency = 1 }, 0.35)
-            tw(selBg, { BackgroundTransparency = 1 }, 0.25)
-            tw(selLine, { BackgroundTransparency = 1, Size = UDim2.new(0, 4, 0, 0) }, 0.2)
-            tw(namL, { TextColor3 = C.DIM }, 0.2)
-            tw(icoL, { ImageColor3 = C.DIM, Position = isCompact and UDim2.new(0.5, -iconSize/2, 0.5, -iconSize/2) or UDim2.new(0, iconX, 0.5, -iconSize / 2) }, 0.25)
-            task.delay(0.35, function() tf.Visible = false end)
-        end
-        
-        local function select()
-            local isCompact = (SIDE_W <= 100)
-            tf.Visible = true
-            tf.Position = UDim2.new(0, 30, 0, 0)
-            tw(tf, { Position = UDim2.new(0, 0, 0, 0), BackgroundTransparency = 0 }, 0.4)
-            tw(selBg, { BackgroundTransparency = 0 }, 0.3)
-            tw(selLine, { BackgroundTransparency = isCompact and 1 or 0, Size = UDim2.new(0, 4, 0.5, 0) }, 0.35)
-            tw(namL, { TextColor3 = C.TEXT }, 0.25)
-            tw(icoL, { ImageColor3 = C.TEXT, Position = isCompact and UDim2.new(0.5, -iconSize/2, 0.5, -iconSize/2) or UDim2.new(0, iconX + 4, 0.5, -iconSize / 2) }, 0.3)
-        end
-        
+
+        entry._des = function() deselectTab(entry) end
+        entry._sel = function() selectTab(entry) end
+
+        -- Vertical button events
         btn.MouseEnter:Connect(function() if activeTab ~= entry then tw(selBg, { BackgroundTransparency = 0.5 }) end end)
         btn.MouseLeave:Connect(function() if activeTab ~= entry then tw(selBg, { BackgroundTransparency = 1 }) end end)
-        btn.MouseButton1Click:Connect(function()
-            if activeTab and activeTab ~= entry then activeTab._des() activeTab.frame.Visible = false end
-            activeTab = entry
-            entry.frame.Visible = true
-            select()
-        end)
-        
-        entry._des = deselect
-        entry._sel = select
+        btn.MouseButton1Click:Connect(function() doTabSwitch(entry) end)
+
+        -- Horizontal button events
+        hBtn.MouseEnter:Connect(function() if activeTab ~= entry then tw(hBg, { BackgroundTransparency = 0.5 }) end end)
+        hBtn.MouseLeave:Connect(function() if activeTab ~= entry then tw(hBg, { BackgroundTransparency = 1 }) end end)
+        hBtn.MouseButton1Click:Connect(function() doTabSwitch(entry) end)
+
         return entry, tf
+    end
+
+    -- Switch between vertical sidebar and horizontal top bar layout
+    local function setTabLayout(horizontal, animate)
+        tabBarIsHorizontal = horizontal
+        local t = animate and 0.3 or 0
+
+        if horizontal then
+            -- Hide sidebar, show top bar
+            tw(sidebar, { Size = UDim2.new(0, 0, 1, -4) }, t)
+            tw(sidebarDivider, { BackgroundTransparency = 1 }, t)
+            task.delay(t, function()
+                sidebar.Visible = false
+                sidebarDivider.Visible = false
+            end)
+            topTabBar.Visible = true
+            topTabBar.BackgroundTransparency = 1
+            tw(topTabBar, { BackgroundTransparency = 0 }, t)
+            topTabDivider.Visible = true
+            topTabDivider.BackgroundTransparency = 1
+            tw(topTabDivider, { BackgroundTransparency = 0 }, t)
+            -- Reposition content area below the top bar
+            tw(contentArea, {
+                Size = UDim2.new(1, -4, 1, -TAB_BAR_H - 36),
+                Position = UDim2.new(0, 2, 0, TAB_BAR_H + 6)
+            }, t)
+            tw(statusBar, {
+                Size = UDim2.new(1, -4, 0, 28),
+                Position = UDim2.new(0, 2, 1, -32)
+            }, t)
+        else
+            -- Show sidebar, hide top bar
+            sidebar.Visible = true
+            sidebarDivider.Visible = true
+            tw(sidebar, { Size = UDim2.new(0, SIDE_W, 1, -4) }, t)
+            tw(sidebarDivider, { BackgroundTransparency = 0 }, t)
+            tw(topTabBar, { BackgroundTransparency = 1 }, t)
+            tw(topTabDivider, { BackgroundTransparency = 1 }, t)
+            task.delay(t, function()
+                topTabBar.Visible = false
+                topTabDivider.Visible = false
+            end)
+            tw(contentArea, {
+                Size = UDim2.new(1, -SIDE_W - 2, 1, -32),
+                Position = UDim2.new(0, SIDE_W + 2, 0, 4)
+            }, t)
+            tw(statusBar, {
+                Size = UDim2.new(1, -SIDE_W - 2, 0, 28),
+                Position = UDim2.new(0, SIDE_W + 2, 1, -32)
+            }, t)
+        end
     end
     
     -- Settings Panel (sibling of win, not child)
@@ -717,6 +862,7 @@ function MenuLib:Init(config)
     sRight.ZIndex = 2
     
     local function setSidebarWidth(w, animate)
+        if tabBarIsHorizontal then return end -- don't resize sidebar in horizontal mode
         SIDE_W = w
         local cw = UDim2.new(1, -SIDE_W - 2, 1, -32)
         local cp = UDim2.new(0, SIDE_W + 2, 0, 4)
@@ -730,11 +876,29 @@ function MenuLib:Init(config)
         if sRight then tw(sRight, {Size = cw, Position = cp}, atn) end
         
         local isCompact = (w <= 100)
-        local tAlpha = isCompact and 1 or 0
         local tatn = animate and 0.2 or 0
-        
-        for _, t in ipairs(allTabs or {}) do 
-            if t.lbl then tw(t.lbl, {TextTransparency = tAlpha}, tatn) end 
+
+        -- Hide/show section labels in compact mode
+        for _, s in ipairs(sectionLabels or {}) do
+            if isCompact then
+                tw(s, {TextTransparency = 1}, tatn)
+                task.delay(tatn, function() if s then s.Visible = false end end)
+            else
+                s.Visible = true
+                tw(s, {TextTransparency = 0}, tatn)
+            end
+        end
+
+        for _, t in ipairs(allTabs or {}) do
+            if t.lbl then
+                if isCompact then
+                    tw(t.lbl, {TextTransparency = 1}, tatn)
+                    task.delay(tatn, function() if t.lbl then t.lbl.Visible = false end end)
+                else
+                    t.lbl.Visible = true
+                    tw(t.lbl, {TextTransparency = 0}, tatn)
+                end
+            end
             local isActive = (t.frame and t.frame.Visible)
             if t.line and isActive then
                 tw(t.line, {BackgroundTransparency = isCompact and 1 or 0}, tatn)
@@ -744,7 +908,15 @@ function MenuLib:Init(config)
             end
         end
         for i, t in ipairs(catBtns or {}) do
-            if t.lbl then tw(t.lbl, {TextTransparency = tAlpha}, tatn) end 
+            if t.lbl then
+                if isCompact then
+                    tw(t.lbl, {TextTransparency = 1}, tatn)
+                    task.delay(tatn, function() if t.lbl then t.lbl.Visible = false end end)
+                else
+                    t.lbl.Visible = true
+                    tw(t.lbl, {TextTransparency = 0}, tatn)
+                end
+            end
             local isActive = (i == activeSettingTab)
             if t.line and isActive then
                 tw(t.line, {BackgroundTransparency = isCompact and 1 or 0}, tatn)
@@ -783,17 +955,17 @@ function MenuLib:Init(config)
     local function addSettingOption(tabName, labelText, hasToggle, callback, initValue)
         local scrollFrame = settingsTabs[tabName]
         if not scrollFrame then return nil end
-        
+
         local existingChildren = #scrollFrame:GetChildren()
-        if existingChildren > 1 then
-            local divider = fr(scrollFrame, UDim2.new(1, -20, 0, 1), nil, C.DIV, 0.5, 0)
+        if existingChildren > 2 then
+            local divider = fr(scrollFrame, UDim2.new(1, -10, 0, 1), nil, C.DIV, 0.5, 0)
             divider.LayoutOrder = existingChildren
             divider.Name = "Divider"
             divider.BackgroundTransparency = 1
             tw(divider, { BackgroundTransparency = 0.5 }, 0.3)
         end
-        
-        local row = fr(scrollFrame, UDim2.new(1, -4, 0, 40), nil, C.HEADER, 0, 10)
+
+        local row = fr(scrollFrame, UDim2.new(1, -10, 0, 40), nil, C.HEADER, 0, 10)
         row.LayoutOrder = #scrollFrame:GetChildren()
         local stripe = fr(row, UDim2.new(0, 3, 1, -8), UDim2.new(0, 0, 0, 4), C.ACCENT, 0, 0)
         gradV(stripe, C.ACCENT, C.ACCENT2)
@@ -815,8 +987,45 @@ function MenuLib:Init(config)
     addSettingOption("General", "Show watermark", true, function(on) hudBar.Visible = on end, true)
     
     addSettingOption("Appearance", "Compact sidebar", true, function(on)
+        if tabBarIsHorizontal then return end -- no compact in horizontal mode
         setSidebarWidth(on and 52 or 160, true)
     end, false)
+
+    -- Tab layout dropdown in settings
+    do
+        local scrollFrame = settingsTabs["Appearance"]
+        if scrollFrame then
+            local row = fr(scrollFrame, UDim2.new(1, -10, 0, 40), nil, C.HEADER, 0, 10)
+            row.LayoutOrder = #scrollFrame:GetChildren()
+            local stripe = fr(row, UDim2.new(0, 3, 1, -8), UDim2.new(0, 0, 0, 4), C.ACCENT, 0, 0)
+            gradV(stripe, C.ACCENT, C.ACCENT2)
+            lbl(row, "Tab layout", UDim2.new(1, -140, 1, 0), UDim2.new(0, 14, 0, 0), 12, C.TEXT)
+
+            local layoutOptions = {"Vertical", "Horizontal"}
+            local selectedIdx = 1
+            local layoutDropBtn = Instance.new("TextButton")
+            layoutDropBtn.Size = UDim2.new(0, 110, 0, 26)
+            layoutDropBtn.Position = UDim2.new(1, -120, 0.5, -13)
+            layoutDropBtn.BackgroundColor3 = C.DARK
+            layoutDropBtn.Text = "Vertical"
+            layoutDropBtn.TextColor3 = C.TEXT
+            layoutDropBtn.TextSize = 11
+            layoutDropBtn.Font = Enum.Font.GothamBold
+            layoutDropBtn.Parent = row
+            Instance.new("UICorner", layoutDropBtn).CornerRadius = UDim.new(0, 6)
+
+            layoutDropBtn.MouseEnter:Connect(function() tw(layoutDropBtn, { BackgroundColor3 = C.BTN }, 0.12) end)
+            layoutDropBtn.MouseLeave:Connect(function() tw(layoutDropBtn, { BackgroundColor3 = C.DARK }, 0.12) end)
+
+            layoutDropBtn.MouseButton1Click:Connect(function()
+                selectedIdx = (selectedIdx % #layoutOptions) + 1
+                local opt = layoutOptions[selectedIdx]
+                layoutDropBtn.Text = opt
+                setTabLayout(opt == "Horizontal", true)
+            end)
+        end
+    end
+
     addSettingOption("Appearance", "Blur background", true, function(on)
         _G._BlurEnabled = on
         if on and isOpen then
@@ -859,7 +1068,7 @@ function MenuLib:Init(config)
     -- Keybinds
     local function addKeybindOption(tabName, label, key, onChange)
         local scrollFrame = settingsTabs[tabName]
-        local row = fr(scrollFrame, UDim2.new(1, -4, 0, 40), nil, C.HEADER, 0, 10)
+        local row = fr(scrollFrame, UDim2.new(1, -10, 0, 40), nil, C.HEADER, 0, 10)
         row.LayoutOrder = #scrollFrame:GetChildren()
         local stripe = fr(row, UDim2.new(0, 3, 1, -8), UDim2.new(0, 0, 0, 4), C.ACCENT, 0, 0)
         gradV(stripe, C.ACCENT, C.ACCENT2)
