@@ -231,6 +231,7 @@ function MenuLib:Init(config)
     
     -- Connection tracking for cleanup
     local conns = {}
+    local unloaded = false
     local origMouseIconEnabled = UserInputService.MouseIconEnabled
 
     -- ESP System
@@ -238,11 +239,12 @@ function MenuLib:Init(config)
     local espFilled = {}
     
     local function updateESP()
+        if unloaded then return end
         -- Always hide all ESP first, then show only if enabled
         for player, box in pairs(espLines) do
-            for _, line in ipairs(box) do line.Visible = false end
+            for _, line in ipairs(box) do pcall(function() line.Visible = false end) end
         end
-        for _, filled in pairs(espFilled) do filled.Visible = false end
+        for _, filled in pairs(espFilled) do pcall(function() filled.Visible = false end) end
         
         -- Early return if ESP disabled
         if not (_G._BoxESPEnabled or _G._FilledBoxESPEnabled) then
@@ -630,9 +632,9 @@ function MenuLib:Init(config)
         local namL = lbl(btn, name, UDim2.new(1, -52, 1, 0), UDim2.new(0, 44, 0, 0), 12, C.DIM)
 
         -- Horizontal top bar button
+        local hBtnW = math.max(#name * 7 + 42, 70)
         local hBtn = Instance.new("TextButton")
-        hBtn.Size = UDim2.new(0, 0, 1, -8)
-        hBtn.AutomaticSize = Enum.AutomaticSize.X
+        hBtn.Size = UDim2.new(0, hBtnW, 1, -8)
         hBtn.BackgroundTransparency = 1
         hBtn.Text = ""
         hBtn.LayoutOrder = ord
@@ -652,11 +654,7 @@ function MenuLib:Init(config)
         hIco.ImageColor3 = C.DIM
         hIco.Parent = hBtn
 
-        local hLbl = lbl(hBtn, name, UDim2.new(0, 0, 1, 0), UDim2.new(0, 30, 0, 0), 11, C.DIM, Enum.Font.GothamBold)
-        hLbl.AutomaticSize = Enum.AutomaticSize.X
-        local hPad = Instance.new("UIPadding")
-        hPad.PaddingRight = UDim.new(0, 12)
-        hPad.Parent = hBtn
+        local hLbl = lbl(hBtn, name, UDim2.new(1, -34, 1, 0), UDim2.new(0, 30, 0, 0), 11, C.DIM, Enum.Font.GothamBold)
 
         local entry = {
             btn = btn, frame = tf, bg = selBg, line = selLine, ico = icoL, lbl = namL,
@@ -1003,9 +1001,12 @@ function MenuLib:Init(config)
 
             local layoutOptions = {"Vertical", "Horizontal"}
             local selectedIdx = 1
+            local ddOpen = false
+            local DROP_W = 110
+
             local layoutDropBtn = Instance.new("TextButton")
-            layoutDropBtn.Size = UDim2.new(0, 110, 0, 26)
-            layoutDropBtn.Position = UDim2.new(1, -120, 0.5, -13)
+            layoutDropBtn.Size = UDim2.new(0, DROP_W, 0, 26)
+            layoutDropBtn.Position = UDim2.new(1, -(DROP_W + 10), 0.5, -13)
             layoutDropBtn.BackgroundColor3 = C.DARK
             layoutDropBtn.Text = "Vertical"
             layoutDropBtn.TextColor3 = C.TEXT
@@ -1013,16 +1014,153 @@ function MenuLib:Init(config)
             layoutDropBtn.Font = Enum.Font.GothamBold
             layoutDropBtn.Parent = row
             Instance.new("UICorner", layoutDropBtn).CornerRadius = UDim.new(0, 6)
+            local ddStroke = Instance.new("UIStroke")
+            ddStroke.Color = C.DIV
+            ddStroke.Thickness = 1
+            ddStroke.Transparency = 0.5
+            ddStroke.Parent = layoutDropBtn
 
-            layoutDropBtn.MouseEnter:Connect(function() tw(layoutDropBtn, { BackgroundColor3 = C.BTN }, 0.12) end)
-            layoutDropBtn.MouseLeave:Connect(function() tw(layoutDropBtn, { BackgroundColor3 = C.DARK }, 0.12) end)
+            local chevron = Instance.new("ImageLabel")
+            chevron.Size = UDim2.new(0, 10, 0, 10)
+            chevron.Position = UDim2.new(1, -16, 0.5, -5)
+            chevron.BackgroundTransparency = 1
+            chevron.Image = "rbxassetid://6031091004"
+            chevron.ImageColor3 = C.ACCENT
+            chevron.Parent = layoutDropBtn
 
-            layoutDropBtn.MouseButton1Click:Connect(function()
-                selectedIdx = (selectedIdx % #layoutOptions) + 1
-                local opt = layoutOptions[selectedIdx]
-                layoutDropBtn.Text = opt
-                setTabLayout(opt == "Horizontal", true)
+            local ddPad = Instance.new("UIPadding")
+            ddPad.PaddingRight = UDim.new(0, 18)
+            ddPad.PaddingLeft = UDim.new(0, 4)
+            ddPad.Parent = layoutDropBtn
+
+            layoutDropBtn.MouseEnter:Connect(function()
+                tw(layoutDropBtn, { BackgroundColor3 = C.BTN }, 0.12)
+                tw(ddStroke, { Color = C.ACCENT, Transparency = 0.3 }, 0.12)
             end)
+            layoutDropBtn.MouseLeave:Connect(function()
+                tw(layoutDropBtn, { BackgroundColor3 = C.DARK }, 0.12)
+                tw(ddStroke, { Color = C.DIV, Transparency = 0.5 }, 0.12)
+            end)
+
+            local dropFrame = nil
+            local dropShadow = nil
+            local closeConn = nil
+
+            local function closeDrop()
+                ddOpen = false
+                if closeConn then closeConn:Disconnect() closeConn = nil end
+                tw(chevron, { Rotation = 0 }, 0.2)
+                if dropFrame then
+                    tw(dropFrame, { Size = UDim2.new(0, DROP_W, 0, 0), BackgroundTransparency = 1 }, 0.2)
+                    local cf = dropFrame
+                    local cs = dropShadow
+                    dropFrame = nil
+                    dropShadow = nil
+                    task.delay(0.25, function()
+                        if cf then cf:Destroy() end
+                        if cs then cs:Destroy() end
+                    end)
+                end
+            end
+
+            local function openDrop()
+                if ddOpen then closeDrop() return end
+                ddOpen = true
+                tw(chevron, { Rotation = 180 }, 0.2)
+
+                local btnPos = layoutDropBtn.AbsolutePosition
+                local btnSize = layoutDropBtn.AbsoluteSize
+                local dropY = btnPos.Y + btnSize.Y + 4
+                local dropX = btnPos.X
+                local targetH = #layoutOptions * 30 + 8
+
+                dropShadow = fr(sg, UDim2.new(0, DROP_W, 0, 0), UDim2.new(0, dropX + 2, 0, dropY + 2), Color3.new(0, 0, 0), 0.7, 8)
+                dropShadow.ZIndex = 998
+
+                dropFrame = fr(sg, UDim2.new(0, DROP_W, 0, 0), UDim2.new(0, dropX, 0, dropY), C.DARK, 0, 8)
+                dropFrame.ZIndex = 1000
+                dropFrame.ClipsDescendants = true
+                local dStroke = Instance.new("UIStroke")
+                dStroke.Color = C.ACCENT
+                dStroke.Thickness = 1.5
+                dStroke.Transparency = 0.4
+                dStroke.Parent = dropFrame
+
+                local dScroll = Instance.new("ScrollingFrame")
+                dScroll.Size = UDim2.new(1, -4, 1, -4)
+                dScroll.Position = UDim2.new(0, 2, 0, 2)
+                dScroll.BackgroundTransparency = 1
+                dScroll.BorderSizePixel = 0
+                dScroll.ScrollBarThickness = 0
+                dScroll.CanvasSize = UDim2.new(0, 0, 0, #layoutOptions * 30)
+                dScroll.Parent = dropFrame
+                local dList = Instance.new("UIListLayout")
+                dList.SortOrder = Enum.SortOrder.LayoutOrder
+                dList.Padding = UDim.new(0, 2)
+                dList.Parent = dScroll
+
+                for i, opt in ipairs(layoutOptions) do
+                    local optBtn = Instance.new("TextButton")
+                    optBtn.Size = UDim2.new(1, -4, 0, 28)
+                    optBtn.BackgroundColor3 = (i == selectedIdx) and Color3.fromRGB(40, 20, 70) or C.DARK
+                    optBtn.Text = opt
+                    optBtn.TextColor3 = (i == selectedIdx) and C.TEXT or C.DIM
+                    optBtn.TextSize = 11
+                    optBtn.Font = Enum.Font.GothamBold
+                    optBtn.TextXAlignment = Enum.TextXAlignment.Center
+                    optBtn.Parent = dScroll
+                    optBtn.LayoutOrder = i
+                    optBtn.ZIndex = 1001
+                    Instance.new("UICorner", optBtn).CornerRadius = UDim.new(0, 4)
+
+                    if i == selectedIdx then
+                        local selS = Instance.new("UIStroke")
+                        selS.Color = C.ACCENT
+                        selS.Thickness = 1
+                        selS.Transparency = 0.5
+                        selS.Parent = optBtn
+                    end
+
+                    optBtn.MouseEnter:Connect(function()
+                        if i ~= selectedIdx then tw(optBtn, { BackgroundColor3 = C.BTN, TextColor3 = C.TEXT }, 0.12) end
+                    end)
+                    optBtn.MouseLeave:Connect(function()
+                        if i ~= selectedIdx then tw(optBtn, { BackgroundColor3 = C.DARK, TextColor3 = C.DIM }, 0.12) end
+                    end)
+                    optBtn.MouseButton1Click:Connect(function()
+                        tw(optBtn, { BackgroundColor3 = C.ACCENT }, 0.08)
+                        task.delay(0.14, function()
+                            selectedIdx = i
+                            layoutDropBtn.Text = opt
+                            setTabLayout(opt == "Horizontal", true)
+                            closeDrop()
+                        end)
+                    end)
+                end
+
+                tw(dropShadow, { Size = UDim2.new(0, DROP_W, 0, targetH) }, 0.25, Enum.EasingStyle.Quint)
+                tw(dropFrame, { Size = UDim2.new(0, DROP_W, 0, targetH) }, 0.25, Enum.EasingStyle.Quint)
+
+                task.delay(0.1, function()
+                    if not ddOpen then return end
+                    closeConn = UserInputService.InputBegan:Connect(function(input)
+                        if not ddOpen then if closeConn then closeConn:Disconnect() end return end
+                        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                            local pos = UserInputService:GetMouseLocation()
+                            local df = dropFrame
+                            local bb = layoutDropBtn
+                            if not df or not bb then return end
+                            local inDrop = pos.X >= df.AbsolutePosition.X and pos.X <= df.AbsolutePosition.X + df.AbsoluteSize.X and
+                                           pos.Y >= df.AbsolutePosition.Y and pos.Y <= df.AbsolutePosition.Y + df.AbsoluteSize.Y
+                            local inBtn = pos.X >= bb.AbsolutePosition.X and pos.X <= bb.AbsolutePosition.X + bb.AbsoluteSize.X and
+                                          pos.Y >= bb.AbsolutePosition.Y and pos.Y <= bb.AbsolutePosition.Y + bb.AbsoluteSize.Y
+                            if not inDrop and not inBtn then closeDrop() end
+                        end
+                    end)
+                end)
+            end
+
+            layoutDropBtn.MouseButton1Click:Connect(openDrop)
         end
     end
 
@@ -1403,27 +1541,28 @@ function MenuLib:Init(config)
     local fpsT, fpsN = 0, 0
     
     table.insert(conns, RunService.RenderStepped:Connect(function(dt)
+        if unloaded then return end
         fpsT = fpsT + dt
         fpsN = fpsN + 1
         if fpsT >= 0.5 then
-            fpsLbl.Text = tostring(math.round(fpsN / fpsT)) .. " FPS"
+            pcall(function() fpsLbl.Text = tostring(math.round(fpsN / fpsT)) .. " FPS" end)
             fpsN = 0
             fpsT = 0
         end
-        pingLbl.Text = tostring(math.round(lp:GetNetworkPing() * 1000)) .. " ms"
-        timeLbl.Text = os.date("%I:%M %p")
-        
+        pcall(function() pingLbl.Text = tostring(math.round(lp:GetNetworkPing() * 1000)) .. " ms" end)
+        pcall(function() timeLbl.Text = os.date("%I:%M %p") end)
+
         if _G._LightingDimEnabled then
             Lighting.Brightness = 0.3
             Lighting.ClockTime = 0
         end
-        
+
         if dragging and dragTarget then
             local mp = UserInputService:GetMouseLocation()
             if dragTarget == "settings" and settingsPanel then
-                settingsPanel.Position = UDim2.new(0, settingsOrig.X.Offset + (mp.X - dragOrig.X), 0, settingsOrig.Y.Offset + (mp.Y - dragOrig.Y))
+                pcall(function() settingsPanel.Position = UDim2.new(0, settingsOrig.X.Offset + (mp.X - dragOrig.X), 0, settingsOrig.Y.Offset + (mp.Y - dragOrig.Y)) end)
             elseif dragTarget == "main" and win then
-                win.Position = UDim2.new(0, winOrig.X.Offset + (mp.X - dragOrig.X), 0, winOrig.Y.Offset + (mp.Y - dragOrig.Y))
+                pcall(function() win.Position = UDim2.new(0, winOrig.X.Offset + (mp.X - dragOrig.X), 0, winOrig.Y.Offset + (mp.Y - dragOrig.Y)) end)
             end
         end
     end))
@@ -1437,6 +1576,9 @@ function MenuLib:Init(config)
         if inp.KeyCode == toggleKey and not _G._SettingKeybind then
             toggleMenu()
         elseif inp.KeyCode == unloadKey and not _G._SettingKeybind then
+            -- Flag unloaded immediately to stop all callbacks
+            unloaded = true
+
             -- Disconnect ALL tracked connections first
             for _, c in ipairs(conns) do pcall(function() c:Disconnect() end) end
             conns = {}
