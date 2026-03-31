@@ -530,7 +530,7 @@ function MenuLib:Init(config)
         elseif iconImage == ICON.world then
             iconSize = 20
         elseif iconImage == ICON.skin then
-            iconSize = 32
+            iconSize = 28
             iconX = 4
         end
         
@@ -609,8 +609,8 @@ function MenuLib:Init(config)
     
     fr(settingsBodyShell, UDim2.new(0, 1, 1, -4), UDim2.new(0, SIDE_W, 0, 4), C.DIV)
     
-    local catItems = { "General", "Appearance", "Performance", "Keybinds", "Configs" }
-    local catKeys = { ICON.general, ICON.appearance, ICON.performance, ICON.keyboard, ICON.config }
+    local catItems = { "General", "Appearance", "Performance", "Keybinds" }
+    local catKeys = { ICON.general, ICON.appearance, ICON.performance, ICON.keyboard }
     local catScroll = Instance.new("ScrollingFrame")
     catScroll.Size = UDim2.new(1, 0, 1, 0)
     catScroll.ZIndex = 2
@@ -920,138 +920,6 @@ function MenuLib:Init(config)
     
     addKeybindOption("Keybinds", "Toggle menu key", _G._MenuToggleKey, function(k) _G._MenuToggleKey = k end)
     addKeybindOption("Keybinds", "Unload script key", _G._UnloadKey, function(k) _G._UnloadKey = k end)
-    
-    -- Configs tab UI
-    local configsScroll = settingsTabs["Configs"]
-    if configsScroll then
-        local leftPanel = fr(configsScroll, UDim2.new(0.45, -10, 1, -20), UDim2.new(0, 10, 0, 10), C.HEADER, 0, 12)
-        local rightPanel = fr(configsScroll, UDim2.new(0.5, -10, 1, -20), UDim2.new(0.5, 5, 0, 10), C.HEADER, 0, 12)
-        
-        local nameTitle = lbl(leftPanel, "Config Name", UDim2.new(1, -20, 0, 20), UDim2.new(0, 14, 0, 10), 12, C.TEXT, Enum.Font.GothamBold)
-        
-        local nameBox = Instance.new("TextBox")
-        nameBox.Size = UDim2.new(1, -28, 0, 36)
-        nameBox.Position = UDim2.new(0, 14, 0, 35)
-        nameBox.BackgroundColor3 = C.SEL
-        nameBox.TextColor3 = C.TEXT
-        nameBox.TextSize = 12
-        nameBox.Font = Enum.Font.Gotham
-        nameBox.PlaceholderText = "Enter config name..."
-        nameBox.ClearTextOnFocus = false
-        nameBox.Parent = leftPanel
-        Instance.new("UICorner", nameBox).CornerRadius = UDim.new(0, 8)
-        
-        local createBtn = Instance.new("TextButton")
-        createBtn.Size = UDim2.new(1, -28, 0, 36)
-        createBtn.Position = UDim2.new(0, 14, 0, 80)
-        createBtn.BackgroundColor3 = C.ACCENT
-        createBtn.Text = "Create Config"
-        createBtn.TextColor3 = C.TEXT
-        createBtn.TextSize = 12
-        createBtn.Font = Enum.Font.GothamBold
-        createBtn.AutoButtonColor = false
-        createBtn.Parent = leftPanel
-        Instance.new("UICorner", createBtn).CornerRadius = UDim.new(0, 8)
-        
-        local statusLbl = lbl(leftPanel, "", UDim2.new(1, -28, 0, 20), UDim2.new(0, 14, 0, 120), 11, C.GREEN)
-        
-        local listTitle = lbl(rightPanel, "Saved Configs", UDim2.new(1, -20, 0, 30), UDim2.new(0, 14, 0, 0), 14, C.TEXT, Enum.Font.GothamBold)
-        
-        local scroll = Instance.new("ScrollingFrame")
-        scroll.Size = UDim2.new(1, -20, 1, -45)
-        scroll.Position = UDim2.new(0, 10, 0, 35)
-        scroll.BackgroundTransparency = 1
-        scroll.BorderSizePixel = 0
-        scroll.ScrollBarThickness = 4
-        scroll.ScrollBarImageColor3 = C.ACCENT
-        scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-        scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
-        scroll.Parent = rightPanel
-        
-        local listLayout = Instance.new("UIListLayout")
-        listLayout.SortOrder = Enum.SortOrder.LayoutOrder
-        listLayout.Padding = UDim.new(0, 6)
-        listLayout.Parent = scroll
-        
-        local function RefreshConfigList()
-            for _, child in ipairs(scroll:GetChildren()) do
-                if child:IsA("Frame") then child:Destroy() end
-            end
-            
-            for name, data in pairs(_G._ConfigList or {}) do
-                local row = fr(scroll, UDim2.new(1, 0, 0, 40), nil, C.SEL, 0, 8)
-                row.LayoutOrder = #scroll:GetChildren()
-                
-                local nameLbl = lbl(row, name, UDim2.new(0.5, 0, 1, 0), UDim2.new(0, 10, 0, 0), 12, C.TEXT, Enum.Font.GothamBold)
-                
-                local loadBtn = Instance.new("TextButton")
-                loadBtn.Size = UDim2.new(0, 50, 0, 26)
-                loadBtn.Position = UDim2.new(1, -110, 0.5, -13)
-                loadBtn.BackgroundColor3 = C.GREEN
-                loadBtn.Text = "Load"
-                loadBtn.TextColor3 = C.TEXT
-                loadBtn.TextSize = 11
-                loadBtn.Font = Enum.Font.GothamBold
-                loadBtn.AutoButtonColor = false
-                loadBtn.Parent = row
-                Instance.new("UICorner", loadBtn).CornerRadius = UDim.new(0, 6)
-                
-                local delBtn = Instance.new("TextButton")
-                delBtn.Size = UDim2.new(0, 50, 0, 26)
-                delBtn.Position = UDim2.new(1, -55, 0.5, -13)
-                delBtn.BackgroundColor3 = C.RED
-                delBtn.Text = "Delete"
-                delBtn.TextColor3 = C.TEXT
-                delBtn.TextSize = 11
-                delBtn.Font = Enum.Font.GothamBold
-                delBtn.AutoButtonColor = false
-                delBtn.Parent = row
-                Instance.new("UICorner", delBtn).CornerRadius = UDim.new(0, 6)
-                
-                loadBtn.MouseButton1Click:Connect(function()
-                    if _G.LoadConfigData then
-                        _G.LoadConfigData(data)
-                        statusLbl.Text = "Loaded: " .. name
-                        statusLbl.TextColor3 = C.GREEN
-                        _G._CurrentConfig = name
-                    end
-                end)
-                
-                delBtn.MouseButton1Click:Connect(function()
-                    if _G._ConfigList then
-                        _G._ConfigList[name] = nil
-                        row:Destroy()
-                        statusLbl.Text = "Deleted: " .. name
-                        statusLbl.TextColor3 = C.RED
-                    end
-                end)
-            end
-        end
-        
-        createBtn.MouseButton1Click:Connect(function()
-            local name = nameBox.Text:gsub("^%s+", ""):gsub("%s+$", "")
-            if name == "" then
-                statusLbl.Text = "Please enter a config name"
-                statusLbl.TextColor3 = C.RED
-                return
-            end
-            if not _G._ConfigList then _G._ConfigList = {} end
-            if _G._ConfigList[name] then
-                statusLbl.Text = "Config already exists!"
-                statusLbl.TextColor3 = C.RED
-                return
-            end
-            if _G.GetConfigData then
-                _G._ConfigList[name] = _G.GetConfigData()
-                statusLbl.Text = "Created: " .. name
-                statusLbl.TextColor3 = C.GREEN
-                nameBox.Text = ""
-                RefreshConfigList()
-            end
-        end)
-        
-        RefreshConfigList()
-    end
     
     -- Menu Functions
     local inSettings = false
@@ -1391,13 +1259,28 @@ function MenuLib:Init(config)
         }
     end
     
-    API.AddToggle = function(tabName, label, callback, default)
+    API.AddToggle = function(tabName, label, callback, default, side)
         local scrollFrame = tabContents[tabName]
         if not scrollFrame then return nil end
         
-        local card = scrollFrame:FindFirstChildWhichIsA("Frame")
+        -- Check if this tab has a two-panel layout
+        local parentFrame
+        local contentFrame = scrollFrame:FindFirstChildWhichIsA("Frame")
+        if contentFrame then
+            local leftPanel = contentFrame:GetAttribute("LeftPanel")
+            local rightPanel = contentFrame:GetAttribute("RightPanel")
+            if leftPanel and rightPanel and side == "right" then
+                parentFrame = rightPanel
+            else
+                parentFrame = leftPanel or contentFrame
+            end
+        else
+            parentFrame = scrollFrame
+        end
+        
+        local card = parentFrame:FindFirstChildWhichIsA("Frame")
         if not card then
-            card = fr(scrollFrame, UDim2.new(1, -4, 0, 0), nil, C.HEADER, 0, 16)
+            card = fr(parentFrame, UDim2.new(1, -4, 0, 0), nil, C.HEADER, 0, 16)
             card.AutomaticSize = Enum.AutomaticSize.Y
             local v = Instance.new("UIListLayout")
             v.SortOrder = Enum.SortOrder.LayoutOrder
@@ -1450,13 +1333,28 @@ function MenuLib:Init(config)
         return btn
     end
     
-    API.AddSlider = function(tabName, label, min, max, callback, default)
+    API.AddSlider = function(tabName, label, min, max, callback, default, side)
         local scrollFrame = tabContents[tabName]
         if not scrollFrame then return nil end
         
-        local card = scrollFrame:FindFirstChildWhichIsA("Frame")
+        -- Check if this tab has a two-panel layout
+        local parentFrame
+        local contentFrame = scrollFrame:FindFirstChildWhichIsA("Frame")
+        if contentFrame then
+            local leftPanel = contentFrame:GetAttribute("LeftPanel")
+            local rightPanel = contentFrame:GetAttribute("RightPanel")
+            if leftPanel and rightPanel and side == "right" then
+                parentFrame = rightPanel
+            else
+                parentFrame = leftPanel or contentFrame
+            end
+        else
+            parentFrame = scrollFrame
+        end
+        
+        local card = parentFrame:FindFirstChildWhichIsA("Frame")
         if not card then
-            card = fr(scrollFrame, UDim2.new(1, -4, 0, 0), nil, C.HEADER, 0, 16)
+            card = fr(parentFrame, UDim2.new(1, -4, 0, 0), nil, C.HEADER, 0, 16)
             card.AutomaticSize = Enum.AutomaticSize.Y
             local v = Instance.new("UIListLayout")
             v.SortOrder = Enum.SortOrder.LayoutOrder
@@ -1970,14 +1868,37 @@ function MenuLib:Init(config)
         scroll.Parent = f
         pad(scroll, 8, 10, 8, 8)
         
-        local card = fr(scroll, UDim2.new(1, -4, 0, 0), nil, C.HEADER, 0, 16)
-        card.AutomaticSize = Enum.AutomaticSize.Y
-        local v = Instance.new("UIListLayout")
-        v.SortOrder = Enum.SortOrder.LayoutOrder
-        v.Padding = UDim.new(0, 8)
-        v.Parent = card
-        pad(card, 16, 16, 16, 16)
-        lbl(card, "Aimbot", UDim2.new(1, 0, 0, 0), nil, 18, C.TEXT, Enum.Font.GothamBold)
+        -- Two panel layout for Aimbot (left: main, right: Silent Aim)
+        local mainRow = fr(scroll, UDim2.new(1, -4, 0, 0), nil, C.HEADER, 0, 0)
+        mainRow.AutomaticSize = Enum.AutomaticSize.Y
+        local rowLayout = Instance.new("UIListLayout")
+        rowLayout.SortOrder = Enum.SortOrder.LayoutOrder
+        rowLayout.Padding = UDim.new(0, 8)
+        rowLayout.Parent = mainRow
+        
+        local leftPanel = fr(mainRow, UDim2.new(0.5, -4, 0, 0), nil, C.HEADER, 0, 16)
+        leftPanel.AutomaticSize = Enum.AutomaticSize.Y
+        leftPanel.LayoutOrder = 1
+        local leftV = Instance.new("UIListLayout")
+        leftV.SortOrder = Enum.SortOrder.LayoutOrder
+        leftV.Padding = UDim.new(0, 8)
+        leftV.Parent = leftPanel
+        pad(leftPanel, 16, 16, 16, 16)
+        lbl(leftPanel, "Aimbot", UDim2.new(1, 0, 0, 0), nil, 18, C.TEXT, Enum.Font.GothamBold)
+        
+        local rightPanel = fr(mainRow, UDim2.new(0.5, -4, 0, 0), nil, C.HEADER, 0, 16)
+        rightPanel.AutomaticSize = Enum.AutomaticSize.Y
+        rightPanel.LayoutOrder = 2
+        local rightV = Instance.new("UIListLayout")
+        rightV.SortOrder = Enum.SortOrder.LayoutOrder
+        rightV.Padding = UDim.new(0, 8)
+        rightV.Parent = rightPanel
+        pad(rightPanel, 16, 16, 16, 16)
+        lbl(rightPanel, "Silent Aim", UDim2.new(1, 0, 0, 0), nil, 18, C.TEXT, Enum.Font.GothamBold)
+        
+        -- Store panels for API use
+        f:SetAttribute("LeftPanel", leftPanel)
+        f:SetAttribute("RightPanel", rightPanel)
     end)
     
     addSection("VISUALS")
@@ -1992,14 +1913,37 @@ function MenuLib:Init(config)
         scroll.Parent = f
         pad(scroll, 8, 10, 8, 8)
         
-        local card = fr(scroll, UDim2.new(1, -4, 0, 0), nil, C.HEADER, 0, 16)
-        card.AutomaticSize = Enum.AutomaticSize.Y
-        local v = Instance.new("UIListLayout")
-        v.SortOrder = Enum.SortOrder.LayoutOrder
-        v.Padding = UDim.new(0, 8)
-        v.Parent = card
-        pad(card, 16, 16, 16, 16)
-        lbl(card, "Players", UDim2.new(1, 0, 0, 0), nil, 18, C.TEXT, Enum.Font.GothamBold)
+        -- Two panel layout for Players (left: ESP, right: Crosshair)
+        local mainRow = fr(scroll, UDim2.new(1, -4, 0, 0), nil, C.HEADER, 0, 0)
+        mainRow.AutomaticSize = Enum.AutomaticSize.Y
+        local rowLayout = Instance.new("UIListLayout")
+        rowLayout.SortOrder = Enum.SortOrder.LayoutOrder
+        rowLayout.Padding = UDim.new(0, 8)
+        rowLayout.Parent = mainRow
+        
+        local leftPanel = fr(mainRow, UDim2.new(0.5, -4, 0, 0), nil, C.HEADER, 0, 16)
+        leftPanel.AutomaticSize = Enum.AutomaticSize.Y
+        leftPanel.LayoutOrder = 1
+        local leftV = Instance.new("UIListLayout")
+        leftV.SortOrder = Enum.SortOrder.LayoutOrder
+        leftV.Padding = UDim.new(0, 8)
+        leftV.Parent = leftPanel
+        pad(leftPanel, 16, 16, 16, 16)
+        lbl(leftPanel, "ESP", UDim2.new(1, 0, 0, 0), nil, 18, C.TEXT, Enum.Font.GothamBold)
+        
+        local rightPanel = fr(mainRow, UDim2.new(0.5, -4, 0, 0), nil, C.HEADER, 0, 16)
+        rightPanel.AutomaticSize = Enum.AutomaticSize.Y
+        rightPanel.LayoutOrder = 2
+        local rightV = Instance.new("UIListLayout")
+        rightV.SortOrder = Enum.SortOrder.LayoutOrder
+        rightV.Padding = UDim.new(0, 8)
+        rightV.Parent = rightPanel
+        pad(rightPanel, 16, 16, 16, 16)
+        lbl(rightPanel, "Crosshair", UDim2.new(1, 0, 0, 0), nil, 18, C.TEXT, Enum.Font.GothamBold)
+        
+        -- Store panels for API use
+        f:SetAttribute("LeftPanel", leftPanel)
+        f:SetAttribute("RightPanel", rightPanel)
     end)
     
     API.AddTab("World", ICON.world, function(f)
@@ -2224,12 +2168,12 @@ function MenuLib:Init(config)
         -- Initial load
         LoadConfigsFromFile()
         
-        -- Bottom action buttons (Rename/Delete) - always parented, slides in/out
+        -- Bottom action buttons (Rename/Delete) - always visible at bottom
         local bottomActions = fr(rightPanel, UDim2.new(1, -16, 0, 32), UDim2.new(0, 8, 1, -36), C.SEL, 0, 8)
-        bottomActions.ClipsDescendants = true
+        bottomActions.ClipsDescendants = false
         
-        -- Start hidden (off-screen at bottom)
-        bottomActions.Position = UDim2.new(0, 8, 1, 0)
+        -- Start visible
+        bottomActions.Position = UDim2.new(0, 8, 1, -36)
         
         local renameBtnBottom = Instance.new("TextButton")
         renameBtnBottom.Size = UDim2.new(0.48, 0, 0, 28)
@@ -2265,12 +2209,12 @@ function MenuLib:Init(config)
         local function updateBottomActions()
             if selectedConfig then
                 configScroll.Size = UDim2.new(1, -16, 1, -72)
-                -- Slide up from bottom
+                -- Keep visible
                 tw(bottomActions, {Position = UDim2.new(0, 8, 1, -36)}, 0.25, Enum.EasingStyle.Back)
             else
                 configScroll.Size = UDim2.new(1, -16, 1, -32)
-                -- Slide down off-screen
-                tw(bottomActions, {Position = UDim2.new(0, 8, 1, 0)}, 0.2)
+                -- Keep visible
+                tw(bottomActions, {Position = UDim2.new(0, 8, 1, -36)}, 0.2)
             end
         end
         
@@ -2374,7 +2318,8 @@ function MenuLib:Init(config)
             selectedRow = nil
             
             for name, data in pairs(_G._ConfigList) do
-                local row = fr(configScroll, UDim2.new(1, 0, 0, 32), nil, C.DARK, 1, 6)
+    -- Config row with transparent background
+                local row = fr(configScroll, UDim2.new(1, 0, 0, 32), nil, C.SEL, 0.8, 6)
                 row.LayoutOrder = #configScroll:GetChildren()
                 
                 -- Config name label
