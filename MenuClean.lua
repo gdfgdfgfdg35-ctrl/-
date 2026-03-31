@@ -1003,11 +1003,12 @@ function MenuLib:Init(config)
     end
     
     local function openMenu()
+        if not win or not settingsPanel then return end
         if win.Visible or settingsPanel.Visible then return end
         isOpen = true
         _G._MenuOpen = true
         lockInput()
-        hudBar.Visible = true
+        if hudBar then hudBar.Visible = true end
         if _G._BlurEnabled then
             if not blurPart then
                 blurPart = Instance.new("BlurEffect")
@@ -1020,12 +1021,12 @@ function MenuLib:Init(config)
             settingsPanel.Visible = true
             settingsPanel.Size = UDim2.new(0, 0, 0, 0)
             settingsPanel.Position = UDim2.new(0.5, 0, 0.5, 0)
-            tw(settingsPanel, { Size = UDim2.new(0, WIN_W, 0, WIN_H), Position = UDim2.new(0.5, -WIN_W / 2, 0.5, -WIN_H / 2) }, 0.22)
+            tw(settingsPanel, { Size = UDim2.new(0, WIN_W, 0, WIN_H), Position = UDim2.new(0.5, -WIN_W/2, 0.5, -WIN_H/2) }, 0.22)
         else
             win.Visible = true
             win.Size = UDim2.new(0, 0, 0, 0)
             win.Position = UDim2.new(0.5, 0, 0.5, 0)
-            tw(win, { Size = UDim2.new(0, WIN_W, 0, WIN_H), Position = UDim2.new(0.5, -WIN_W / 2, 0.5, -WIN_H / 2) }, 0.22)
+            tw(win, { Size = UDim2.new(0, WIN_W, 0, WIN_H), Position = UDim2.new(0.5, -WIN_W/2, 0.5, -WIN_H/2) }, 0.22)
         end
     end
     
@@ -2559,7 +2560,12 @@ function MenuLib:Init(config)
     
     -- Select first tab
     if firstTab and firstTab.Select then
-        firstTab:Select()
+        local success, err = pcall(function()
+            firstTab:Select()
+        end)
+        if not success then
+            warn("Menu init error: " .. tostring(err))
+        end
     end
     
     -- Window Resizer Grip
