@@ -97,7 +97,7 @@ function MenuLib:Init(config)
         inputBlocker.Visible = false
         pcall(function() controls:Enable() end)
         UserInputService.MouseBehavior = prevMouseBehavior
-        UserInputService.MouseIconEnabled = false
+        UserInputService.MouseIconEnabled = origMouseIconEnabled
     end
     
     RunService:BindToRenderStep(RS_BIND_INP, Enum.RenderPriority.Input.Value + 1, function()
@@ -229,6 +229,10 @@ function MenuLib:Init(config)
         return { Get = function() return state end, Set = function(v) if v ~= state then state = v apply(true, false) end end }
     end
     
+    -- Connection tracking for cleanup
+    local conns = {}
+    local origMouseIconEnabled = UserInputService.MouseIconEnabled
+
     -- ESP System
     local espLines = {}
     local espFilled = {}
@@ -334,7 +338,7 @@ function MenuLib:Init(config)
         end
     end
     
-    RunService.RenderStepped:Connect(updateESP)
+    table.insert(conns, RunService.RenderStepped:Connect(updateESP))
     
     -- UI (sg already created above)
     
@@ -1177,18 +1181,17 @@ function MenuLib:Init(config)
     end
     
     task.defer(function() updateHudLayout(false) end)
-    nameLbl:GetPropertyChangedSignal("AbsoluteSize"):Connect(function() updateHudLayout(true) end)
-    fpsLbl:GetPropertyChangedSignal("Text"):Connect(function() updateHudLayout(true) end)
-    fpsLbl:GetPropertyChangedSignal("Visible"):Connect(function() updateHudLayout(true) end)
-    fpsLbl:GetPropertyChangedSignal("AbsoluteSize"):Connect(function() updateHudLayout(true) end)
-    pingLbl:GetPropertyChangedSignal("Visible"):Connect(function() updateHudLayout(true) end)
-    timeLbl:GetPropertyChangedSignal("Visible"):Connect(function() updateHudLayout(true) end)
-    pingLbl:GetPropertyChangedSignal("AbsoluteSize"):Connect(function() updateHudLayout(true) end)
-    timeLbl:GetPropertyChangedSignal("AbsoluteSize"):Connect(function() updateHudLayout(true) end)
+    table.insert(conns, nameLbl:GetPropertyChangedSignal("AbsoluteSize"):Connect(function() updateHudLayout(true) end))
+    table.insert(conns, fpsLbl:GetPropertyChangedSignal("Text"):Connect(function() updateHudLayout(true) end))
+    table.insert(conns, fpsLbl:GetPropertyChangedSignal("Visible"):Connect(function() updateHudLayout(true) end))
+    table.insert(conns, fpsLbl:GetPropertyChangedSignal("AbsoluteSize"):Connect(function() updateHudLayout(true) end))
+    table.insert(conns, pingLbl:GetPropertyChangedSignal("Visible"):Connect(function() updateHudLayout(true) end))
+    table.insert(conns, timeLbl:GetPropertyChangedSignal("Visible"):Connect(function() updateHudLayout(true) end))
+    table.insert(conns, pingLbl:GetPropertyChangedSignal("AbsoluteSize"):Connect(function() updateHudLayout(true) end))
+    table.insert(conns, timeLbl:GetPropertyChangedSignal("AbsoluteSize"):Connect(function() updateHudLayout(true) end))
     
     -- RenderStepped
     local fpsT, fpsN = 0, 0
-    local conns = {}
     
     table.insert(conns, RunService.RenderStepped:Connect(function(dt)
         fpsT = fpsT + dt
@@ -1225,20 +1228,67 @@ function MenuLib:Init(config)
         if inp.KeyCode == toggleKey and not _G._SettingKeybind then
             toggleMenu()
         elseif inp.KeyCode == unloadKey and not _G._SettingKeybind then
+            -- Disconnect ALL tracked connections first
+            for _, c in ipairs(conns) do pcall(function() c:Disconnect() end) end
+            conns = {}
+
+            -- Unbind RenderStep
             pcall(function() RunService:UnbindFromRenderStep(RS_BIND_INP) end)
-            unlockInput()
-            if _G._OriginalQualityLevel then settings().Rendering.QualityLevel = _G._OriginalQualityLevel end
+
+            -- Restore input state
+            isOpen = false
+            pcall(function() controls:Enable() end)
+            UserInputService.MouseBehavior = prevMouseBehavior
+            UserInputService.MouseIconEnabled = origMouseIconEnabled
+
+            -- Restore lighting
             if _G._OriginalBrightness then
                 Lighting.Brightness = _G._OriginalBrightness
                 Lighting.ClockTime = _G._OriginalClockTime
             end
-            if blurPart then blurPart:Destroy() end
-            for _, c in ipairs(conns) do c:Disconnect() end
-            for player, box in pairs(espLines) do
-                for _, line in ipairs(box) do line:Destroy() end
+
+            -- Restore quality
+            if _G._OriginalQualityLevel then
+                settings().Rendering.QualityLevel = _G._OriginalQualityLevel
             end
-            for _, box in pairs(espFilled) do box:Destroy() end
-            sg:Destroy()
+
+            -- Destroy blur
+            if blurPart then pcall(function() blurPart:Destroy() end) blurPart = nil end
+
+            -- Destroy ESP elements
+            for player, box in pairs(espLines) do
+                for _, line in ipairs(box) do pcall(function() line:Destroy() end) end
+            end
+            for _, box in pairs(espFilled) do pcall(function() box:Destroy() end) end
+            espLines = {}
+            espFilled = {}
+
+            -- Destroy the entire GUI
+            pcall(function() sg:Destroy() end)
+
+            -- Clean up _G variables
+            _G._MenuAutoRefresh = nil
+            _G._BlurEnabled = nil
+            _G._LightingDimEnabled = nil
+            _G._OriginalBrightness = nil
+            _G._OriginalClockTime = nil
+            _G._OriginalQualityLevel = nil
+            _G._MenuToggleKey = nil
+            _G._UnloadKey = nil
+            _G._SmoothAnimations = nil
+            _G._BoxESPEnabled = nil
+            _G._FilledBoxESPEnabled = nil
+            _G._ESPColour = nil
+            _G._MenuOpen = nil
+            _G._SettingKeybind = nil
+            _G._MenuToggles = nil
+            _G._MenuSliders = nil
+            _G._MenuDropdowns = nil
+            _G._ConfigList = nil
+            _G._CurrentConfig = nil
+            _G._ConfigLoaded = nil
+            _G.GetConfigData = nil
+            _G.LoadConfigData = nil
 
             _G._UnloadTriggered = true
         end
@@ -1264,35 +1314,42 @@ function MenuLib:Init(config)
     
     -- Store panel references for tabs that use two-panel layout
     local tabPanels = {}
-    
-    API.AddToggle = function(tabName, label, callback, default, side)
-        local scrollFrame = tabContents[tabName]
-        if not scrollFrame then return nil end
-        
-        -- Check if this tab has a two-panel layout
-        local parentFrame
+
+    -- Helper: find proper container for API element placement
+    local function getContainer(tabName, side)
+        local tf = tabContents[tabName]
+        if not tf then return nil, false end
         local panels = tabPanels[tabName]
-        if panels and side == "right" then
-            parentFrame = panels.rightPanel
-        elseif panels then
-            parentFrame = panels.leftPanel
-        else
-            parentFrame = scrollFrame
+        if panels then
+            -- Two-panel layout: add directly to the panel (it already has UIListLayout + padding)
+            local panel = (side == "right") and panels.rightPanel or panels.leftPanel
+            return panel, true
         end
-        
-        local card = parentFrame:FindFirstChildWhichIsA("Frame")
-        if not card then
-            card = fr(parentFrame, UDim2.new(1, -4, 0, 0), nil, C.HEADER, 0, 16)
-            card.AutomaticSize = Enum.AutomaticSize.Y
-            local v = Instance.new("UIListLayout")
-            v.SortOrder = Enum.SortOrder.LayoutOrder
-            v.Padding = UDim.new(0, 8)
-            v.Parent = card
-            pad(card, 16, 16, 16, 16)
+        -- Non-panel tab: find ScrollingFrame, then find/create card inside it
+        local scroll = tf:FindFirstChildWhichIsA("ScrollingFrame") or tf
+        for _, child in ipairs(scroll:GetChildren()) do
+            if child:IsA("Frame") and child:FindFirstChildWhichIsA("UIListLayout") then
+                return child, false
+            end
         end
-        
-        local row = fr(card, UDim2.new(1, 0, 0, 40), nil, C.SEL, 0, 10)
-        row.LayoutOrder = #card:GetChildren()
+        -- No card found, create one
+        local card = fr(scroll, UDim2.new(1, -4, 0, 0), nil, C.HEADER, 0, 16)
+        card.AutomaticSize = Enum.AutomaticSize.Y
+        local v = Instance.new("UIListLayout")
+        v.SortOrder = Enum.SortOrder.LayoutOrder
+        v.Padding = UDim.new(0, 8)
+        v.Parent = card
+        pad(card, 16, 16, 16, 16)
+        return card, false
+    end
+
+    API.AddToggle = function(tabName, label, callback, default, side)
+        local container, isPanel = getContainer(tabName, side)
+        if not container then return nil end
+
+        local rowBg = isPanel and C.HEADER or C.SEL
+        local row = fr(container, UDim2.new(1, 0, 0, 40), nil, rowBg, 0, 10)
+        row.LayoutOrder = #container:GetChildren()
         local stripe = fr(row, UDim2.new(0, 3, 1, -8), UDim2.new(0, 0, 0, 4), C.ACCENT, 0, 0)
         gradV(stripe, C.ACCENT, C.ACCENT2)
         lbl(row, label, UDim2.new(1, -70, 1, 0), UDim2.new(0, 14, 0, 0), 12, C.TEXT)
@@ -1303,66 +1360,13 @@ function MenuLib:Init(config)
         return toggle
     end
     
-    API.AddButton = function(tabName, label, callback)
-        local scrollFrame = tabContents[tabName]
-        if not scrollFrame then return nil end
-        
-        local card = scrollFrame:FindFirstChildWhichIsA("Frame")
-        if not card then
-            card = fr(scrollFrame, UDim2.new(1, -4, 0, 0), nil, C.HEADER, 0, 16)
-            card.AutomaticSize = Enum.AutomaticSize.Y
-            local v = Instance.new("UIListLayout")
-            v.SortOrder = Enum.SortOrder.LayoutOrder
-            v.Padding = UDim.new(0, 8)
-            v.Parent = card
-            pad(card, 16, 16, 16, 16)
-        end
-        
-        local btn = Instance.new("TextButton")
-        btn.Size = UDim2.new(1, 0, 0, 36)
-        btn.LayoutOrder = #card:GetChildren()
-        btn.BackgroundColor3 = C.BTN
-        btn.Text = label
-        btn.TextColor3 = C.TEXT
-        btn.TextSize = 12
-        btn.Font = Enum.Font.GothamBold
-        btn.AutoButtonColor = false
-        btn.Parent = card
-        Instance.new("UICorner").Parent = btn
-        btn.MouseEnter:Connect(function() tw(btn, { BackgroundColor3 = C.BTNHOV }, 0.12) end)
-        btn.MouseLeave:Connect(function() tw(btn, { BackgroundColor3 = C.BTN }, 0.12) end)
-        if callback then btn.MouseButton1Click:Connect(callback) end
-        return btn
-    end
-    
     API.AddSlider = function(tabName, label, min, max, callback, default, side)
-        local scrollFrame = tabContents[tabName]
-        if not scrollFrame then return nil end
-        
-        -- Check if this tab has a two-panel layout
-        local parentFrame
-        local panels = tabPanels[tabName]
-        if panels and side == "right" then
-            parentFrame = panels.rightPanel
-        elseif panels then
-            parentFrame = panels.leftPanel
-        else
-            parentFrame = scrollFrame
-        end
-        
-        local card = parentFrame:FindFirstChildWhichIsA("Frame")
-        if not card then
-            card = fr(parentFrame, UDim2.new(1, -4, 0, 0), nil, C.HEADER, 0, 16)
-            card.AutomaticSize = Enum.AutomaticSize.Y
-            local v = Instance.new("UIListLayout")
-            v.SortOrder = Enum.SortOrder.LayoutOrder
-            v.Padding = UDim.new(0, 8)
-            v.Parent = card
-            pad(card, 16, 16, 16, 16)
-        end
-        
-        local row = fr(card, UDim2.new(1, 0, 0, 50), nil, C.SEL, 0, 10)
-        row.LayoutOrder = #card:GetChildren()
+        local container, isPanel = getContainer(tabName, side)
+        if not container then return nil end
+
+        local rowBg = isPanel and C.HEADER or C.SEL
+        local row = fr(container, UDim2.new(1, 0, 0, 50), nil, rowBg, 0, 10)
+        row.LayoutOrder = #container:GetChildren()
         local stripe = fr(row, UDim2.new(0, 3, 1, -8), UDim2.new(0, 0, 0, 4), C.ACCENT, 0, 0)
         gradV(stripe, C.ACCENT, C.ACCENT2)
         
@@ -1406,8 +1410,8 @@ function MenuLib:Init(config)
                 if callback then callback(value) end
             end
         end)
-        
-        UserInputService.InputChanged:Connect(function(inp)
+
+        table.insert(conns, UserInputService.InputChanged:Connect(function(inp)
             if dragging and inp.UserInputType == Enum.UserInputType.MouseMovement then
                 local absX = inp.Position.X - track.AbsolutePosition.X
                 local percent = math.clamp(absX / track.AbsoluteSize.X, 0, 1)
@@ -1415,34 +1419,24 @@ function MenuLib:Init(config)
                 updateVisuals(true)
                 if callback then callback(value) end
             end
-        end)
-        
-        UserInputService.InputEnded:Connect(function(inp)
+        end))
+
+        table.insert(conns, UserInputService.InputEnded:Connect(function(inp)
             if inp.UserInputType == Enum.UserInputType.MouseButton1 then
                 dragging = false
             end
-        end)
+        end))
         
         return { Get = function() return value end, Set = function(v) value = math.clamp(v, min, max) updateVisuals(true) if callback then callback(value) end end }
     end
     
     API.AddColorPicker = function(tabName, label, callback, defaultColor)
-        local scrollFrame = tabContents[tabName]
-        if not scrollFrame then return nil end
-        
-        local card = scrollFrame:FindFirstChildWhichIsA("Frame")
-        if not card then
-            card = fr(scrollFrame, UDim2.new(1, -4, 0, 0), nil, C.HEADER, 0, 16)
-            card.AutomaticSize = Enum.AutomaticSize.Y
-            local v = Instance.new("UIListLayout")
-            v.SortOrder = Enum.SortOrder.LayoutOrder
-            v.Padding = UDim.new(0, 8)
-            v.Parent = card
-            pad(card, 16, 16, 16, 16)
-        end
-        
-        local row = fr(card, UDim2.new(1, 0, 0, 40), nil, C.SEL, 0, 10)
-        row.LayoutOrder = #card:GetChildren()
+        local container, isPanel = getContainer(tabName)
+        if not container then return nil end
+
+        local rowBg = isPanel and C.HEADER or C.SEL
+        local row = fr(container, UDim2.new(1, 0, 0, 40), nil, rowBg, 0, 10)
+        row.LayoutOrder = #container:GetChildren()
         local stripe = fr(row, UDim2.new(0, 3, 1, -8), UDim2.new(0, 0, 0, 4), C.ACCENT, 0, 0)
         gradV(stripe, C.ACCENT, C.ACCENT2)
         
@@ -1520,22 +1514,12 @@ function MenuLib:Init(config)
     -- FIX 2+3+4: Dropdown — rolls DOWN, text centered, smooth anim
     -- ============================================================
     API.AddDropdown = function(tabName, label, options, callback, defaultIndex)
-        local scrollFrame = tabContents[tabName]
-        if not scrollFrame then return nil end
-        
-        local card = scrollFrame:FindFirstChildWhichIsA("Frame")
-        if not card then
-            card = fr(scrollFrame, UDim2.new(1, -4, 0, 0), nil, C.HEADER, 0, 16)
-            card.AutomaticSize = Enum.AutomaticSize.Y
-            local v = Instance.new("UIListLayout")
-            v.SortOrder = Enum.SortOrder.LayoutOrder
-            v.Padding = UDim.new(0, 8)
-            v.Parent = card
-            pad(card, 16, 16, 16, 16)
-        end
-        
-        local row = fr(card, UDim2.new(1, 0, 0, 40), nil, C.SEL, 0, 10)
-        row.LayoutOrder = #card:GetChildren()
+        local container, isPanel = getContainer(tabName)
+        if not container then return nil end
+
+        local rowBg = isPanel and C.HEADER or C.SEL
+        local row = fr(container, UDim2.new(1, 0, 0, 40), nil, rowBg, 0, 10)
+        row.LayoutOrder = #container:GetChildren()
         local stripe = fr(row, UDim2.new(0, 3, 1, -8), UDim2.new(0, 0, 0, 4), C.ACCENT, 0, 0)
         gradV(stripe, C.ACCENT, C.ACCENT2)
         
@@ -1778,22 +1762,12 @@ function MenuLib:Init(config)
     end
     
     API.AddButton = function(tabName, label, callback)
-        local scrollFrame = tabContents[tabName]
-        if not scrollFrame then return nil end
-        
-        local card = scrollFrame:FindFirstChildWhichIsA("Frame")
-        if not card then
-            card = fr(scrollFrame, UDim2.new(1, -4, 0, 0), nil, C.HEADER, 0, 16)
-            card.AutomaticSize = Enum.AutomaticSize.Y
-            local v = Instance.new("UIListLayout")
-            v.SortOrder = Enum.SortOrder.LayoutOrder
-            v.Padding = UDim.new(0, 8)
-            v.Parent = card
-            pad(card, 16, 16, 16, 16)
-        end
-        
-        local row = fr(card, UDim2.new(1, 0, 0, 44), nil, C.SEL, 0, 10)
-        row.LayoutOrder = #card:GetChildren()
+        local container, isPanel = getContainer(tabName)
+        if not container then return nil end
+
+        local rowBg = isPanel and C.HEADER or C.SEL
+        local row = fr(container, UDim2.new(1, 0, 0, 44), nil, rowBg, 0, 10)
+        row.LayoutOrder = #container:GetChildren()
         local stripe = fr(row, UDim2.new(0, 3, 1, -8), UDim2.new(0, 0, 0, 4), C.ACCENT, 0, 0)
         gradV(stripe, C.ACCENT, C.ACCENT2)
         
@@ -2622,14 +2596,14 @@ function MenuLib:Init(config)
     end
     resizer.InputBegan:Connect(beginResize)
     settingsResizer.InputBegan:Connect(beginResize)
-    
-    UserInputService.InputEnded:Connect(function(input)
+
+    table.insert(conns, UserInputService.InputEnded:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 then
             isResizing = false
         end
-    end)
-    
-    UserInputService.InputChanged:Connect(function(input)
+    end))
+
+    table.insert(conns, UserInputService.InputChanged:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseMovement and isResizing then
             local currMouse = UserInputService:GetMouseLocation()
             local delta = currMouse - resizeStartMouse
@@ -2643,8 +2617,8 @@ function MenuLib:Init(config)
             
             setSidebarWidth(SIDE_W, false)
         end
-    end)
-    
+    end))
+
     return API
 end
 
