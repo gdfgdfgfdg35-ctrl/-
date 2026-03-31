@@ -2049,7 +2049,7 @@ function MenuLib:Init(config)
         createBtn.Size = UDim2.new(1, -16, 0, 32)
         createBtn.Position = UDim2.new(0, 8, 0, 10)
         createBtn.BackgroundColor3 = C.ACCENT
-        createBtn.Text = "Create Config"
+        createBtn.Text = "Save Config"
         createBtn.TextColor3 = C.TEXT
         createBtn.TextSize = 12
         createBtn.Font = Enum.Font.GothamBold
@@ -2065,7 +2065,7 @@ function MenuLib:Init(config)
         loadBtn.Size = UDim2.new(1, -16, 0, 32)
         loadBtn.Position = UDim2.new(0, 8, 0, 50)
         loadBtn.BackgroundColor3 = C.ACCENT
-        loadBtn.Text = "Load Selected"
+        loadBtn.Text = "Load Config"
         loadBtn.TextColor3 = C.TEXT
         loadBtn.TextSize = 12
         loadBtn.Font = Enum.Font.GothamBold
@@ -2218,13 +2218,13 @@ function MenuLib:Init(config)
                 local nameLbl = lbl(row, name, UDim2.new(1, -100, 1, 0), UDim2.new(0, 12, 0, 0), 12, C.TEXT, Enum.Font.GothamBold)
                 nameLbl.TextTruncate = Enum.TextTruncate.AtEnd
                 
-                -- Action buttons container (hidden by default)
-                local actionsFrame = fr(row, UDim2.new(0, 0, 1, 0), UDim2.new(1, 0, 0, 0), C.DARK, 0, 0)
+                -- Action buttons container at bottom (hidden by default)
+                local actionsFrame = fr(row, UDim2.new(1, 0, 0, 0), UDim2.new(0, 0, 1, 0), C.SEL, 1, 0)
                 actionsFrame.ClipsDescendants = true
                 
                 local renameBtn = Instance.new("TextButton")
-                renameBtn.Size = UDim2.new(0, 50, 0, 24)
-                renameBtn.Position = UDim2.new(0, 8, 0.5, -12)
+                renameBtn.Size = UDim2.new(0.5, -6, 0, 24)
+                renameBtn.Position = UDim2.new(0, 8, 0, 6)
                 renameBtn.BackgroundColor3 = C.YELLOW
                 renameBtn.Text = "Rename"
                 renameBtn.TextColor3 = C.TEXT
@@ -2238,8 +2238,8 @@ function MenuLib:Init(config)
                 renGrad.Rotation = 90
                 
                 local delBtn = Instance.new("TextButton")
-                delBtn.Size = UDim2.new(0, 50, 0, 24)
-                delBtn.Position = UDim2.new(0, 64, 0.5, -12)
+                delBtn.Size = UDim2.new(0.5, -6, 0, 24)
+                delBtn.Position = UDim2.new(0.5, 2, 0, 6)
                 delBtn.BackgroundColor3 = C.RED
                 delBtn.Text = "Delete"
                 delBtn.TextColor3 = C.TEXT
@@ -2265,14 +2265,15 @@ function MenuLib:Init(config)
                     -- Deselect all other rows
                     for _, child in ipairs(configScroll:GetChildren()) do
                         if child:IsA("Frame") and child ~= row then
-                            tw(child, {BackgroundColor3 = C.DARK}, 0.2)
-                            local otherIndicator = child:FindFirstChildWhichIsA("Frame")
-                            if otherIndicator then
-                                tw(otherIndicator, {BackgroundTransparency = 1}, 0.2)
-                            end
-                            local otherActions = child:FindFirstChild("actionsFrame") or child:FindFirstChildWhichIsA("Frame", function(f) return f.Position.X.Scale == 1 end)
-                            if otherActions then
-                                tw(otherActions, {Size = UDim2.new(0, 0, 1, 0)}, 0.25)
+                            local otherNameLbl = child:FindFirstChildOfClass("TextLabel")
+                            if otherNameLbl and otherNameLbl.Text ~= name then
+                                tw(child, {BackgroundColor3 = C.DARK}, 0.2)
+                                -- Hide other actions frames
+                                for _, c in ipairs(child:GetChildren()) do
+                                    if c:IsA("Frame") and c ~= child:FindFirstChildOfClass("Frame") then
+                                        tw(c, {Size = UDim2.new(1, 0, 0, 0)}, 0.25)
+                                    end
+                                end
                             end
                         end
                     end
@@ -2280,11 +2281,11 @@ function MenuLib:Init(config)
                     -- Animate selection
                     tw(row, {BackgroundColor3 = Color3.fromRGB(50, 30, 80)}, 0.25)
                     tw(selIndicator, {BackgroundTransparency = 0}, 0.3)
-                    tw(actionsFrame, {Size = UDim2.new(0, 120, 1, 0)}, 0.25, Enum.EasingStyle.Back)
+                    tw(actionsFrame, {Size = UDim2.new(1, 0, 0, 36), BackgroundTransparency = 0}, 0.25, Enum.EasingStyle.Back)
                     
                     -- Pop animation
-                    row.Size = UDim2.new(1, 0, 0, 40)
-                    tw(row, {Size = UDim2.new(1, 0, 0, 36)}, 0.2, Enum.EasingStyle.Quad)
+                    row.Size = UDim2.new(1, 0, 0, 76)
+                    tw(row, {Size = UDim2.new(1, 0, 0, 72)}, 0.2, Enum.EasingStyle.Quad)
                 end
                 
                 rowBtn.MouseButton1Click:Connect(selectConfig)
@@ -2319,6 +2320,9 @@ function MenuLib:Init(config)
                         tw(row, {BackgroundColor3 = C.DARK}, 0.15)
                     end
                 end)
+                
+                -- Initial row size (collapsed)
+                row.Size = UDim2.new(1, 0, 0, 36)
             end
         end
         
