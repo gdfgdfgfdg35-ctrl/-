@@ -418,18 +418,40 @@ function MenuLib:Init(config)
     local allTabs = {}
     local tabContents = {}
     local settingsTabs = {}
-    local layoutOrd = 0
-    local function nextOrd()
-        layoutOrd = layoutOrd + 1
-        return layoutOrd
+    local navLayoutOrd = 0
+    local topLayoutOrd = 0
+    local function nextNavOrd()
+        navLayoutOrd = navLayoutOrd + 1
+        return navLayoutOrd
+    end
+    local function nextTopOrd()
+        topLayoutOrd = topLayoutOrd + 1
+        return topLayoutOrd
     end
     
     local sectionLabels = {}
+    local navSectionCount = 0
     local function addSection(name)
-        local s = lbl(navScroll, name, UDim2.new(1, -4, 0, 26), nil, 12, C.SEC, Enum.Font.GothamBold)
-        s.LayoutOrder = nextOrd()
-        pad(s, 6, 0, 6, 0)
+        navSectionCount = navSectionCount + 1
+        if navSectionCount > 1 then
+            local rule = fr(navScroll, UDim2.new(1, -8, 0, 1), nil, C.DIV, 1, 0)
+            rule.BackgroundTransparency = 0.35
+            rule.LayoutOrder = nextNavOrd()
+        end
+        local s = lbl(navScroll, name, UDim2.new(1, -4, 0, 22), nil, 11, C.SEC, Enum.Font.GothamBold)
+        s.TextXAlignment = Enum.TextXAlignment.Left
+        s.LayoutOrder = nextNavOrd()
+        pad(s, 10, 0, 2, 0)
         table.insert(sectionLabels, s)
+        -- Horizontal tab bar: subtle separator + same group title
+        if navSectionCount > 1 then
+            local vdiv = fr(topTabScroll, UDim2.new(0, 1, 0, 22), nil, C.DIV, 1, 0)
+            vdiv.BackgroundTransparency = 0.4
+            vdiv.LayoutOrder = nextTopOrd()
+        end
+        local hs = lbl(topTabScroll, name, UDim2.new(0, math.max(28, #name * 7), 0, 28), nil, 10, C.SEC, Enum.Font.GothamBold)
+        hs.TextYAlignment = Enum.TextYAlignment.Center
+        hs.LayoutOrder = nextTopOrd()
     end
     
     local function selectTab(entry)
@@ -484,14 +506,15 @@ function MenuLib:Init(config)
         tf.ZIndex = 5
         if buildFn then buildFn(tf) end
 
-        local ord = nextOrd()
+        local navOrd = nextNavOrd()
+        local topOrd = nextTopOrd()
 
         -- Vertical sidebar button
         local btn = Instance.new("TextButton")
         btn.Size = UDim2.new(1, -8, 0, 38)
         btn.BackgroundTransparency = 1
         btn.Text = ""
-        btn.LayoutOrder = ord
+        btn.LayoutOrder = navOrd
         btn.Parent = navScroll
         Instance.new("UICorner").Parent = btn
 
@@ -528,7 +551,7 @@ function MenuLib:Init(config)
         hBtn.Size = UDim2.new(0, hBtnW, 1, -8)
         hBtn.BackgroundTransparency = 1
         hBtn.Text = ""
-        hBtn.LayoutOrder = ord
+        hBtn.LayoutOrder = topOrd
         hBtn.Parent = topTabScroll
         Instance.new("UICorner").Parent = hBtn
 
@@ -2200,7 +2223,8 @@ function MenuLib:Init(config)
         closeMenu()
     end
     
-    -- Add default tabs
+    -- Add default tabs (sidebar groups: AIM / VISUALS / MISC)
+    addSection("AIM")
     local firstTab = API.AddTab("Aimbot", ICON.aim, function(f)
         local scroll = Instance.new("ScrollingFrame")
         scroll.Size = UDim2.new(1, 0, 1, 0)
@@ -2256,27 +2280,8 @@ function MenuLib:Init(config)
         tabPanels["Aimbot"] = { leftPanel = leftPanel, rightPanel = rightPanel }
     end)
     
-    API.AddTab("Visuals", ICON.appearance, function(f)
-        local scroll = Instance.new("ScrollingFrame")
-        scroll.Size = UDim2.new(1, 0, 1, 0)
-        scroll.BackgroundTransparency = 1
-        scroll.BorderSizePixel = 0
-        scroll.ScrollBarThickness = 0
-        scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-        scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
-        scroll.Parent = f
-        pad(scroll, 8, 10, 8, 8)
-        local card = fr(scroll, UDim2.new(1, -4, 0, 0), nil, C.HEADER, 0, 16)
-        card.AutomaticSize = Enum.AutomaticSize.Y
-        local v = Instance.new("UIListLayout")
-        v.SortOrder = Enum.SortOrder.LayoutOrder
-        v.Padding = UDim.new(0, 8)
-        v.Parent = card
-        pad(card, 16, 16, 16, 16)
-        lbl(card, "Visuals", UDim2.new(1, 0, 0, 0), nil, 18, C.TEXT, Enum.Font.GothamBold)
-    end)
-    
-    API.AddTab("Players", ICON.players, function(f)
+    addSection("VISUALS")
+    API.AddTab("Visuals", ICON.players, function(f)
         local scroll = Instance.new("ScrollingFrame")
         scroll.Size = UDim2.new(1, 0, 1, 0)
         scroll.BackgroundTransparency = 1
@@ -2295,6 +2300,7 @@ function MenuLib:Init(config)
         v.Padding = UDim.new(0, 8)
         v.Parent = card
         pad(card, 16, 16, 16, 16)
+        lbl(card, "Visuals", UDim2.new(1, 0, 0, 0), nil, 18, C.TEXT, Enum.Font.GothamBold)
         
         -- Two panel layout (left: ESP, right: Crosshair)
         local mainRow = fr(card, UDim2.new(1, 0, 0, 0), nil, C.HEADER, 1, 0)
@@ -2325,9 +2331,10 @@ function MenuLib:Init(config)
         pad(rightPanel, 12, 12, 12, 12)
         
         -- Store panels for API use
-        tabPanels["Players"] = { leftPanel = leftPanel, rightPanel = rightPanel }
+        tabPanels["Visuals"] = { leftPanel = leftPanel, rightPanel = rightPanel }
     end)
     
+    addSection("MISC")
     API.AddTab("World", ICON.world, function(f)
         local scroll = Instance.new("ScrollingFrame")
         scroll.Size = UDim2.new(1, 0, 1, 0)
@@ -2858,16 +2865,12 @@ function MenuLib:Init(config)
                     AimbotTargetMode = _G._AimbotTargetMode,
                     AimbotFOV = _G._AimbotFOV,
                     AimbotFOVMode = _G._AimbotFOVMode,
-                    DynamicFOVSpeedScale = _G._DynamicFOVSpeedScale,
-                    DynamicFOVMaxBoost = _G._DynamicFOVMaxBoost,
                     AimbotMaxDistance = _G._AimbotMaxDistance,
                     AimbotSmoothness = _G._AimbotSmoothness,
                     TeamCheck = _G._TeamCheck,
                     SilentAimFOV = _G._SilentAimFOV,
                     SilentAimPart = _G._SilentAimPart,
-                    SilentAimLOS = _G._SilentAimLOS,
                     SilentAimEnabled = _G._SilentAimEnabled,
-                    SilentAimPrediction = _G._SilentAimPrediction,
                     AimKeybind = _G._AimKeybind and tostring(_G._AimKeybind.Name) or nil,
                     -- More ESP settings
                     NameESPEnabled = _G._NameESPEnabled,
@@ -2916,16 +2919,12 @@ function MenuLib:Init(config)
                     _G._AimbotTargetMode = s.AimbotTargetMode
                     _G._AimbotFOV = s.AimbotFOV
                     if s.AimbotFOVMode ~= nil then _G._AimbotFOVMode = s.AimbotFOVMode end
-                    if s.DynamicFOVSpeedScale ~= nil then _G._DynamicFOVSpeedScale = s.DynamicFOVSpeedScale end
-                    if s.DynamicFOVMaxBoost ~= nil then _G._DynamicFOVMaxBoost = s.DynamicFOVMaxBoost end
                     _G._AimbotMaxDistance = s.AimbotMaxDistance
                     _G._AimbotSmoothness = s.AimbotSmoothness
                     _G._TeamCheck = s.TeamCheck
                     if s.SilentAimFOV ~= nil then _G._SilentAimFOV = s.SilentAimFOV end
                     if s.SilentAimPart ~= nil then _G._SilentAimPart = s.SilentAimPart end
-                    if s.SilentAimLOS ~= nil then _G._SilentAimLOS = s.SilentAimLOS end
                     if s.SilentAimEnabled ~= nil then _G._SilentAimEnabled = s.SilentAimEnabled end
-                    if s.SilentAimPrediction ~= nil then _G._SilentAimPrediction = s.SilentAimPrediction end
                     if s.AimKeybind then pcall(function() _G._AimKeybind = Enum.KeyCode[s.AimKeybind] end) end
                     -- More ESP
                     _G._NameESPEnabled = s.NameESPEnabled
