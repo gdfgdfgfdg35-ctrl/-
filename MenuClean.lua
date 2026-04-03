@@ -2334,7 +2334,6 @@ function MenuLib:Init(config)
         tabPanels["Visuals"] = { leftPanel = leftPanel, rightPanel = rightPanel }
     end)
     
-    addSection("MISC")
     API.AddTab("World", ICON.world, function(f)
         local scroll = Instance.new("ScrollingFrame")
         scroll.Size = UDim2.new(1, 0, 1, 0)
@@ -2377,6 +2376,7 @@ function MenuLib:Init(config)
         pad(card, 16, 16, 16, 16)
     end)
     
+    addSection("MISC")
     API.AddTab("Misc", ICON.misc, function(f)
         local scroll = Instance.new("ScrollingFrame")
         scroll.Size = UDim2.new(1, 0, 1, 0)
