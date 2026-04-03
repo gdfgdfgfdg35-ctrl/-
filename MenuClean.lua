@@ -1893,8 +1893,8 @@ function MenuLib:Init(config)
     -- ============================================================
     -- FIX 2+3+4: Dropdown — rolls DOWN, text centered, smooth anim
     -- ============================================================
-    API.AddDropdown = function(tabName, label, options, callback, defaultIndex)
-        local container, isPanel = getContainer(tabName)
+    API.AddDropdown = function(tabName, label, options, callback, defaultIndex, side)
+        local container, isPanel = getContainer(tabName, side)
         if not container then return nil end
 
         local rowBg = isPanel and C.HEADER or C.SEL
@@ -2254,6 +2254,26 @@ function MenuLib:Init(config)
         
         -- Store panels for API use
         tabPanels["Aimbot"] = { leftPanel = leftPanel, rightPanel = rightPanel }
+    end)
+    
+    API.AddTab("Visuals", ICON.appearance, function(f)
+        local scroll = Instance.new("ScrollingFrame")
+        scroll.Size = UDim2.new(1, 0, 1, 0)
+        scroll.BackgroundTransparency = 1
+        scroll.BorderSizePixel = 0
+        scroll.ScrollBarThickness = 0
+        scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+        scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+        scroll.Parent = f
+        pad(scroll, 8, 10, 8, 8)
+        local card = fr(scroll, UDim2.new(1, -4, 0, 0), nil, C.HEADER, 0, 16)
+        card.AutomaticSize = Enum.AutomaticSize.Y
+        local v = Instance.new("UIListLayout")
+        v.SortOrder = Enum.SortOrder.LayoutOrder
+        v.Padding = UDim.new(0, 8)
+        v.Parent = card
+        pad(card, 16, 16, 16, 16)
+        lbl(card, "Visuals", UDim2.new(1, 0, 0, 0), nil, 18, C.TEXT, Enum.Font.GothamBold)
     end)
     
     API.AddTab("Players", ICON.players, function(f)
@@ -2837,9 +2857,17 @@ function MenuLib:Init(config)
                     ShowFOVCircle = _G._ShowFOVCircle,
                     AimbotTargetMode = _G._AimbotTargetMode,
                     AimbotFOV = _G._AimbotFOV,
+                    AimbotFOVMode = _G._AimbotFOVMode,
+                    DynamicFOVSpeedScale = _G._DynamicFOVSpeedScale,
+                    DynamicFOVMaxBoost = _G._DynamicFOVMaxBoost,
                     AimbotMaxDistance = _G._AimbotMaxDistance,
                     AimbotSmoothness = _G._AimbotSmoothness,
                     TeamCheck = _G._TeamCheck,
+                    SilentAimFOV = _G._SilentAimFOV,
+                    SilentAimPart = _G._SilentAimPart,
+                    SilentAimLOS = _G._SilentAimLOS,
+                    SilentAimEnabled = _G._SilentAimEnabled,
+                    SilentAimPrediction = _G._SilentAimPrediction,
                     AimKeybind = _G._AimKeybind and tostring(_G._AimKeybind.Name) or nil,
                     -- More ESP settings
                     NameESPEnabled = _G._NameESPEnabled,
@@ -2887,9 +2915,17 @@ function MenuLib:Init(config)
                     _G._ShowFOVCircle = s.ShowFOVCircle
                     _G._AimbotTargetMode = s.AimbotTargetMode
                     _G._AimbotFOV = s.AimbotFOV
+                    if s.AimbotFOVMode ~= nil then _G._AimbotFOVMode = s.AimbotFOVMode end
+                    if s.DynamicFOVSpeedScale ~= nil then _G._DynamicFOVSpeedScale = s.DynamicFOVSpeedScale end
+                    if s.DynamicFOVMaxBoost ~= nil then _G._DynamicFOVMaxBoost = s.DynamicFOVMaxBoost end
                     _G._AimbotMaxDistance = s.AimbotMaxDistance
                     _G._AimbotSmoothness = s.AimbotSmoothness
                     _G._TeamCheck = s.TeamCheck
+                    if s.SilentAimFOV ~= nil then _G._SilentAimFOV = s.SilentAimFOV end
+                    if s.SilentAimPart ~= nil then _G._SilentAimPart = s.SilentAimPart end
+                    if s.SilentAimLOS ~= nil then _G._SilentAimLOS = s.SilentAimLOS end
+                    if s.SilentAimEnabled ~= nil then _G._SilentAimEnabled = s.SilentAimEnabled end
+                    if s.SilentAimPrediction ~= nil then _G._SilentAimPrediction = s.SilentAimPrediction end
                     if s.AimKeybind then pcall(function() _G._AimKeybind = Enum.KeyCode[s.AimKeybind] end) end
                     -- More ESP
                     _G._NameESPEnabled = s.NameESPEnabled
