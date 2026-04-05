@@ -2878,6 +2878,7 @@ function MenuLib:Init(config)
                     HealthESPEnabled = _G._HealthESPEnabled,
                     OutlineESPEnabled = _G._OutlineESPEnabled,
                     ChamsEnabled = _G._ChamsEnabled,
+                    ChamsMaterialToken = _G._ChamsMaterialToken,
                     WeaponChamsEnabled = _G._WeaponChamsEnabled,
                     HandChamsEnabled = _G._HandChamsEnabled,
                     MaxESPDistance = _G._MaxESPDistance,
@@ -2934,6 +2935,12 @@ function MenuLib:Init(config)
                     _G._HealthESPEnabled = s.HealthESPEnabled
                     _G._OutlineESPEnabled = s.OutlineESPEnabled
                     _G._ChamsEnabled = s.ChamsEnabled
+                    if s.ChamsMaterialToken ~= nil and type(s.ChamsMaterialToken) == "string" then
+                        _G._ChamsMaterialToken = s.ChamsMaterialToken
+                    end
+                    if _G._ChamsMaterialDropdownSync then
+                        pcall(_G._ChamsMaterialDropdownSync)
+                    end
                     if s.WeaponChamsEnabled ~= nil then _G._WeaponChamsEnabled = s.WeaponChamsEnabled end
                     if s.HandChamsEnabled ~= nil then _G._HandChamsEnabled = s.HandChamsEnabled end
                     _G._MaxESPDistance = s.MaxESPDistance
