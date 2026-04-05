@@ -2878,6 +2878,8 @@ function MenuLib:Init(config)
                     HealthESPEnabled = _G._HealthESPEnabled,
                     OutlineESPEnabled = _G._OutlineESPEnabled,
                     ChamsEnabled = _G._ChamsEnabled,
+                    WeaponChamsEnabled = _G._WeaponChamsEnabled,
+                    HandChamsEnabled = _G._HandChamsEnabled,
                     MaxESPDistance = _G._MaxESPDistance,
                     -- World settings
                     WorldModulationEnabled = _G._WorldModulationEnabled,
@@ -2932,6 +2934,8 @@ function MenuLib:Init(config)
                     _G._HealthESPEnabled = s.HealthESPEnabled
                     _G._OutlineESPEnabled = s.OutlineESPEnabled
                     _G._ChamsEnabled = s.ChamsEnabled
+                    if s.WeaponChamsEnabled ~= nil then _G._WeaponChamsEnabled = s.WeaponChamsEnabled end
+                    if s.HandChamsEnabled ~= nil then _G._HandChamsEnabled = s.HandChamsEnabled end
                     _G._MaxESPDistance = s.MaxESPDistance
                     -- World
                     _G._WorldModulationEnabled = s.WorldModulationEnabled
