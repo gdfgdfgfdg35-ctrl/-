@@ -187,6 +187,7 @@ function MenuLib:Init(config)
     end
     
     local blurPart = nil
+    local activeDropdownClosers = {}
     
     -- ============================================================
     -- FIX 1: Toggle - use Size animation so fill and knob are
@@ -1396,6 +1397,10 @@ function MenuLib:Init(config)
         if not win.Visible and not settingsPanel.Visible then return end
         isOpen = false
         _G._MenuOpen = false
+        -- Close any open dropdowns
+        for _, closer in ipairs(activeDropdownClosers) do
+            pcall(closer)
+        end
         if blurPart and _G._BlurEnabled then
             tw(blurPart, {Size = 0}, 0.15)
             local currentBlur = blurPart
@@ -1833,8 +1838,8 @@ function MenuLib:Init(config)
         return { Get = function() return value end, Set = function(v) value = math.clamp(v, min, max) updateVisuals(true) if callback then callback(value) end end }
     end
     
-    API.AddColorPicker = function(tabName, label, callback, defaultColor)
-        local container, isPanel = getContainer(tabName)
+    API.AddColorPicker = function(tabName, label, callback, defaultColor, side)
+        local container, isPanel = getContainer(tabName, side)
         if not container then return nil end
 
         local rowBg = isPanel and C.HEADER or C.SEL
@@ -1846,6 +1851,7 @@ function MenuLib:Init(config)
         lbl(row, label, UDim2.new(1, -70, 1, 0), UDim2.new(0, 14, 0, 0), 12, C.TEXT)
         
         local color = defaultColor or Color3.fromRGB(255, 255, 255)
+        local alpha = 1
         local preview = fr(row, UDim2.new(0, 36, 0, 24), UDim2.new(1, -50, 0.5, -12), color, 0, 6)
         
         local btn = Instance.new("TextButton")
@@ -1862,55 +1868,294 @@ function MenuLib:Init(config)
         btn.MouseEnter:Connect(function() tw(btn, { BackgroundColor3 = C.BTNHOV }, 0.12) end)
         btn.MouseLeave:Connect(function() tw(btn, { BackgroundColor3 = C.BTN }, 0.12) end)
         
+        local pickerFrame = nil
+        local pickerCloseConn = nil
+        
+        local function closePicker()
+            if pickerCloseConn then pickerCloseConn:Disconnect() pickerCloseConn = nil end
+            if pickerFrame then
+                tw(pickerFrame, {Size = UDim2.new(0, 200, 0, 0)}, 0.15)
+                local pf = pickerFrame
+                pickerFrame = nil
+                task.delay(0.2, function() if pf then pf:Destroy() end end)
+            end
+        end
+        table.insert(activeDropdownClosers, closePicker)
+        
         btn.MouseButton1Click:Connect(function()
-            local colors = {
-                Color3.fromRGB(255, 0, 0), Color3.fromRGB(0, 255, 0), Color3.fromRGB(0, 0, 255),
-                Color3.fromRGB(255, 255, 0), Color3.fromRGB(255, 0, 255), Color3.fromRGB(0, 255, 255),
-                Color3.fromRGB(255, 105, 180), Color3.fromRGB(255, 165, 0), Color3.fromRGB(128, 0, 128),
-                Color3.fromRGB(255, 255, 255), Color3.fromRGB(0, 0, 0), Color3.fromRGB(128, 128, 128)
+            if pickerFrame then closePicker() return end
+            
+            local PW, PH = 260, 300
+            pickerFrame = fr(sg, UDim2.new(0, PW, 0, 0), UDim2.new(0.5, -PW/2, 0.5, -PH/2), C.HEADER, 0, 12)
+            pickerFrame.ZIndex = 1000
+            pickerFrame.ClipsDescendants = true
+            local pStroke = Instance.new("UIStroke")
+            pStroke.Color = C.ACCENT
+            pStroke.Thickness = 1.5
+            pStroke.Transparency = 0.4
+            pStroke.Parent = pickerFrame
+            tw(pickerFrame, {Size = UDim2.new(0, PW, 0, PH)}, 0.2, Enum.EasingStyle.Quint)
+            
+            -- Current HSV
+            local h, s, v = color:ToHSV()
+            
+            local function updateColor()
+                color = Color3.fromHSV(h, s, v)
+                preview.BackgroundColor3 = color
+                if callback then callback(color, alpha) end
+            end
+            
+            -- Hue bar (vertical, right side)
+            local hueBar = fr(pickerFrame, UDim2.new(0, 20, 0, 150), UDim2.new(0, PW - 34, 0, 10), C.DARK, 0, 4)
+            hueBar.ZIndex = 1001
+            for i = 0, 5 do
+                local seg = fr(hueBar, UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, i * 25), Color3.fromHSV(i/6, 1, 1), 0, 0)
+                seg.ZIndex = 1001
+                local g = Instance.new("UIGradient")
+                g.Color = ColorSequence.new(Color3.fromHSV(i/6, 1, 1), Color3.fromHSV(math.min((i+1)/6, 1), 1, 1))
+                g.Rotation = 90
+                g.Parent = seg
+            end
+            local hueKnob = fr(hueBar, UDim2.new(1, 4, 0, 4), UDim2.new(0, -2, 0, h * 150 - 2), C.TEXT, 0, 2)
+            hueKnob.ZIndex = 1003
+            
+            local hueBtn = Instance.new("TextButton")
+            hueBtn.Size = UDim2.new(1, 0, 1, 0)
+            hueBtn.BackgroundTransparency = 1
+            hueBtn.Text = ""
+            hueBtn.ZIndex = 1002
+            hueBtn.Parent = hueBar
+            
+            -- SV canvas
+            local canvasSize = PW - 50
+            local svCanvas = fr(pickerFrame, UDim2.new(0, canvasSize, 0, 150), UDim2.new(0, 10, 0, 10), Color3.fromHSV(h, 1, 1), 0, 4)
+            svCanvas.ZIndex = 1001
+            -- White gradient left-right
+            local wGrad = Instance.new("UIGradient")
+            wGrad.Color = ColorSequence.new(Color3.new(1,1,1), Color3.fromHSV(h, 1, 1))
+            wGrad.Parent = svCanvas
+            -- Dark overlay top-bottom
+            local darkOverlay = fr(svCanvas, UDim2.new(1, 0, 1, 0), nil, Color3.new(0,0,0), 0, 4)
+            darkOverlay.ZIndex = 1001
+            local dGrad = Instance.new("UIGradient")
+            dGrad.Color = ColorSequence.new(Color3.new(0,0,0), Color3.new(0,0,0))
+            dGrad.Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(1, 0)})
+            dGrad.Rotation = 90
+            dGrad.Parent = darkOverlay
+            
+            local svKnob = fr(svCanvas, UDim2.new(0, 8, 0, 8), UDim2.new(0, s * canvasSize - 4, 0, (1-v) * 150 - 4), C.TEXT, 0, 4)
+            svKnob.ZIndex = 1003
+            local svKnobStroke = Instance.new("UIStroke")
+            svKnobStroke.Color = Color3.new(0,0,0)
+            svKnobStroke.Thickness = 1
+            svKnobStroke.Parent = svKnob
+            
+            local svBtn = Instance.new("TextButton")
+            svBtn.Size = UDim2.new(1, 0, 1, 0)
+            svBtn.BackgroundTransparency = 1
+            svBtn.Text = ""
+            svBtn.ZIndex = 1002
+            svBtn.Parent = svCanvas
+            
+            -- Alpha slider
+            lbl(pickerFrame, "A", UDim2.new(0, 14, 0, 16), UDim2.new(0, 10, 0, 168), 11, C.DIM, Enum.Font.GothamBold).ZIndex = 1001
+            local alphaTrack = fr(pickerFrame, UDim2.new(0, PW - 50, 0, 12), UDim2.new(0, 28, 0, 170), C.DARK, 0, 3)
+            alphaTrack.ZIndex = 1001
+            local alphaFill = fr(alphaTrack, UDim2.new(alpha, 0, 1, 0), nil, C.ACCENT, 0, 3)
+            alphaFill.ZIndex = 1001
+            gradV(alphaFill, C.ACCENT, C.ACCENT2)
+            local alphaKnob = fr(alphaTrack, UDim2.new(0, 8, 0, 16), UDim2.new(alpha, -4, 0.5, -8), C.TEXT, 0, 4)
+            alphaKnob.ZIndex = 1003
+            local alphaBtn = Instance.new("TextButton")
+            alphaBtn.Size = UDim2.new(1, 0, 1, 0)
+            alphaBtn.BackgroundTransparency = 1
+            alphaBtn.Text = ""
+            alphaBtn.ZIndex = 1002
+            alphaBtn.Parent = alphaTrack
+            
+            -- RGBA inputs
+            local inputY = 195
+            local labels = {"R", "G", "B", "A"}
+            local boxes = {}
+            for i, l in ipairs(labels) do
+                local ix = 10 + (i-1) * 62
+                lbl(pickerFrame, l, UDim2.new(0, 12, 0, 20), UDim2.new(0, ix, 0, inputY), 11, C.DIM, Enum.Font.GothamBold).ZIndex = 1001
+                local box = Instance.new("TextBox")
+                box.Size = UDim2.new(0, 42, 0, 22)
+                box.Position = UDim2.new(0, ix + 14, 0, inputY)
+                box.BackgroundColor3 = C.DARK
+                box.TextColor3 = C.TEXT
+                box.TextSize = 11
+                box.Font = Enum.Font.GothamBold
+                box.Text = ""
+                box.ClearTextOnFocus = true
+                box.Parent = pickerFrame
+                box.ZIndex = 1002
+                Instance.new("UICorner", box).CornerRadius = UDim.new(0, 4)
+                boxes[i] = box
+            end
+            
+            local function refreshInputs()
+                local r = math.round(color.R * 255)
+                local g = math.round(color.G * 255)
+                local b = math.round(color.B * 255)
+                boxes[1].Text = tostring(r)
+                boxes[2].Text = tostring(g)
+                boxes[3].Text = tostring(b)
+                boxes[4].Text = tostring(math.round(alpha * 255))
+            end
+            refreshInputs()
+            
+            local function refreshVisuals()
+                svCanvas.BackgroundColor3 = Color3.fromHSV(h, 1, 1)
+                wGrad.Color = ColorSequence.new(Color3.new(1,1,1), Color3.fromHSV(h, 1, 1))
+                svKnob.Position = UDim2.new(0, s * canvasSize - 4, 0, (1-v) * 150 - 4)
+                hueKnob.Position = UDim2.new(0, -2, 0, h * 150 - 2)
+                alphaFill.Size = UDim2.new(alpha, 0, 1, 0)
+                alphaKnob.Position = UDim2.new(alpha, -4, 0.5, -8)
+                refreshInputs()
+            end
+            
+            -- Preset swatches row
+            local presets = {
+                Color3.fromRGB(255,0,0), Color3.fromRGB(0,255,0), Color3.fromRGB(0,0,255),
+                Color3.fromRGB(255,255,0), Color3.fromRGB(255,0,255), Color3.fromRGB(0,255,255),
+                Color3.fromRGB(255,105,180), Color3.fromRGB(255,165,0), Color3.fromRGB(128,0,128),
+                Color3.fromRGB(255,255,255), Color3.fromRGB(0,0,0), Color3.fromRGB(120,40,240)
             }
-            
-            local picker = fr(sg, UDim2.new(0, 200, 0, 140), UDim2.new(0.5, -100, 0.5, -70), C.HEADER, 0, 12)
-            picker.ZIndex = 1000
-            
-            local grid = Instance.new("UIGridLayout")
-            grid.CellSize = UDim2.new(0, 40, 0, 30)
-            grid.CellPadding = UDim2.new(0, 8, 0, 8)
-            grid.Parent = picker
-            pad(picker, 12, 12, 12, 12)
-            
-            for i, c in ipairs(colors) do
-                local swatch = Instance.new("TextButton")
-                swatch.Size = UDim2.new(0, 40, 0, 30)
-                swatch.BackgroundColor3 = c
-                swatch.Text = ""
-                swatch.Parent = picker
-                Instance.new("UICorner").Parent = swatch
-                
-                swatch.MouseButton1Click:Connect(function()
-                    color = c
-                    preview.BackgroundColor3 = c
-                    if callback then callback(c) end
-                    picker:Destroy()
+            local swatchY = 228
+            for i, pc in ipairs(presets) do
+                local sx = 10 + (i-1) * 20
+                local sw = Instance.new("TextButton")
+                sw.Size = UDim2.new(0, 16, 0, 16)
+                sw.Position = UDim2.new(0, sx, 0, swatchY)
+                sw.BackgroundColor3 = pc
+                sw.Text = ""
+                sw.Parent = pickerFrame
+                sw.ZIndex = 1001
+                Instance.new("UICorner", sw).CornerRadius = UDim.new(0, 3)
+                sw.MouseButton1Click:Connect(function()
+                    color = pc
+                    h, s, v = color:ToHSV()
+                    updateColor()
+                    refreshVisuals()
                 end)
             end
             
-            task.delay(0.1, function()
-                local conn
-                conn = UserInputService.InputBegan:Connect(function(inp)
-                    if inp.UserInputType == Enum.UserInputType.MouseButton1 then
-                        local pos = UserInputService:GetMouseLocation()
-                        if pos.X < picker.AbsolutePosition.X or pos.X > picker.AbsolutePosition.X + picker.AbsoluteSize.X or
-                           pos.Y < picker.AbsolutePosition.Y or pos.Y > picker.AbsolutePosition.Y + picker.AbsoluteSize.Y then
-                            picker:Destroy()
-                            conn:Disconnect()
-                        end
-                    end
-                end)
+            -- OK button
+            local okBtn = Instance.new("TextButton")
+            okBtn.Size = UDim2.new(1, -20, 0, 28)
+            okBtn.Position = UDim2.new(0, 10, 0, 258)
+            okBtn.BackgroundColor3 = C.ACCENT
+            okBtn.Text = "Done"
+            okBtn.TextColor3 = C.TEXT
+            okBtn.TextSize = 12
+            okBtn.Font = Enum.Font.GothamBold
+            okBtn.Parent = pickerFrame
+            okBtn.ZIndex = 1001
+            Instance.new("UICorner", okBtn).CornerRadius = UDim.new(0, 6)
+            local okGrad = Instance.new("UIGradient", okBtn)
+            okGrad.Color = ColorSequence.new({ColorSequenceKeypoint.new(0, C.ACCENT), ColorSequenceKeypoint.new(1, C.ACCENT2)})
+            okGrad.Rotation = 90
+            okBtn.MouseButton1Click:Connect(closePicker)
+            
+            -- Interaction: SV canvas
+            local svDragging = false
+            svBtn.InputBegan:Connect(function(inp)
+                if inp.UserInputType == Enum.UserInputType.MouseButton1 then svDragging = true end
             end)
+            table.insert(conns, UserInputService.InputEnded:Connect(function(inp)
+                if inp.UserInputType == Enum.UserInputType.MouseButton1 then svDragging = false end
+            end))
+            table.insert(conns, UserInputService.InputChanged:Connect(function(inp)
+                if svDragging and inp.UserInputType == Enum.UserInputType.MouseMovement then
+                    local ax = math.clamp((inp.Position.X - svCanvas.AbsolutePosition.X) / canvasSize, 0, 1)
+                    local ay = math.clamp((inp.Position.Y - svCanvas.AbsolutePosition.Y) / 150, 0, 1)
+                    s = ax
+                    v = 1 - ay
+                    updateColor()
+                    refreshVisuals()
+                end
+            end))
+            svBtn.InputBegan:Connect(function(inp)
+                if inp.UserInputType == Enum.UserInputType.MouseButton1 then
+                    local ax = math.clamp((inp.Position.X - svCanvas.AbsolutePosition.X) / canvasSize, 0, 1)
+                    local ay = math.clamp((inp.Position.Y - svCanvas.AbsolutePosition.Y) / 150, 0, 1)
+                    s = ax
+                    v = 1 - ay
+                    updateColor()
+                    refreshVisuals()
+                end
+            end)
+            
+            -- Interaction: Hue bar
+            local hueDragging = false
+            hueBtn.InputBegan:Connect(function(inp)
+                if inp.UserInputType == Enum.UserInputType.MouseButton1 then
+                    hueDragging = true
+                    h = math.clamp((inp.Position.Y - hueBar.AbsolutePosition.Y) / 150, 0, 1)
+                    updateColor()
+                    refreshVisuals()
+                end
+            end)
+            table.insert(conns, UserInputService.InputEnded:Connect(function(inp)
+                if inp.UserInputType == Enum.UserInputType.MouseButton1 then hueDragging = false end
+            end))
+            table.insert(conns, UserInputService.InputChanged:Connect(function(inp)
+                if hueDragging and inp.UserInputType == Enum.UserInputType.MouseMovement then
+                    h = math.clamp((inp.Position.Y - hueBar.AbsolutePosition.Y) / 150, 0, 1)
+                    updateColor()
+                    refreshVisuals()
+                end
+            end))
+            
+            -- Interaction: Alpha slider
+            local alphaDragging = false
+            alphaBtn.InputBegan:Connect(function(inp)
+                if inp.UserInputType == Enum.UserInputType.MouseButton1 then
+                    alphaDragging = true
+                    alpha = math.clamp((inp.Position.X - alphaTrack.AbsolutePosition.X) / alphaTrack.AbsoluteSize.X, 0, 1)
+                    updateColor()
+                    refreshVisuals()
+                end
+            end)
+            table.insert(conns, UserInputService.InputEnded:Connect(function(inp)
+                if inp.UserInputType == Enum.UserInputType.MouseButton1 then alphaDragging = false end
+            end))
+            table.insert(conns, UserInputService.InputChanged:Connect(function(inp)
+                if alphaDragging and inp.UserInputType == Enum.UserInputType.MouseMovement then
+                    alpha = math.clamp((inp.Position.X - alphaTrack.AbsolutePosition.X) / alphaTrack.AbsoluteSize.X, 0, 1)
+                    updateColor()
+                    refreshVisuals()
+                end
+            end))
+            
+            -- RGBA text input handling
+            for i, box in ipairs(boxes) do
+                box.FocusLost:Connect(function()
+                    local val = tonumber(box.Text)
+                    if not val then refreshInputs() return end
+                    val = math.clamp(math.round(val), 0, 255)
+                    if i == 1 then
+                        color = Color3.fromRGB(val, math.round(color.G*255), math.round(color.B*255))
+                    elseif i == 2 then
+                        color = Color3.fromRGB(math.round(color.R*255), val, math.round(color.B*255))
+                    elseif i == 3 then
+                        color = Color3.fromRGB(math.round(color.R*255), math.round(color.G*255), val)
+                    elseif i == 4 then
+                        alpha = val / 255
+                    end
+                    h, s, v = color:ToHSV()
+                    updateColor()
+                    refreshVisuals()
+                end)
+            end
         end)
         
-        return { Get = function() return color end, Set = function(c) color = c preview.BackgroundColor3 = c if callback then callback(c) end end }
+        return { 
+            Get = function() return color, alpha end, 
+            Set = function(c, a) color = c if a then alpha = a end preview.BackgroundColor3 = c if callback then callback(c, alpha) end end 
+        }
     end
     
     -- ============================================================
@@ -2147,6 +2392,7 @@ function MenuLib:Init(config)
         end
         
         dropdownBtn.MouseButton1Click:Connect(openDropdown)
+        table.insert(activeDropdownClosers, closeDropdown)
         
         return { 
             Get = function() return options[selectedIndex], selectedIndex end, 
@@ -2279,6 +2525,7 @@ function MenuLib:Init(config)
         -- Store panels for API use
         tabPanels["Aimbot"] = { leftPanel = leftPanel, rightPanel = rightPanel }
     end)
+    RunService.Heartbeat:Wait()
     
     addSection("VISUALS")
     API.AddTab("Visuals", ICON.players, function(f)
@@ -2333,6 +2580,7 @@ function MenuLib:Init(config)
         -- Store panels for API use
         tabPanels["Visuals"] = { leftPanel = leftPanel, rightPanel = rightPanel }
     end)
+    RunService.Heartbeat:Wait()
     
     API.AddTab("World", ICON.world, function(f)
         local scroll = Instance.new("ScrollingFrame")
@@ -2354,6 +2602,7 @@ function MenuLib:Init(config)
         pad(card, 16, 16, 16, 16)
         lbl(card, "World", UDim2.new(1, 0, 0, 0), nil, 18, C.TEXT, Enum.Font.GothamBold)
     end)
+    RunService.Heartbeat:Wait()
     
     API.AddTab("Skin Changer", ICON.skin, function(f)
         local scroll = Instance.new("ScrollingFrame")
@@ -2375,6 +2624,7 @@ function MenuLib:Init(config)
         v.Parent = card
         pad(card, 16, 16, 16, 16)
     end)
+    RunService.Heartbeat:Wait()
     
     addSection("MISC")
     API.AddTab("Misc", ICON.misc, function(f)
@@ -2397,6 +2647,7 @@ function MenuLib:Init(config)
         pad(card, 16, 16, 16, 16)
         lbl(card, "Misc", UDim2.new(1, 0, 0, 0), nil, 18, C.TEXT, Enum.Font.GothamBold)
     end)
+    RunService.Heartbeat:Wait()
     
     API.AddTab("Protections", ICON.protection, function(f)
         local scroll = Instance.new("ScrollingFrame")
@@ -2418,6 +2669,7 @@ function MenuLib:Init(config)
         pad(card, 16, 16, 16, 16)
         lbl(card, "Protections", UDim2.new(1, 0, 0, 0), nil, 18, C.TEXT, Enum.Font.GothamBold)
     end)
+    RunService.Heartbeat:Wait()
     
     API.AddTab("Exploits", ICON.exploits, function(f)
         local scroll = Instance.new("ScrollingFrame")
@@ -2439,6 +2691,7 @@ function MenuLib:Init(config)
         pad(card, 16, 16, 16, 16)
         lbl(card, "Exploits", UDim2.new(1, 0, 0, 0), nil, 18, C.TEXT, Enum.Font.GothamBold)
     end)
+    RunService.Heartbeat:Wait()
     
     API.AddTab("Configuration", ICON.config, function(f)
         local scroll = Instance.new("ScrollingFrame")
@@ -2884,7 +3137,11 @@ function MenuLib:Init(config)
                     MaxESPDistance = _G._MaxESPDistance,
                     -- World settings
                     WorldModulationEnabled = _G._WorldModulationEnabled,
-                    ParticlesEnabled = _G._ParticlesEnabled,
+                    WorldTheme = _G._WorldTheme,
+                    WorldTimeOfDay = _G._WorldTimeOfDay,
+                    WorldBloomIntensity = _G._WorldBloomIntensity,
+                    PlayerAura = _G._PlayerAura,
+                    SyncESPToTheme = _G._SyncESPToTheme,
                     -- Protection settings
                     AntiFlingEnabled = _G._AntiFlingEnabled,
                     AntiKatanaEnabled = _G._AntiKatanaEnabled,
@@ -2936,7 +3193,11 @@ function MenuLib:Init(config)
                     _G._OutlineESPEnabled = s.OutlineESPEnabled
                     _G._ChamsEnabled = s.ChamsEnabled
                     if s.ChamsMaterialToken ~= nil and type(s.ChamsMaterialToken) == "string" then
-                        _G._ChamsMaterialToken = s.ChamsMaterialToken
+                        local cmt = s.ChamsMaterialToken
+                        if cmt:sub(1, 3) == "MV:" or cmt:sub(1, 5) ~= "ENUM:" then
+                            cmt = "ENUM:ForceField"
+                        end
+                        _G._ChamsMaterialToken = cmt
                     end
                     if _G._ChamsMaterialDropdownSync then
                         pcall(_G._ChamsMaterialDropdownSync)
@@ -2946,7 +3207,11 @@ function MenuLib:Init(config)
                     _G._MaxESPDistance = s.MaxESPDistance
                     -- World
                     _G._WorldModulationEnabled = s.WorldModulationEnabled
-                    _G._ParticlesEnabled = s.ParticlesEnabled
+                    if s.WorldTheme ~= nil then _G._WorldTheme = s.WorldTheme end
+                    if s.WorldTimeOfDay ~= nil then _G._WorldTimeOfDay = s.WorldTimeOfDay end
+                    if s.WorldBloomIntensity ~= nil then _G._WorldBloomIntensity = s.WorldBloomIntensity end
+                    if s.PlayerAura ~= nil then _G._PlayerAura = s.PlayerAura end
+                    if s.SyncESPToTheme ~= nil then _G._SyncESPToTheme = s.SyncESPToTheme end
                     -- Protections
                     _G._AntiFlingEnabled = s.AntiFlingEnabled
                     _G._AntiKatanaEnabled = s.AntiKatanaEnabled
