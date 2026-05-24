@@ -102,7 +102,7 @@ function MenuLib:Init(config)
         UserInputService.MouseIconEnabled = origMouseIconEnabled
     end
     
-    RunService:BindToRenderStep(RS_BIND_INP, Enum.RenderPriority.Input.Value + 1, function()
+    RunService:BindToRenderStep(RS_BIND_INP, Enum.RenderPriority.Last.Value + 1, function()
         if not isOpen then return end
         UserInputService.MouseBehavior = Enum.MouseBehavior.Default
         UserInputService.MouseIconEnabled = true
