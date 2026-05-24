@@ -69,32 +69,7 @@ function MenuLib:Init(config)
     sg.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     sg.IgnoreGuiInset = true
     sg.DisplayOrder = 2147483647
-    -- Try multiple methods to make the GUI render ABOVE all Roblox UI
-    -- Priority: gethui() > protect_gui + CoreGui > CoreGui > PlayerGui
-    local guiParented = false
-    if not guiParented then
-        -- Method 1: gethui() - supported by most modern executors, renders above everything
-        guiParented = pcall(function()
-            sg.Parent = gethui()
-        end)
-    end
-    if not guiParented then
-        -- Method 2: Synapse protect_gui + CoreGui
-        guiParented = pcall(function()
-            syn.protect_gui(sg)
-            sg.Parent = game:GetService("CoreGui")
-        end)
-    end
-    if not guiParented then
-        -- Method 3: Direct CoreGui parenting
-        guiParented = pcall(function()
-            sg.Parent = game:GetService("CoreGui")
-        end)
-    end
-    if not guiParented then
-        -- Method 4: Fallback to PlayerGui
-        sg.Parent = pg
-    end
+    sg.Parent = pg
 
     local inputBlocker = Instance.new("TextButton")
     inputBlocker.Size = UDim2.new(1, 0, 1, 0)
