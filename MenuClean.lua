@@ -11,11 +11,98 @@ function MenuLib:Init(config)
     local HttpService = game:GetService("HttpService")
     
     local lp = Players.LocalPlayer
-    local pg = lp:WaitForChild("PlayerGui")
     local _guid = tostring(tick() * 100000 % 1e12)
     pcall(function() _guid = HttpService:GenerateGUID(false) end)
     local RS_BIND_INP = "MenuGuiInp_" .. _guid
+
+    -- Core state and connection tracking
+    local conns = {}
+    local unloaded = false
+    local isOpen = false
+    local prevMouseBehavior = Enum.MouseBehavior.Default
+    local origMouseIconEnabled = UserInputService.MouseIconEnabled
+    local activeDropdownClosers = {}
     
+    local sg = Instance.new("ScreenGui")
+    sg.Name = "MenuGui_v4"
+    sg.ResetOnSpawn = false
+    sg.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    sg.IgnoreGuiInset = true
+    sg.DisplayOrder = 2147483647
+    sg.Enabled = true
+
+    -- Define toggle/close functions early so input handler can use them
+    local openMenu, closeMenu, toggleMenu
+
+    local function keyMatches(inp, key)
+        if typeof(key) ~= "EnumItem" then return false end
+        if key.EnumType == Enum.KeyCode then
+            return inp.KeyCode == key
+        elseif key.EnumType == Enum.UserInputType then
+            return inp.UserInputType == key
+        end
+        return inp.KeyCode == key
+    end
+
+    table.insert(conns, UserInputService.InputBegan:Connect(function(inp, gpe)
+        local toggleKey = _G._MenuToggleKey or Enum.KeyCode.Insert
+        local unloadKey = _G._UnloadKey or Enum.KeyCode.Delete
+        
+        if isOpen and inp.KeyCode == Enum.KeyCode.Escape then
+            if closeMenu then closeMenu() end
+            return
+        end
+        
+        if keyMatches(inp, toggleKey) and not _G._SettingKeybind then
+            if toggleMenu then toggleMenu() end
+        elseif keyMatches(inp, unloadKey) and not _G._SettingKeybind then
+            unloaded = true
+            _G._UnloadTriggered = true
+            for _, c in ipairs(conns) do pcall(function() c:Disconnect() end) end
+            conns = {}
+            pcall(function() RunService:UnbindFromRenderStep(RS_BIND_INP) end)
+            isOpen = false
+            -- cleanup lighting, blur, gui
+            if _G._OriginalBrightness then
+                Lighting.Brightness = _G._OriginalBrightness
+                Lighting.ClockTime = _G._OriginalClockTime
+            end
+            pcall(function() sg:Destroy() end)
+            pcall(function()
+                local CoreGui = game:GetService("CoreGui")
+                local menuGui = CoreGui and CoreGui:FindFirstChild("RobloxGui") and CoreGui.RobloxGui:FindFirstChild("MenuGui")
+                if menuGui then menuGui.Enabled = true end
+            end)
+        end
+    end))
+
+    local pg = lp:FindFirstChild("PlayerGui")
+    task.spawn(function()
+        if not pg then pg = lp:WaitForChild("PlayerGui", 10) end
+        if pg then sg.Parent = pg end
+        pcall(function()
+            local CoreGui = game:GetService("CoreGui")
+            if CoreGui then sg.Parent = CoreGui end
+        end)
+    end)
+
+    local inputBlocker = Instance.new("TextButton")
+    inputBlocker.Size = UDim2.new(1, 0, 1, 0)
+    inputBlocker.BackgroundTransparency = 1
+    inputBlocker.Text = ""
+    inputBlocker.Active = true
+    inputBlocker.Visible = false
+    inputBlocker.ZIndex = -10
+    inputBlocker.Parent = sg
+    
+    local controls = nil
+    task.spawn(function()
+        pcall(function()
+            local PM = require(lp:WaitForChild("PlayerScripts"):WaitForChild("PlayerModule"))
+            controls = PM:GetControls()
+        end)
+    end)
+
     _G._MenuAutoRefresh = true
     _G._BlurEnabled = false
     _G._LightingDimEnabled = false
@@ -53,42 +140,6 @@ function MenuLib:Init(config)
         if s:match("^%d+$") then return "rbxassetid://" .. s end
         return s
     end
-    
-    local controls = nil
-    local isOpen = false
-    local prevMouseBehavior = Enum.MouseBehavior.Default
-    
-    -- Create sg first so inputBlocker can parent to it
-    local sg = Instance.new("ScreenGui")
-    sg.Name = "MenuGui_v4"
-    sg.ResetOnSpawn = false
-    sg.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-    sg.IgnoreGuiInset = true
-    sg.DisplayOrder = 2147483647
-    sg.Enabled = true
-    sg.Parent = pg
-
-    -- Try to make menu topmost by parenting to CoreGui if possible
-    pcall(function()
-        local CoreGui = game:GetService("CoreGui")
-        if CoreGui then
-            sg.Parent = CoreGui
-        end
-    end)
-
-    local inputBlocker = Instance.new("TextButton")
-    inputBlocker.Size = UDim2.new(1, 0, 1, 0)
-    inputBlocker.BackgroundTransparency = 1
-    inputBlocker.Text = ""
-    inputBlocker.Active = true
-    inputBlocker.Visible = false
-    inputBlocker.ZIndex = -10
-    inputBlocker.Parent = sg
-    
-    pcall(function()
-        local PM = require(lp:WaitForChild("PlayerScripts"):WaitForChild("PlayerModule"))
-        controls = PM:GetControls()
-    end)
     
     local function lockInput()
         prevMouseBehavior = UserInputService.MouseBehavior
@@ -237,11 +288,6 @@ function MenuLib:Init(config)
         return { Get = function() return state end, Set = function(v) if v ~= state then state = v apply(true, false) end end }
     end
     
-    -- Connection tracking for cleanup
-    local conns = {}
-    local unloaded = false
-    local origMouseIconEnabled = UserInputService.MouseIconEnabled
-
     -- UI (sg already created above)
     
     local hudBar = fr(sg, UDim2.new(0, HUD_W, 0, 44), UDim2.new(0.5, -HUD_W / 2, 0, 10), C.DARK, 0, 18)
@@ -1516,12 +1562,7 @@ function MenuLib:Init(config)
         end
     end, false)
     addSettingOption("Performance", "Low quality mode", true, function(on)
-        if on then
-            if not _G._OriginalQualityLevel then _G._OriginalQualityLevel = settings().Rendering.QualityLevel end
-            settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
-        elseif _G._OriginalQualityLevel then
-            settings().Rendering.QualityLevel = _G._OriginalQualityLevel
-        end
+        -- Settings access removed for stability
     end, false)
     
     -- Keybinds
@@ -1650,7 +1691,7 @@ function MenuLib:Init(config)
         tw(win, { Size = UDim2.new(0, WIN_W, 0, WIN_H), Position = UDim2.new(0.5, -WIN_W / 2, 0.5, -WIN_H / 2) }, 0.25)
     end
     
-    local function closeMenu()
+    closeMenu = function()
         if not win.Visible and not settingsPanel.Visible then return end
         isOpen = false
         _G._MenuOpen = false
@@ -1690,7 +1731,7 @@ function MenuLib:Init(config)
         end
     end
     
-    local function openMenu()
+    openMenu = function()
         if not win or not settingsPanel then return end
         if win.Visible or settingsPanel.Visible then return end
         isOpen = true
@@ -1708,7 +1749,6 @@ function MenuLib:Init(config)
             if topbar then
                 topbar.Enabled = false
             end
-            settings().VR.OverrideDisplayCutouts = true
         end)
         if _G._BlurEnabled then
             if not blurPart then
@@ -1731,7 +1771,7 @@ function MenuLib:Init(config)
         end
     end
     
-    local function toggleMenu()
+    toggleMenu = function()
         if isOpen then
             closeMenu()
         else
@@ -1813,15 +1853,22 @@ function MenuLib:Init(config)
         end
 
         local function applyLayout(obj, isVisible, targetX, yOffset)
-            if not obj then return currentX end
+            if not obj then return targetX end
             if isVisible then
                 obj.Visible = true
                 local w = obj.AbsoluteSize.X
-                if obj:IsA("TextLabel") then w = math.max(w, obj.TextBounds.X) end
+                if obj:IsA("TextLabel") then 
+                    w = math.max(w, obj.TextBounds.X)
+                    -- If text is still loading ("...") or reported as 0, use safe defaults
+                    if w == 0 or obj.Text == "..." then
+                        if obj == fpsLbl or obj == pingLbl then w = 48
+                        elseif obj == timeLbl then w = 68
+                        end
+                    end
+                end
+
                 if w == 0 then
-                    if obj == fpsLbl or obj == pingLbl then w = 45
-                    elseif obj == timeLbl then w = 65
-                    elseif obj == badge then w = 32
+                    if obj == badge then w = 32
                     elseif obj == homeBtn then w = 30
                     end
                 end
@@ -1837,7 +1884,6 @@ function MenuLib:Init(config)
                 return targetX
             end
         end
-
         local function applyDiv(divObj, isVisible, targetX)
             if isVisible then
                 divObj.Visible = true
@@ -1974,10 +2020,8 @@ function MenuLib:Init(config)
             end
 
             -- Restore quality
-            if _G._OriginalQualityLevel then
-                settings().Rendering.QualityLevel = _G._OriginalQualityLevel
-            end
-
+            -- Settings access removed for stability
+            
             -- Destroy blur
             if blurPart then pcall(function() blurPart:Destroy() end) blurPart = nil end
 
