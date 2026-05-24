@@ -680,8 +680,8 @@ function MenuLib:Init(config)
     
     local settingsDivider = fr(settingsBodyShell, UDim2.new(0, 1, 1, -4), UDim2.new(0, SIDE_W, 0, 4), C.DIV)
     
-    local catItems = { "General", "Appearance", "Performance", "Keybinds" }
-    local catKeys = { ICON.general, ICON.appearance, ICON.performance, ICON.keyboard }
+    local catItems = { "General", "Appearance", "Performance", "Keybinds", "Players" }
+    local catKeys = { ICON.general, ICON.appearance, ICON.performance, ICON.keyboard, ICON.players }
     local catScroll = Instance.new("ScrollingFrame")
     catScroll.Size = UDim2.new(1, 0, 1, 0)
     catScroll.ZIndex = 2
@@ -959,7 +959,7 @@ function MenuLib:Init(config)
     
     local sHolder = fr(sRight, UDim2.new(1, 0, 1, -46), UDim2.new(0, 0, 0, 40), C.CONTENT, 1, 0)
     
-    for i = 1, 4 do
+    for i = 1, 5 do
         local sScroll = Instance.new("ScrollingFrame")
         sScroll.Size = UDim2.new(1, 0, 1, 0)
         sScroll.ZIndex = 2
@@ -1266,6 +1266,378 @@ function MenuLib:Init(config)
             settings().Rendering.QualityLevel = _G._OriginalQualityLevel
         end
     end, false)
+    
+    -- ============================================================
+    -- PLAYERS TAB (Settings tab #5)
+    -- ============================================================
+    do
+        local playersScroll = settingsTabs["Players"]
+        if playersScroll then
+            -- Initialize friends list in _G
+            if not _G._FriendsList then _G._FriendsList = {} end
+            
+            -- Friends persistence file
+            local friendsFolder = "MenuLibConfigs"
+            local friendsFile = friendsFolder .. "/" .. tostring(lp.UserId) .. "_friends.json"
+            
+            local function SaveFriendsToFile()
+                if makefolder and not isfolder(friendsFolder) then
+                    pcall(function() makefolder(friendsFolder) end)
+                end
+                local success, encoded = pcall(function()
+                    return HttpService:JSONEncode(_G._FriendsList)
+                end)
+                if success and encoded and writefile then
+                    pcall(function() writefile(friendsFile, encoded) end)
+                end
+            end
+            
+            local function LoadFriendsFromFile()
+                if isfile and isfile(friendsFile) then
+                    local success, content = pcall(function() return readfile(friendsFile) end)
+                    if success and content then
+                        local s2, decoded = pcall(function() return HttpService:JSONDecode(content) end)
+                        if s2 and decoded and type(decoded) == "table" then
+                            _G._FriendsList = decoded
+                            return true
+                        end
+                    end
+                end
+                return false
+            end
+            LoadFriendsFromFile()
+            
+            -- Two-column layout container
+            local columnsRow = fr(playersScroll, UDim2.new(1, -10, 1, -10), nil, C.CONTENT, 1, 0)
+            columnsRow.LayoutOrder = 1
+            
+            -- ===== LEFT COLUMN: Player List =====
+            local leftCol = fr(columnsRow, UDim2.new(0.5, -4, 1, 0), UDim2.new(0, 0, 0, 0), C.HEADER, 0, 12)
+            
+            -- Header
+            local leftHeader = fr(leftCol, UDim2.new(1, 0, 0, 36), nil, C.DARK, 0, UDim.new(0, 12))
+            lbl(leftHeader, "Players", UDim2.new(0, 80, 1, 0), UDim2.new(0, 12, 0, 0), 14, C.TEXT, Enum.Font.GothamBold)
+            local playerCountLbl = lbl(leftHeader, "0", UDim2.new(0, 30, 0, 18), UDim2.new(0, 80, 0.5, -9), 10, C.ACCENT, Enum.Font.GothamBold)
+            playerCountLbl.BackgroundColor3 = C.SEL
+            playerCountLbl.BackgroundTransparency = 0
+            playerCountLbl.TextXAlignment = Enum.TextXAlignment.Center
+            Instance.new("UICorner", playerCountLbl).CornerRadius = UDim.new(0, 6)
+            
+            -- Search bar (players)
+            local playerSearchBar = fr(leftCol, UDim2.new(1, -16, 0, 28), UDim2.new(0, 8, 0, 42), C.SEL, 0, 8)
+            local playerSearchIcon = Instance.new("ImageLabel")
+            playerSearchIcon.Size = UDim2.new(0, 14, 0, 14)
+            playerSearchIcon.Position = UDim2.new(0, 8, 0.5, -7)
+            playerSearchIcon.BackgroundTransparency = 1
+            playerSearchIcon.Image = "rbxassetid://6031154871"
+            playerSearchIcon.ImageColor3 = C.DIM
+            playerSearchIcon.Parent = playerSearchBar
+            
+            local playerSearchBox = Instance.new("TextBox")
+            playerSearchBox.Size = UDim2.new(1, -30, 1, 0)
+            playerSearchBox.Position = UDim2.new(0, 26, 0, 0)
+            playerSearchBox.BackgroundTransparency = 1
+            playerSearchBox.TextColor3 = C.TEXT
+            playerSearchBox.PlaceholderText = "Search players..."
+            playerSearchBox.PlaceholderColor3 = C.DIM
+            playerSearchBox.TextSize = 11
+            playerSearchBox.Font = Enum.Font.Gotham
+            playerSearchBox.ClearTextOnFocus = false
+            playerSearchBox.TextXAlignment = Enum.TextXAlignment.Left
+            playerSearchBox.Parent = playerSearchBar
+            
+            -- Player list scroll
+            local playerListScroll = Instance.new("ScrollingFrame")
+            playerListScroll.Size = UDim2.new(1, -16, 1, -80)
+            playerListScroll.Position = UDim2.new(0, 8, 0, 76)
+            playerListScroll.BackgroundTransparency = 1
+            playerListScroll.BorderSizePixel = 0
+            playerListScroll.ScrollBarThickness = 3
+            playerListScroll.ScrollBarImageColor3 = C.ACCENT
+            playerListScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+            playerListScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+            playerListScroll.Parent = leftCol
+            
+            local playerListLayout = Instance.new("UIListLayout")
+            playerListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+            playerListLayout.Padding = UDim.new(0, 3)
+            playerListLayout.Parent = playerListScroll
+            
+            -- ===== RIGHT COLUMN: Friends List =====
+            local rightCol = fr(columnsRow, UDim2.new(0.5, -4, 1, 0), UDim2.new(0.5, 4, 0, 0), C.HEADER, 0, 12)
+            
+            -- Header
+            local rightHeader = fr(rightCol, UDim2.new(1, 0, 0, 36), nil, C.DARK, 0, UDim.new(0, 12))
+            lbl(rightHeader, "Friends", UDim2.new(0, 80, 1, 0), UDim2.new(0, 12, 0, 0), 14, C.TEXT, Enum.Font.GothamBold)
+            local friendCountLbl = lbl(rightHeader, "0", UDim2.new(0, 30, 0, 18), UDim2.new(0, 80, 0.5, -9), 10, C.GREEN, Enum.Font.GothamBold)
+            friendCountLbl.BackgroundColor3 = C.SEL
+            friendCountLbl.BackgroundTransparency = 0
+            friendCountLbl.TextXAlignment = Enum.TextXAlignment.Center
+            Instance.new("UICorner", friendCountLbl).CornerRadius = UDim.new(0, 6)
+            
+            -- Search bar (friends)
+            local friendSearchBar = fr(rightCol, UDim2.new(1, -16, 0, 28), UDim2.new(0, 8, 0, 42), C.SEL, 0, 8)
+            local friendSearchIcon = Instance.new("ImageLabel")
+            friendSearchIcon.Size = UDim2.new(0, 14, 0, 14)
+            friendSearchIcon.Position = UDim2.new(0, 8, 0.5, -7)
+            friendSearchIcon.BackgroundTransparency = 1
+            friendSearchIcon.Image = "rbxassetid://6031154871"
+            friendSearchIcon.ImageColor3 = C.DIM
+            friendSearchIcon.Parent = friendSearchBar
+            
+            local friendSearchBox = Instance.new("TextBox")
+            friendSearchBox.Size = UDim2.new(1, -30, 1, 0)
+            friendSearchBox.Position = UDim2.new(0, 26, 0, 0)
+            friendSearchBox.BackgroundTransparency = 1
+            friendSearchBox.TextColor3 = C.TEXT
+            friendSearchBox.PlaceholderText = "Search friends..."
+            friendSearchBox.PlaceholderColor3 = C.DIM
+            friendSearchBox.TextSize = 11
+            friendSearchBox.Font = Enum.Font.Gotham
+            friendSearchBox.ClearTextOnFocus = false
+            friendSearchBox.TextXAlignment = Enum.TextXAlignment.Left
+            friendSearchBox.Parent = friendSearchBar
+            
+            -- Friends list scroll
+            local friendListScroll = Instance.new("ScrollingFrame")
+            friendListScroll.Size = UDim2.new(1, -16, 1, -80)
+            friendListScroll.Position = UDim2.new(0, 8, 0, 76)
+            friendListScroll.BackgroundTransparency = 1
+            friendListScroll.BorderSizePixel = 0
+            friendListScroll.ScrollBarThickness = 3
+            friendListScroll.ScrollBarImageColor3 = C.GREEN
+            friendListScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+            friendListScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+            friendListScroll.Parent = rightCol
+            
+            local friendListLayout = Instance.new("UIListLayout")
+            friendListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+            friendListLayout.Padding = UDim.new(0, 3)
+            friendListLayout.Parent = friendListScroll
+            
+            -- Forward-declare refresh functions
+            local refreshPlayerList, refreshFriendList
+            
+            -- ===== REFRESH FRIENDS LIST =====
+            refreshFriendList = function(filter)
+                for _, child in ipairs(friendListScroll:GetChildren()) do
+                    if child:IsA("Frame") then child:Destroy() end
+                end
+                local count = 0
+                local filterLower = filter and filter:lower() or ""
+                
+                for _, friendName in ipairs(_G._FriendsList or {}) do
+                    if filterLower == "" or friendName:lower():find(filterLower, 1, true) then
+                        count = count + 1
+                        local row = fr(friendListScroll, UDim2.new(1, 0, 0, 36), nil, C.SEL, 0, 8)
+                        row.LayoutOrder = count
+                        
+                        -- Friend avatar
+                        local avFrame = fr(row, UDim2.new(0, 26, 0, 26), UDim2.new(0, 6, 0.5, -13), C.DARK, 0, 13)
+                        local avFImg = Instance.new("ImageLabel")
+                        avFImg.Size = UDim2.new(1, -4, 1, -4)
+                        avFImg.Position = UDim2.new(0, 2, 0, 2)
+                        avFImg.BackgroundTransparency = 1
+                        avFImg.Parent = avFrame
+                        Instance.new("UICorner", avFImg).CornerRadius = UDim.new(1, 0)
+                        
+                        -- Try to get avatar
+                        task.spawn(function()
+                            for _, p in ipairs(Players:GetPlayers()) do
+                                if p.Name == friendName then
+                                    local ok2, url2 = pcall(function()
+                                        return Players:GetUserThumbnailAsync(p.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size100x100)
+                                    end)
+                                    if ok2 and url2 then avFImg.Image = url2 end
+                                    return
+                                end
+                            end
+                        end)
+                        
+                        -- Name label
+                        local fNameLbl = lbl(row, friendName, UDim2.new(1, -100, 1, 0), UDim2.new(0, 38, 0, 0), 11, C.TEXT, Enum.Font.GothamBold)
+                        fNameLbl.TextTruncate = Enum.TextTruncate.AtEnd
+                        
+                        -- Online indicator
+                        local isOnline = false
+                        for _, p in ipairs(Players:GetPlayers()) do
+                            if p.Name == friendName then isOnline = true break end
+                        end
+                        local onlineDot = fr(row, UDim2.new(0, 8, 0, 8), UDim2.new(0, 38, 0, 4), isOnline and C.GREEN or C.RED, 0, 4)
+                        
+                        -- Remove button
+                        local removeBtn = Instance.new("TextButton")
+                        removeBtn.Size = UDim2.new(0, 60, 0, 24)
+                        removeBtn.Position = UDim2.new(1, -66, 0.5, -12)
+                        removeBtn.BackgroundColor3 = C.RED
+                        removeBtn.Text = "Remove"
+                        removeBtn.TextColor3 = C.TEXT
+                        removeBtn.TextSize = 10
+                        removeBtn.Font = Enum.Font.GothamBold
+                        removeBtn.AutoButtonColor = false
+                        removeBtn.Parent = row
+                        Instance.new("UICorner", removeBtn).CornerRadius = UDim.new(0, 6)
+                        local remGrad = Instance.new("UIGradient", removeBtn)
+                        remGrad.Color = ColorSequence.new({ColorSequenceKeypoint.new(0, C.RED), ColorSequenceKeypoint.new(1, Color3.fromRGB(190, 45, 45))})
+                        remGrad.Rotation = 90
+                        
+                        removeBtn.MouseEnter:Connect(function() tw(removeBtn, {BackgroundColor3 = Color3.fromRGB(255, 70, 70)}, 0.12) end)
+                        removeBtn.MouseLeave:Connect(function() tw(removeBtn, {BackgroundColor3 = C.RED}, 0.12) end)
+                        
+                        removeBtn.MouseButton1Click:Connect(function()
+                            -- Remove from friends list
+                            for idx, fn in ipairs(_G._FriendsList) do
+                                if fn == friendName then
+                                    table.remove(_G._FriendsList, idx)
+                                    break
+                                end
+                            end
+                            SaveFriendsToFile()
+                            -- Animate removal
+                            tw(row, {Size = UDim2.new(1, 0, 0, 0), BackgroundTransparency = 1}, 0.15)
+                            task.delay(0.15, function()
+                                row:Destroy()
+                                refreshFriendList(friendSearchBox.Text)
+                                refreshPlayerList(playerSearchBox.Text)
+                            end)
+                        end)
+                        
+                        -- Hover
+                        local rowBtn = Instance.new("TextButton")
+                        rowBtn.Size = UDim2.new(1, -70, 1, 0)
+                        rowBtn.BackgroundTransparency = 1
+                        rowBtn.Text = ""
+                        rowBtn.Parent = row
+                        rowBtn.MouseEnter:Connect(function() tw(row, {BackgroundColor3 = C.BTNHOV}, 0.1) end)
+                        rowBtn.MouseLeave:Connect(function() tw(row, {BackgroundColor3 = C.SEL}, 0.1) end)
+                    end
+                end
+                friendCountLbl.Text = tostring(count)
+            end
+            
+            -- ===== REFRESH PLAYER LIST =====
+            refreshPlayerList = function(filter)
+                for _, child in ipairs(playerListScroll:GetChildren()) do
+                    if child:IsA("Frame") then child:Destroy() end
+                end
+                local count = 0
+                local filterLower = filter and filter:lower() or ""
+                
+                for _, player in ipairs(Players:GetPlayers()) do
+                    local pName = player.Name
+                    if filterLower == "" or pName:lower():find(filterLower, 1, true) then
+                        count = count + 1
+                        local row = fr(playerListScroll, UDim2.new(1, 0, 0, 36), nil, C.SEL, 0, 8)
+                        row.LayoutOrder = count
+                        
+                        -- Player avatar
+                        local avFrame = fr(row, UDim2.new(0, 26, 0, 26), UDim2.new(0, 6, 0.5, -13), C.DARK, 0, 13)
+                        local avPImg = Instance.new("ImageLabel")
+                        avPImg.Size = UDim2.new(1, -4, 1, -4)
+                        avPImg.Position = UDim2.new(0, 2, 0, 2)
+                        avPImg.BackgroundTransparency = 1
+                        avPImg.Parent = avFrame
+                        Instance.new("UICorner", avPImg).CornerRadius = UDim.new(1, 0)
+                        
+                        task.spawn(function()
+                            local ok2, url2 = pcall(function()
+                                return Players:GetUserThumbnailAsync(player.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size100x100)
+                            end)
+                            if ok2 and url2 then avPImg.Image = url2 end
+                        end)
+                        
+                        -- Name
+                        local pNameLbl = lbl(row, pName, UDim2.new(1, -100, 1, 0), UDim2.new(0, 38, 0, 0), 11, C.TEXT, Enum.Font.GothamBold)
+                        pNameLbl.TextTruncate = Enum.TextTruncate.AtEnd
+                        
+                        -- "You" badge for local player
+                        if player == lp then
+                            local youBadge = lbl(row, "YOU", UDim2.new(0, 28, 0, 14), UDim2.new(1, -96, 0.5, -7), 9, C.ACCENT, Enum.Font.GothamBold)
+                            youBadge.BackgroundColor3 = C.SEL
+                            youBadge.BackgroundTransparency = 0
+                            youBadge.TextXAlignment = Enum.TextXAlignment.Center
+                            Instance.new("UICorner", youBadge).CornerRadius = UDim.new(0, 4)
+                        end
+                        
+                        -- Check if already a friend
+                        local isFriend = false
+                        for _, fn in ipairs(_G._FriendsList or {}) do
+                            if fn == pName then isFriend = true break end
+                        end
+                        
+                        -- Add Friend button (only if not self and not already friend)
+                        if player ~= lp then
+                            if isFriend then
+                                local addedLbl = lbl(row, "✓ Friend", UDim2.new(0, 56, 0, 24), UDim2.new(1, -62, 0.5, -12), 10, C.GREEN, Enum.Font.GothamBold)
+                                addedLbl.TextXAlignment = Enum.TextXAlignment.Center
+                            else
+                                local addBtn = Instance.new("TextButton")
+                                addBtn.Size = UDim2.new(0, 46, 0, 24)
+                                addBtn.Position = UDim2.new(1, -52, 0.5, -12)
+                                addBtn.BackgroundColor3 = C.ACCENT
+                                addBtn.Text = "Add"
+                                addBtn.TextColor3 = C.TEXT
+                                addBtn.TextSize = 10
+                                addBtn.Font = Enum.Font.GothamBold
+                                addBtn.AutoButtonColor = false
+                                addBtn.Parent = row
+                                Instance.new("UICorner", addBtn).CornerRadius = UDim.new(0, 6)
+                                local addGrad = Instance.new("UIGradient", addBtn)
+                                addGrad.Color = ColorSequence.new({ColorSequenceKeypoint.new(0, C.ACCENT), ColorSequenceKeypoint.new(1, C.ACCENT2)})
+                                addGrad.Rotation = 90
+                                
+                                addBtn.MouseEnter:Connect(function() tw(addBtn, {BackgroundColor3 = Color3.fromRGB(140, 50, 255)}, 0.12) end)
+                                addBtn.MouseLeave:Connect(function() tw(addBtn, {BackgroundColor3 = C.ACCENT}, 0.12) end)
+                                
+                                addBtn.MouseButton1Click:Connect(function()
+                                    -- Add to friends
+                                    table.insert(_G._FriendsList, pName)
+                                    SaveFriendsToFile()
+                                    -- Flash confirmation
+                                    tw(addBtn, {BackgroundColor3 = C.GREEN}, 0.1)
+                                    addBtn.Text = "✓"
+                                    task.delay(0.3, function()
+                                        refreshPlayerList(playerSearchBox.Text)
+                                        refreshFriendList(friendSearchBox.Text)
+                                    end)
+                                end)
+                            end
+                        end
+                        
+                        -- Hover
+                        local rowBtn = Instance.new("TextButton")
+                        rowBtn.Size = UDim2.new(1, -56, 1, 0)
+                        rowBtn.BackgroundTransparency = 1
+                        rowBtn.Text = ""
+                        rowBtn.Parent = row
+                        rowBtn.MouseEnter:Connect(function() tw(row, {BackgroundColor3 = C.BTNHOV}, 0.1) end)
+                        rowBtn.MouseLeave:Connect(function() tw(row, {BackgroundColor3 = C.SEL}, 0.1) end)
+                    end
+                end
+                playerCountLbl.Text = tostring(count)
+            end
+            
+            -- Search bar filtering
+            playerSearchBox:GetPropertyChangedSignal("Text"):Connect(function()
+                refreshPlayerList(playerSearchBox.Text)
+            end)
+            friendSearchBox:GetPropertyChangedSignal("Text"):Connect(function()
+                refreshFriendList(friendSearchBox.Text)
+            end)
+            
+            -- Auto-refresh when players join/leave
+            table.insert(conns, Players.PlayerAdded:Connect(function()
+                task.delay(0.5, function() refreshPlayerList(playerSearchBox.Text) end)
+            end))
+            table.insert(conns, Players.PlayerRemoving:Connect(function()
+                task.delay(0.1, function() refreshPlayerList(playerSearchBox.Text) refreshFriendList(friendSearchBox.Text) end)
+            end))
+            
+            -- Initial population
+            refreshPlayerList("")
+            refreshFriendList("")
+        end
+    end
     
     -- Keybinds
     local function addKeybindOption(tabName, label, key, onChange)
@@ -1697,6 +2069,7 @@ function MenuLib:Init(config)
             _G._ConfigList = nil
             _G._CurrentConfig = nil
             _G._ConfigLoaded = nil
+            _G._FriendsList = nil
             _G.GetConfigData = nil
             _G.LoadConfigData = nil
         end
