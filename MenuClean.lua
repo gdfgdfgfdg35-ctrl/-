@@ -1802,26 +1802,36 @@ function MenuLib:Init(config)
     -- HUD Layout
     local function updateHudLayout(animate)
         local baseX = 48
-        local nameWidth = nameLbl.AbsoluteSize.X
+        local nameWidth = math.max(nameLbl.AbsoluteSize.X, nameLbl.TextBounds.X)
         local spacing = 16
         local currentX = baseX
-        
+
         if nameWidth > 0 then 
             currentX = currentX + math.max(70, nameWidth + 8) + spacing 
         else
-            currentX = currentX + 70 + spacing
+            currentX = currentX + 100 + spacing
         end
-        
+
         local function applyLayout(obj, isVisible, targetX, yOffset)
             if not obj then return currentX end
             if isVisible then
                 obj.Visible = true
+                local w = obj.AbsoluteSize.X
+                if obj:IsA("TextLabel") then w = math.max(w, obj.TextBounds.X) end
+                if w == 0 then
+                    if obj == fpsLbl or obj == pingLbl then w = 45
+                    elseif obj == timeLbl then w = 65
+                    elseif obj == badge then w = 32
+                    elseif obj == homeBtn then w = 30
+                    end
+                end
+
                 if animate then
                     tw(obj, { Position = UDim2.new(0, targetX, 0.5, yOffset or -10) }, 0.2)
                 else
                     obj.Position = UDim2.new(0, targetX, 0.5, yOffset or -10)
                 end
-                return targetX + obj.AbsoluteSize.X + spacing
+                return targetX + (w or 0) + spacing
             else
                 obj.Visible = false
                 return targetX
@@ -1857,7 +1867,7 @@ function MenuLib:Init(config)
 
         if timeLbl.Visible then
             applyDiv(div3, true, currentX)
-            currentX = applyLayout(timeLbl, true, currentX, -8)
+            currentX = applyLayout(timeLbl, true, currentX, -10)
         else
             applyDiv(div3, false, currentX)
         end
@@ -1875,8 +1885,7 @@ function MenuLib:Init(config)
             hudBar.Size = UDim2.new(0, targetWidth, 0, 44)
             hudBar.Position = UDim2.new(0.5, -targetWidth / 2, 0, 10)
         end
-    end
-    
+    end    
     task.defer(function() updateHudLayout(false) end)
     table.insert(conns, nameLbl:GetPropertyChangedSignal("AbsoluteSize"):Connect(function() updateHudLayout(true) end))
     table.insert(conns, fpsLbl:GetPropertyChangedSignal("Text"):Connect(function() updateHudLayout(true) end))
@@ -1929,7 +1938,6 @@ function MenuLib:Init(config)
     end
     
     table.insert(conns, UserInputService.InputBegan:Connect(function(inp, gpe)
-        if gpe then return end
         local toggleKey = _G._MenuToggleKey or Enum.KeyCode.Insert
         local unloadKey = _G._UnloadKey or Enum.KeyCode.Delete
         
