@@ -43,7 +43,7 @@ function MenuLib:Init(config)
         fire = "rbxassetid://14502433595",
         protection = "rbxassetid://73332630842054",
         skin = "rbxassetid://81837937089566",
-        playerTab = "rbxassetid://2795572803",
+        playerTab = "rbxthumb://type=Asset&id=2795572803&w=150&h=150",
     }
     
     -- Configurable icon size for the Players tab (change this to resize)
@@ -1727,17 +1727,21 @@ function MenuLib:Init(config)
     
     -- Menu Functions
     local inSettings = false
+    local isTransitioning = false
     
     local function openSettings()
-        if inSettings then return end
+        if inSettings or isTransitioning then return end
         inSettings = true
+        isTransitioning = true
         _G._MenuOpen = true
         tw(homeBtn, { Rotation = homeBtn.Rotation + 360 }, 0.5)
         tw(homeBtnIcon1, { ImageTransparency = 1 }, 0.25)
         tw(homeBtnIcon2, { ImageTransparency = 0 }, 0.25)
         
         tw(win, { Size = UDim2.new(0, 0, 0, 0), Position = UDim2.new(0.5, 0, 0.5, 0) }, 0.2)
-        task.delay(0.1, function() win.Visible = false end)
+        task.delay(0.2, function() 
+            win.Visible = false 
+        end)
         
         settingsPanel.Size = UDim2.new(0, 0, 0, 0)
         settingsPanel.Position = UDim2.new(0.5, 0, 0.5, 0)
@@ -1763,23 +1767,29 @@ function MenuLib:Init(config)
             catBtns[i].icon.Position = UDim2.new(0, 10, 0.5, -12)
             catBtns[i].lbl.TextColor3 = C.DIM
         end
+        end
+        task.delay(0.25, function() isTransitioning = false end)
     end
     
     local function closeSettings()
-        if not inSettings then return end
+        if not inSettings or isTransitioning then return end
         inSettings = false
+        isTransitioning = true
         _G._MenuOpen = true
         tw(homeBtn, { Rotation = homeBtn.Rotation - 360 }, 0.5)
         tw(homeBtnIcon1, { ImageTransparency = 0 }, 0.25)
         tw(homeBtnIcon2, { ImageTransparency = 1 }, 0.25)
         
         tw(settingsPanel, { Size = UDim2.new(0, 0, 0, 0), Position = UDim2.new(0.5, 0, 0.5, 0) }, 0.2)
-        task.delay(0.1, function() settingsPanel.Visible = false end)
+        task.delay(0.2, function() 
+            settingsPanel.Visible = false 
+        end)
         
         win.Size = UDim2.new(0, 0, 0, 0)
         win.Position = UDim2.new(0.5, 0, 0.5, 0)
         win.Visible = true
         tw(win, { Size = UDim2.new(0, WIN_W, 0, WIN_H), Position = UDim2.new(0.5, -WIN_W / 2, 0.5, -WIN_H / 2) }, 0.25)
+        task.delay(0.25, function() isTransitioning = false end)
     end
     
     local function closeMenu()
@@ -2002,7 +2012,11 @@ function MenuLib:Init(config)
         fpsT = fpsT + dt
         fpsN = fpsN + 1
         if fpsT >= 0.5 then
-            pcall(function() fpsLbl.Text = tostring(math.round(fpsN / fpsT)) .. " FPS" end)
+            if fpsT > 0 then
+                pcall(function() fpsLbl.Text = tostring(math.round(fpsN / fpsT)) .. " FPS" end)
+            else
+                pcall(function() fpsLbl.Text = "0 FPS" end)
+            end
             fpsN = 0
             fpsT = 0
         end
