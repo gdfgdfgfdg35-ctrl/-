@@ -61,6 +61,7 @@ function MenuLib:Init(config)
     local controls = nil
     local isOpen = false
     local prevMouseBehavior = Enum.MouseBehavior.Default
+    local prevMouseIconEnabled = UserInputService.MouseIconEnabled
     
     -- Create sg first so inputBlocker can parent to it
     local sg = Instance.new("ScreenGui")
@@ -87,6 +88,7 @@ function MenuLib:Init(config)
     
     local function lockInput()
         prevMouseBehavior = UserInputService.MouseBehavior
+        prevMouseIconEnabled = UserInputService.MouseIconEnabled
         isOpen = true
         inputBlocker.Visible = true
         pcall(function() controls:Disable() end)
@@ -99,7 +101,7 @@ function MenuLib:Init(config)
         inputBlocker.Visible = false
         pcall(function() controls:Enable() end)
         UserInputService.MouseBehavior = prevMouseBehavior
-        UserInputService.MouseIconEnabled = origMouseIconEnabled
+        UserInputService.MouseIconEnabled = prevMouseIconEnabled
     end
     
     RunService:BindToRenderStep(RS_BIND_INP, Enum.RenderPriority.Last.Value + 1, function()
@@ -235,7 +237,7 @@ function MenuLib:Init(config)
     -- Connection tracking for cleanup
     local conns = {}
     local unloaded = false
-    local origMouseIconEnabled = UserInputService.MouseIconEnabled
+    -- Cleaned up old global mouse var
 
     -- UI (sg already created above)
     
@@ -2061,7 +2063,7 @@ function MenuLib:Init(config)
             isOpen = false
             pcall(function() controls:Enable() end)
             UserInputService.MouseBehavior = prevMouseBehavior
-            UserInputService.MouseIconEnabled = origMouseIconEnabled
+            UserInputService.MouseIconEnabled = prevMouseIconEnabled
 
             -- Restore lighting
             if _G._OriginalBrightness then
