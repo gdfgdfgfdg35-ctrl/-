@@ -2238,7 +2238,10 @@ function MenuLib:Init(config)
             end
         end))
         
-        return { Get = function() return value end, Set = function(v) value = math.clamp(v, min, max) updateVisuals(true) if callback then callback(value) end end }
+        local sl = { Get = function() return value end, Set = function(v) value = math.clamp(v, min, max) updateVisuals(true) if callback then callback(value) end end }
+        if not _G._MenuSliders then _G._MenuSliders = {} end
+        _G._MenuSliders[label] = sl
+        return sl
     end
     
     API.AddColorPicker = function(tabName, label, callback, defaultColor, side)
@@ -2555,10 +2558,13 @@ function MenuLib:Init(config)
             end
         end)
         
-        return { 
+        local cp = { 
             Get = function() return color, alpha end, 
             Set = function(c, a) color = c if a then alpha = a end preview.BackgroundColor3 = c if callback then callback(c, alpha) end end 
         }
+        if not _G._MenuColorPickers then _G._MenuColorPickers = {} end
+        _G._MenuColorPickers[label] = cp
+        return cp
     end
     
     -- ============================================================
@@ -2797,12 +2803,15 @@ function MenuLib:Init(config)
         dropdownBtn.MouseButton1Click:Connect(openDropdown)
         table.insert(activeDropdownClosers, closeDropdown)
         
-        return { 
+        local dd = { 
             Get = function() return options[selectedIndex], selectedIndex end, 
-            Set = function(idx) selectedIndex = idx dropdownBtn.Text = options[idx] if callback then callback(options[idx], idx) end end,
+            Set = function(idx) selectedIndex = idx if options[idx] then dropdownBtn.Text = options[idx] end if callback then callback(options[idx], idx) end end,
             GetOptions = function() return options end,
             SetOptions = function(newOpts) options = newOpts selectedIndex = 1 dropdownBtn.Text = options[1] or "Select" end
         }
+        if not _G._MenuDropdowns then _G._MenuDropdowns = {} end
+        _G._MenuDropdowns[label] = dd
+        return dd
     end
     
     API.AddSetting = function(tabName, label, toggleCallback, default)
@@ -3498,20 +3507,45 @@ function MenuLib:Init(config)
         -- Ensure config functions exist - MUST be defined BEFORE any UI creation
         if not _G.GetConfigData then
             _G.GetConfigData = function()
-                local data = {}
-                -- Collect ALL global settings
+                local data = {
+                    Toggles = {},
+                    Sliders = {},
+                    Dropdowns = {},
+                    ColorPickers = {}
+                }
+                if _G._MenuToggles then
+                    for label, tog in pairs(_G._MenuToggles) do
+                        data.Toggles[label] = tog.Get()
+                    end
+                end
+                if _G._MenuSliders then
+                    for label, sl in pairs(_G._MenuSliders) do
+                        data.Sliders[label] = sl.Get()
+                    end
+                end
+                if _G._MenuDropdowns then
+                    for label, dd in pairs(_G._MenuDropdowns) do
+                        local opt, idx = dd.Get()
+                        data.Dropdowns[label] = idx
+                    end
+                end
+                if _G._MenuColorPickers then
+                    for label, cp in pairs(_G._MenuColorPickers) do
+                        local c, a = cp.Get()
+                        data.ColorPickers[label] = {r = c.R, g = c.G, b = c.B, a = a}
+                    end
+                end
+                
+                -- Support legacy structure so we don't break Raknet entirely
                 data._MenuSettings = {
-                    -- Menu settings
                     BlurEnabled = _G._BlurEnabled,
                     LightingDimEnabled = _G._LightingDimEnabled,
                     MenuToggleKey = tostring(_G._MenuToggleKey),
                     UnloadKey = tostring(_G._UnloadKey),
                     SmoothAnimations = _G._SmoothAnimations,
-                    -- ESP settings
                     BoxESPEnabled = _G._BoxESPEnabled,
                     FilledBoxESPEnabled = _G._FilledBoxESPEnabled,
                     ESPColour = _G._ESPColour and {r = _G._ESPColour.R, g = _G._ESPColour.G, b = _G._ESPColour.B} or nil,
-                    -- Aimbot settings
                     AimbotEnabled = _G._AimbotEnabled,
                     ShowFOVCircle = _G._ShowFOVCircle,
                     AimbotTargetMode = _G._AimbotTargetMode,
@@ -3524,7 +3558,6 @@ function MenuLib:Init(config)
                     SilentAimPart = _G._SilentAimPart,
                     SilentAimEnabled = _G._SilentAimEnabled,
                     AimKeybind = _G._AimKeybind and tostring(_G._AimKeybind.Name) or nil,
-                    -- More ESP settings
                     NameESPEnabled = _G._NameESPEnabled,
                     DistanceESPEnabled = _G._DistanceESPEnabled,
                     HealthESPEnabled = _G._HealthESPEnabled,
@@ -3534,17 +3567,14 @@ function MenuLib:Init(config)
                     WeaponChamsEnabled = _G._WeaponChamsEnabled,
                     HandChamsEnabled = _G._HandChamsEnabled,
                     MaxESPDistance = _G._MaxESPDistance,
-                    -- World settings
                     WorldModulationEnabled = _G._WorldModulationEnabled,
                     WorldTheme = _G._WorldTheme,
                     WorldTimeOfDay = _G._WorldTimeOfDay,
                     WorldBloomIntensity = _G._WorldBloomIntensity,
                     PlayerAura = _G._PlayerAura,
                     SyncESPToTheme = _G._SyncESPToTheme,
-                    -- Protection settings
                     AntiFlingEnabled = _G._AntiFlingEnabled,
                     AntiKatanaEnabled = _G._AntiKatanaEnabled,
-                    -- HUD settings (from settings tab)
                     ShowFPS = _G._ShowFPS,
                     ShowPing = _G._ShowPing,
                     ShowClock = _G._ShowClock,
@@ -3559,7 +3589,30 @@ function MenuLib:Init(config)
         if not _G.LoadConfigData then
             _G.LoadConfigData = function(data)
                 if not data then return end
-                -- Load ALL global settings
+                
+                -- Load dynamic UI elements (so the menu updates correctly)
+                if data.Toggles and _G._MenuToggles then
+                    for label, val in pairs(data.Toggles) do
+                        if _G._MenuToggles[label] then _G._MenuToggles[label].Set(val) end
+                    end
+                end
+                if data.Sliders and _G._MenuSliders then
+                    for label, val in pairs(data.Sliders) do
+                        if _G._MenuSliders[label] then _G._MenuSliders[label].Set(val) end
+                    end
+                end
+                if data.Dropdowns and _G._MenuDropdowns then
+                    for label, idx in pairs(data.Dropdowns) do
+                        if _G._MenuDropdowns[label] then _G._MenuDropdowns[label].Set(idx) end
+                    end
+                end
+                if data.ColorPickers and _G._MenuColorPickers then
+                    for label, val in pairs(data.ColorPickers) do
+                        if _G._MenuColorPickers[label] then _G._MenuColorPickers[label].Set(Color3.new(val.r, val.g, val.b), val.a) end
+                    end
+                end
+
+                -- Load ALL legacy global settings
                 if data._MenuSettings then
                     local s = data._MenuSettings
                     -- Menu settings
