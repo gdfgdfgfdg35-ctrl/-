@@ -1767,7 +1767,6 @@ function MenuLib:Init(config)
             catBtns[i].icon.Position = UDim2.new(0, 10, 0.5, -12)
             catBtns[i].lbl.TextColor3 = C.DIM
         end
-        end
         task.delay(0.25, function() isTransitioning = false end)
     end
     
