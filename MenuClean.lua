@@ -68,11 +68,6 @@ function MenuLib:Init(config)
                 Lighting.ClockTime = _G._OriginalClockTime
             end
             pcall(function() sg:Destroy() end)
-            pcall(function()
-                local CoreGui = game:GetService("CoreGui")
-                local menuGui = CoreGui and CoreGui:FindFirstChild("RobloxGui") and CoreGui.RobloxGui:FindFirstChild("MenuGui")
-                if menuGui then menuGui.Enabled = true end
-            end)
         end
     end))
 
@@ -80,10 +75,6 @@ function MenuLib:Init(config)
     task.spawn(function()
         if not pg then pg = lp:WaitForChild("PlayerGui", 10) end
         if pg then sg.Parent = pg end
-        pcall(function()
-            local CoreGui = game:GetService("CoreGui")
-            if CoreGui then sg.Parent = CoreGui end
-        end)
     end)
 
     local inputBlocker = Instance.new("TextButton")
@@ -1158,27 +1149,27 @@ function MenuLib:Init(config)
                 end
                 local q = query and query:lower() or ""
                 for _, p in ipairs(Players:GetPlayers()) do
-                    if p ~= lp then
-                        local name = p.Name
-                        local display = p.DisplayName
-                        if q == "" or name:lower():find(q, 1, true) or display:lower():find(q, 1, true) then
-                            local row = fr(playerScroller, UDim2.new(1, 0, 0, 32), nil, C.HEADER, 0.8, 6)
-                            local isFren = isFriend(name)
-                            local icon = Instance.new("ImageLabel")
-                            icon.Size = UDim2.new(0, 24, 0, 24)
-                            icon.Position = UDim2.new(0, 6, 0.5, -12)
-                            icon.BackgroundTransparency = 1
-                            icon.Image = "rbxasset://textures/ui/GuiImagePlaceholder.png"
-                            icon.Parent = row
-                            Instance.new("UICorner", icon).CornerRadius = UDim.new(0, 12)
-                            local thumbOk, thumbUrl = pcall(function() return Players:GetUserThumbnailAsync(p.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size48x48) end)
-                            if thumbOk then icon.Image = thumbUrl end
-                            
-                            lbl(row, name, UDim2.new(0, 120, 1, 0), UDim2.new(0, 36, 0, 0), 12, C.TEXT, Enum.Font.GothamBold)
-                            
-                            local displayLbl = lbl(row, display, UDim2.new(0, 120, 1, 0), UDim2.new(0, 36, 0, 0), 10, C.DIM)
-                            displayLbl.TextXAlignment = Enum.TextXAlignment.Left
-                            displayLbl.TextYAlignment = Enum.TextYAlignment.Bottom
+                    local name = p.Name
+                    local display = p.DisplayName
+                    if q == "" or name:lower():find(q, 1, true) or display:lower():find(q, 1, true) then
+                        local row = fr(playerScroller, UDim2.new(1, 0, 0, 32), nil, C.HEADER, 0.8, 6)
+                        local isFren = isFriend(name)
+                        local icon = Instance.new("ImageLabel")
+                        icon.Size = UDim2.new(0, 24, 0, 24)
+                        icon.Position = UDim2.new(0, 6, 0.5, -12)
+                        icon.BackgroundTransparency = 1
+                        icon.Image = "rbxasset://textures/ui/GuiImagePlaceholder.png"
+                        icon.Parent = row
+                        Instance.new("UICorner", icon).CornerRadius = UDim.new(0, 12)
+                        local thumbOk, thumbUrl = pcall(function() return Players:GetUserThumbnailAsync(p.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size48x48) end)
+                        if thumbOk then icon.Image = thumbUrl end
+                        
+                        local n = lbl(row, name, UDim2.new(0, 110, 0, 16), UDim2.new(0, 36, 0, 2), 11, C.TEXT, Enum.Font.GothamBold)
+                        n.TextTruncate = Enum.TextTruncate.AtEnd
+                        
+                        local d = lbl(row, display, UDim2.new(0, 110, 0, 12), UDim2.new(0, 36, 0, 16), 9, C.DIM)
+                        d.TextTruncate = Enum.TextTruncate.AtEnd
+                        d.TextYAlignment = Enum.TextYAlignment.Top
                             
                             local statusColor = isFren and C.GREEN or C.DIM
                             local statusLbl = lbl(row, isFren and "FRIEND" or "ADD", UDim2.new(0, 50, 0, 20), UDim2.new(1, -60, 0.5, -10), 10, statusColor, Enum.Font.GothamBold)
@@ -1255,9 +1246,6 @@ function MenuLib:Init(config)
                             renderFriendList(rightSearch.Text)
                         end)
                     end
-                end
-                if not hasFriends then
-                    lbl(friendScroller, "No friends added yet", UDim2.new(1, -16, 0, 24), UDim2.new(0, 8, 0, 4), 12, C.DIM).TextXAlignment = Enum.TextXAlignment.Left
                 end
             end
             
@@ -1695,26 +1683,9 @@ function MenuLib:Init(config)
         if not win.Visible and not settingsPanel.Visible then return end
         isOpen = false
         _G._MenuOpen = false
-        -- Restore CoreGui elements
-        pcall(function()
-            local CoreGui = game:GetService("CoreGui")
-            local menuGui = CoreGui and CoreGui:FindFirstChild("RobloxGui") and CoreGui.RobloxGui:FindFirstChild("MenuGui")
-            if menuGui then
-                menuGui.Enabled = true
-            end
-            local topbar = CoreGui and CoreGui:FindFirstChild("RobloxGui") and CoreGui.RobloxGui:FindFirstChild("Topbar")
-            if topbar then
-                topbar.Enabled = true
-            end
-        end)
         -- Close any open dropdowns
         for _, closer in ipairs(activeDropdownClosers) do
             pcall(closer)
-        end
-        if blurPart and _G._BlurEnabled then
-            tw(blurPart, {Size = 0}, 0.15)
-            local currentBlur = blurPart
-            task.delay(0.15, function() if currentBlur then currentBlur:Destroy() if blurPart == currentBlur then blurPart = nil end end end)
         end
         if inSettings then
             tw(settingsPanel, { Size = UDim2.new(0, 0, 0, 0), Position = UDim2.new(0.5, 0, 0.5, 0) }, 0.15)
@@ -1736,28 +1707,11 @@ function MenuLib:Init(config)
         if win.Visible or settingsPanel.Visible then return end
         isOpen = true
         _G._MenuOpen = true
-        lockInput()
+        pcall(lockInput)
         if hudBar then hudBar.Visible = true end
-        -- Try to block Roblox escape menu from appearing on top
-        pcall(function()
-            local CoreGui = game:GetService("CoreGui")
-            local menuGui = CoreGui and CoreGui:FindFirstChild("RobloxGui") and CoreGui.RobloxGui:FindFirstChild("MenuGui")
-            if menuGui then
-                menuGui.Enabled = false
-            end
-            local topbar = CoreGui and CoreGui:FindFirstChild("RobloxGui") and CoreGui.RobloxGui:FindFirstChild("Topbar")
-            if topbar then
-                topbar.Enabled = false
-            end
-        end)
-        if _G._BlurEnabled then
-            if not blurPart then
-                blurPart = Instance.new("BlurEffect")
-                blurPart.Size = 0
-                blurPart.Parent = Lighting
-            end
-            tw(blurPart, {Size = 12}, 0.25)
-        end
+        
+        -- Blur removed to avoid security issues
+        
         if inSettings then
             settingsPanel.Visible = true
             settingsPanel.Size = UDim2.new(0, 0, 0, 0)
@@ -2022,20 +1976,8 @@ function MenuLib:Init(config)
             -- Restore quality
             -- Settings access removed for stability
             
-            -- Destroy blur
-            if blurPart then pcall(function() blurPart:Destroy() end) blurPart = nil end
-
             -- Destroy the entire GUI
             pcall(function() sg:Destroy() end)
-
-            -- Restore CoreGui
-            pcall(function()
-                local CoreGui = game:GetService("CoreGui")
-                local menuGui = CoreGui and CoreGui:FindFirstChild("RobloxGui") and CoreGui.RobloxGui:FindFirstChild("MenuGui")
-                if menuGui then menuGui.Enabled = true end
-                local topbar = CoreGui and CoreGui:FindFirstChild("RobloxGui") and CoreGui.RobloxGui:FindFirstChild("Topbar")
-                if topbar then topbar.Enabled = true end
-            end)
 
             -- Clean up _G variables
             _G._MenuAutoRefresh = nil
