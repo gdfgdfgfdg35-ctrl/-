@@ -65,7 +65,16 @@ function MenuLib:Init(config)
     sg.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     sg.IgnoreGuiInset = true
     sg.DisplayOrder = 2147483647
+    sg.Enabled = true
     sg.Parent = pg
+
+    -- Try to make menu topmost by parenting to CoreGui if possible
+    pcall(function()
+        local CoreGui = game:GetService("CoreGui")
+        if CoreGui then
+            sg.Parent = CoreGui
+        end
+    end)
 
     local inputBlocker = Instance.new("TextButton")
     inputBlocker.Size = UDim2.new(1, 0, 1, 0)
@@ -680,8 +689,8 @@ function MenuLib:Init(config)
     
     local settingsDivider = fr(settingsBodyShell, UDim2.new(0, 1, 1, -4), UDim2.new(0, SIDE_W, 0, 4), C.DIV)
     
-    local catItems = { "General", "Appearance", "Performance", "Keybinds" }
-    local catKeys = { ICON.general, ICON.appearance, ICON.performance, ICON.keyboard }
+    local catItems = { "General", "Appearance", "Performance", "Keybinds", "Players" }
+    local catKeys = { ICON.general, ICON.appearance, ICON.performance, ICON.keyboard, ICON.players }
     local catScroll = Instance.new("ScrollingFrame")
     catScroll.Size = UDim2.new(1, 0, 1, 0)
     catScroll.ZIndex = 2
@@ -959,7 +968,7 @@ function MenuLib:Init(config)
     
     local sHolder = fr(sRight, UDim2.new(1, 0, 1, -46), UDim2.new(0, 0, 0, 40), C.CONTENT, 1, 0)
     
-    for i = 1, 4 do
+    for i = 1, 5 do
         local sScroll = Instance.new("ScrollingFrame")
         sScroll.Size = UDim2.new(1, 0, 1, 0)
         sScroll.ZIndex = 2
@@ -977,6 +986,254 @@ function MenuLib:Init(config)
         sLayout.Parent = sScroll
         table.insert(settingsTabContents, sScroll)
         settingsTabs[catItems[i]] = sScroll
+    end
+    
+    -- Players tab UI
+    do
+        local pScroll = settingsTabs["Players"]
+        if pScroll then
+            pScroll.AutomaticCanvasSize = Enum.AutomaticSize.None
+            pScroll.ScrollBarThickness = 3
+            pScroll.ScrollBarImageColor3 = C.ACCENT
+            
+            _G._MenuFriends = _G._MenuFriends or {}
+            local friendList = _G._MenuFriends
+            
+            local function saveFriends()
+                local data = {}
+                for name, userId in pairs(friendList) do
+                    data[name] = userId
+                end
+                _G._MenuFriends = data
+                if writefile then
+                    pcall(function()
+                        if makefolder and not isfolder("MenuLibConfigs") then makefolder("MenuLibConfigs") end
+                        writefile("MenuLibConfigs/" .. tostring(lp.UserId) .. "_friends.json", HttpService:JSONEncode(data))
+                    end)
+                end
+            end
+            
+            pcall(function()
+                if isfile and isfile("MenuLibConfigs/" .. tostring(lp.UserId) .. "_friends.json") then
+                    local ok, data = pcall(function() return HttpService:JSONDecode(readfile("MenuLibConfigs/" .. tostring(lp.UserId) .. "_friends.json")) end)
+                    if ok and data then
+                        for k, v in pairs(data) do friendList[k] = v end
+                    end
+                end
+            end)
+            
+            local function isFriend(name)
+                for n in pairs(friendList) do
+                    if n:lower() == name:lower() then return true end
+                end
+                return false
+            end
+            
+            local mainRow = fr(pScroll, UDim2.new(1, 0, 1, 0), nil, C.CONTENT, 1, 0)
+            
+            local leftPanel = fr(mainRow, UDim2.new(0.5, -4, 1, 0), UDim2.new(0, 0, 0, 0), C.SEL, 0, 10)
+            local rightPanel = fr(mainRow, UDim2.new(0.5, -4, 1, 0), UDim2.new(0.5, 4, 0, 0), C.SEL, 0, 10)
+            
+            -- Title
+            lbl(leftPanel, "Players", UDim2.new(1, -16, 0, 24), UDim2.new(0, 10, 0, 6), 14, C.TEXT, Enum.Font.GothamBold)
+            lbl(rightPanel, "Friends", UDim2.new(1, -16, 0, 24), UDim2.new(0, 10, 0, 6), 14, C.TEXT, Enum.Font.GothamBold)
+            
+            -- Search bars
+            local leftSearch = Instance.new("TextBox")
+            leftSearch.Size = UDim2.new(1, -20, 0, 28)
+            leftSearch.Position = UDim2.new(0, 10, 0, 34)
+            leftSearch.BackgroundColor3 = C.DARK
+            leftSearch.TextColor3 = C.DIM
+            leftSearch.TextSize = 12
+            leftSearch.Font = Enum.Font.Gotham
+            leftSearch.PlaceholderText = "Search players..."
+            leftSearch.PlaceholderColor3 = C.DIM
+            leftSearch.ClearTextOnFocus = false
+            leftSearch.Parent = leftPanel
+            Instance.new("UICorner", leftSearch).CornerRadius = UDim.new(0, 6)
+            local lStroke = Instance.new("UIStroke")
+            lStroke.Color = C.DIV
+            lStroke.Thickness = 1
+            lStroke.Parent = leftSearch
+            
+            local rightSearch = Instance.new("TextBox")
+            rightSearch.Size = UDim2.new(1, -20, 0, 28)
+            rightSearch.Position = UDim2.new(0, 10, 0, 34)
+            rightSearch.BackgroundColor3 = C.DARK
+            rightSearch.TextColor3 = C.DIM
+            rightSearch.TextSize = 12
+            rightSearch.Font = Enum.Font.Gotham
+            rightSearch.PlaceholderText = "Search friends..."
+            rightSearch.PlaceholderColor3 = C.DIM
+            rightSearch.ClearTextOnFocus = false
+            rightSearch.Parent = rightPanel
+            Instance.new("UICorner", rightSearch).CornerRadius = UDim.new(0, 6)
+            local rStroke = Instance.new("UIStroke")
+            rStroke.Color = C.DIV
+            rStroke.Thickness = 1
+            rStroke.Parent = rightSearch
+            
+            -- Scroll lists
+            local playerScroller = Instance.new("ScrollingFrame")
+            playerScroller.Size = UDim2.new(1, -8, 1, -72)
+            playerScroller.Position = UDim2.new(0, 4, 0, 68)
+            playerScroller.BackgroundTransparency = 1
+            playerScroller.BorderSizePixel = 0
+            playerScroller.ScrollBarThickness = 3
+            playerScroller.ScrollBarImageColor3 = C.ACCENT
+            playerScroller.CanvasSize = UDim2.new(0, 0, 0, 0)
+            playerScroller.AutomaticCanvasSize = Enum.AutomaticSize.Y
+            playerScroller.Parent = leftPanel
+            pad(playerScroller, 4, 4, 4, 4)
+            local pLayout = Instance.new("UIListLayout")
+            pLayout.SortOrder = Enum.SortOrder.LayoutOrder
+            pLayout.Padding = UDim.new(0, 2)
+            pLayout.Parent = playerScroller
+            
+            local friendScroller = Instance.new("ScrollingFrame")
+            friendScroller.Size = UDim2.new(1, -8, 1, -72)
+            friendScroller.Position = UDim2.new(0, 4, 0, 68)
+            friendScroller.BackgroundTransparency = 1
+            friendScroller.BorderSizePixel = 0
+            friendScroller.ScrollBarThickness = 3
+            friendScroller.ScrollBarImageColor3 = C.ACCENT
+            friendScroller.CanvasSize = UDim2.new(0, 0, 0, 0)
+            friendScroller.AutomaticCanvasSize = Enum.AutomaticSize.Y
+            friendScroller.Parent = rightPanel
+            pad(friendScroller, 4, 4, 4, 4)
+            local fLayout = Instance.new("UIListLayout")
+            fLayout.SortOrder = Enum.SortOrder.LayoutOrder
+            fLayout.Padding = UDim.new(0, 2)
+            fLayout.Parent = friendScroller
+            
+            local function renderPlayerList(query)
+                for _, child in ipairs(playerScroller:GetChildren()) do
+                    if child:IsA("Frame") then child:Destroy() end
+                end
+                local q = query and query:lower() or ""
+                for _, p in ipairs(Players:GetPlayers()) do
+                    if p ~= lp then
+                        local name = p.Name
+                        local display = p.DisplayName
+                        if q == "" or name:lower():find(q, 1, true) or display:lower():find(q, 1, true) then
+                            local row = fr(playerScroller, UDim2.new(1, 0, 0, 32), nil, C.HEADER, 0.8, 6)
+                            local isFren = isFriend(name)
+                            local icon = Instance.new("ImageLabel")
+                            icon.Size = UDim2.new(0, 24, 0, 24)
+                            icon.Position = UDim2.new(0, 6, 0.5, -12)
+                            icon.BackgroundTransparency = 1
+                            icon.Image = "rbxasset://textures/ui/GuiImagePlaceholder.png"
+                            icon.Parent = row
+                            Instance.new("UICorner", icon).CornerRadius = UDim.new(0, 12)
+                            local thumbOk, thumbUrl = pcall(function() return Players:GetUserThumbnailAsync(p.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size48x48) end)
+                            if thumbOk then icon.Image = thumbUrl end
+                            
+                            lbl(row, name, UDim2.new(0, 120, 1, 0), UDim2.new(0, 36, 0, 0), 12, C.TEXT, Enum.Font.GothamBold)
+                            
+                            local displayLbl = lbl(row, display, UDim2.new(0, 120, 1, 0), UDim2.new(0, 36, 0, 0), 10, C.DIM)
+                            displayLbl.TextXAlignment = Enum.TextXAlignment.Left
+                            displayLbl.TextYAlignment = Enum.TextYAlignment.Bottom
+                            
+                            local statusColor = isFren and C.GREEN or C.DIM
+                            local statusLbl = lbl(row, isFren and "FRIEND" or "ADD", UDim2.new(0, 50, 0, 20), UDim2.new(1, -60, 0.5, -10), 10, statusColor, Enum.Font.GothamBold)
+                            statusLbl.TextXAlignment = Enum.TextXAlignment.Center
+                            
+                            local statusBg = Instance.new("TextButton")
+                            statusBg.Size = UDim2.new(0, 50, 0, 22)
+                            statusBg.Position = UDim2.new(1, -56, 0.5, -11)
+                            statusBg.BackgroundColor3 = isFren and C.GREEN or C.ACCENT
+                            statusBg.Text = ""
+                            statusBg.AutoButtonColor = false
+                            statusBg.Parent = row
+                            Instance.new("UICorner", statusBg).CornerRadius = UDim.new(0, 4)
+                            if not isFren then
+                                local grad = Instance.new("UIGradient", statusBg)
+                                grad.Color = ColorSequence.new({ColorSequenceKeypoint.new(0, C.ACCENT), ColorSequenceKeypoint.new(1, C.ACCENT2)})
+                                grad.Rotation = 90
+                            end
+                            
+                            statusBg.MouseButton1Click:Connect(function()
+                                if isFren then
+                                    friendList[name] = nil
+                                    saveFriends()
+                                else
+                                    friendList[name] = p.UserId
+                                    saveFriends()
+                                end
+                                renderPlayerList(leftSearch.Text)
+                                renderFriendList(rightSearch.Text)
+                            end)
+                        end
+                    end
+                end
+            end
+            
+            local function renderFriendList(query)
+                for _, child in ipairs(friendScroller:GetChildren()) do
+                    if child:IsA("Frame") then child:Destroy() end
+                end
+                local q = query and query:lower() or ""
+                local hasFriends = false
+                for name, userId in pairs(friendList) do
+                    if q == "" or name:lower():find(q, 1, true) then
+                        hasFriends = true
+                        local row = fr(friendScroller, UDim2.new(1, 0, 0, 32), nil, C.HEADER, 0.8, 6)
+                        local icon = Instance.new("ImageLabel")
+                        icon.Size = UDim2.new(0, 24, 0, 24)
+                        icon.Position = UDim2.new(0, 6, 0.5, -12)
+                        icon.BackgroundTransparency = 1
+                        icon.Image = "rbxasset://textures/ui/GuiImagePlaceholder.png"
+                        icon.Parent = row
+                        Instance.new("UICorner", icon).CornerRadius = UDim.new(0, 12)
+                        local thumbOk, thumbUrl = pcall(function() return Players:GetUserThumbnailAsync(userId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size48x48) end)
+                        if thumbOk then icon.Image = thumbUrl end
+                        
+                        lbl(row, name, UDim2.new(1, -70, 1, 0), UDim2.new(0, 36, 0, 0), 12, C.TEXT, Enum.Font.GothamBold)
+                        
+                        local removeBtn = Instance.new("TextButton")
+                        removeBtn.Size = UDim2.new(0, 50, 0, 22)
+                        removeBtn.Position = UDim2.new(1, -56, 0.5, -11)
+                        removeBtn.BackgroundColor3 = C.RED
+                        removeBtn.Text = "X"
+                        removeBtn.TextColor3 = C.TEXT
+                        removeBtn.TextSize = 12
+                        removeBtn.Font = Enum.Font.GothamBold
+                        removeBtn.AutoButtonColor = false
+                        removeBtn.Parent = row
+                        Instance.new("UICorner", removeBtn).CornerRadius = UDim.new(0, 4)
+                        
+                        removeBtn.MouseButton1Click:Connect(function()
+                            friendList[name] = nil
+                            saveFriends()
+                            renderPlayerList(leftSearch.Text)
+                            renderFriendList(rightSearch.Text)
+                        end)
+                    end
+                end
+                if not hasFriends then
+                    lbl(friendScroller, "No friends added yet", UDim2.new(1, -16, 0, 24), UDim2.new(0, 8, 0, 4), 12, C.DIM).TextXAlignment = Enum.TextXAlignment.Left
+                end
+            end
+            
+            leftSearch:GetPropertyChangedSignal("Text"):Connect(function()
+                renderPlayerList(leftSearch.Text)
+            end)
+            rightSearch:GetPropertyChangedSignal("Text"):Connect(function()
+                renderFriendList(rightSearch.Text)
+            end)
+            
+            table.insert(conns, Players.PlayerAdded:Connect(function()
+                renderPlayerList(leftSearch.Text)
+                renderFriendList(rightSearch.Text)
+            end))
+            table.insert(conns, Players.PlayerRemoving:Connect(function()
+                renderPlayerList(leftSearch.Text)
+                renderFriendList(rightSearch.Text)
+            end))
+            
+            renderPlayerList("")
+            renderFriendList("")
+        end
     end
     
     applySettingsLayout = function(horizontal, t, ease)
@@ -1061,16 +1318,16 @@ function MenuLib:Init(config)
             row.LayoutOrder = #scrollFrame:GetChildren()
             local stripe = fr(row, UDim2.new(0, 3, 1, -8), UDim2.new(0, 0, 0, 4), C.ACCENT, 0, 0)
             gradV(stripe, C.ACCENT, C.ACCENT2)
-            lbl(row, "Tab layout", UDim2.new(1, -140, 1, 0), UDim2.new(0, 14, 0, 0), 12, C.TEXT)
+            lbl(row, "Tab layout", UDim2.new(1, -170, 1, 0), UDim2.new(0, 14, 0, 0), 12, C.TEXT)
 
             local layoutOptions = {"Vertical", "Horizontal"}
             local selectedIdx = 1
             local ddOpen = false
-            local DROP_W = 110
+            local DROP_W = 150
 
             local layoutDropBtn = Instance.new("TextButton")
-            layoutDropBtn.Size = UDim2.new(0, DROP_W, 0, 26)
-            layoutDropBtn.Position = UDim2.new(1, -(DROP_W + 10), 0.5, -13)
+            layoutDropBtn.Size = UDim2.new(0, DROP_W, 0, 30)
+            layoutDropBtn.Position = UDim2.new(1, -(DROP_W + 10), 0.5, -15)
             layoutDropBtn.BackgroundColor3 = C.DARK
             layoutDropBtn.Text = "Vertical"
             layoutDropBtn.TextColor3 = C.TEXT
@@ -1284,7 +1541,7 @@ function MenuLib:Init(config)
             if key.EnumType == Enum.KeyCode then
                 keyText = key.Name
             elseif key.EnumType == Enum.UserInputType then
-                keyText = key.Name:gsub("MouseButton", "MB")
+                keyText = key.Name:gsub("MouseButton", "MB"):gsub("MouseWheel", "Scroll")
             end
         else
             keyText = tostring(key)
@@ -1308,7 +1565,7 @@ function MenuLib:Init(config)
                 if inp.KeyCode and inp.KeyCode ~= Enum.KeyCode.Unknown then
                     selectedKey = inp.KeyCode
                     displayText = inp.KeyCode.Name
-                elseif inp.UserInputType and (inp.UserInputType.Name:match("MouseButton") or inp.UserInputType.Name:match("MouseWheel")) then
+                elseif inp.UserInputType and inp.UserInputType ~= Enum.UserInputType.MouseMovement and inp.UserInputType ~= Enum.UserInputType.Touch and inp.UserInputType ~= Enum.UserInputType.Focus then
                     selectedKey = inp.UserInputType
                     displayText = inp.UserInputType.Name:gsub("MouseButton", "MB")
                 end
@@ -1397,6 +1654,18 @@ function MenuLib:Init(config)
         if not win.Visible and not settingsPanel.Visible then return end
         isOpen = false
         _G._MenuOpen = false
+        -- Restore CoreGui elements
+        pcall(function()
+            local CoreGui = game:GetService("CoreGui")
+            local menuGui = CoreGui and CoreGui:FindFirstChild("RobloxGui") and CoreGui.RobloxGui:FindFirstChild("MenuGui")
+            if menuGui then
+                menuGui.Enabled = true
+            end
+            local topbar = CoreGui and CoreGui:FindFirstChild("RobloxGui") and CoreGui.RobloxGui:FindFirstChild("Topbar")
+            if topbar then
+                topbar.Enabled = true
+            end
+        end)
         -- Close any open dropdowns
         for _, closer in ipairs(activeDropdownClosers) do
             pcall(closer)
@@ -1428,6 +1697,19 @@ function MenuLib:Init(config)
         _G._MenuOpen = true
         lockInput()
         if hudBar then hudBar.Visible = true end
+        -- Try to block Roblox escape menu from appearing on top
+        pcall(function()
+            local CoreGui = game:GetService("CoreGui")
+            local menuGui = CoreGui and CoreGui:FindFirstChild("RobloxGui") and CoreGui.RobloxGui:FindFirstChild("MenuGui")
+            if menuGui then
+                menuGui.Enabled = false
+            end
+            local topbar = CoreGui and CoreGui:FindFirstChild("RobloxGui") and CoreGui.RobloxGui:FindFirstChild("Topbar")
+            if topbar then
+                topbar.Enabled = false
+            end
+            settings().VR.OverrideDisplayCutouts = true
+        end)
         if _G._BlurEnabled then
             if not blurPart then
                 blurPart = Instance.new("BlurEffect")
@@ -1636,14 +1918,30 @@ function MenuLib:Init(config)
     end))
     
     -- Input Handler
+    local function keyMatches(inp, key)
+        if typeof(key) ~= "EnumItem" then return false end
+        if key.EnumType == Enum.KeyCode then
+            return inp.KeyCode == key
+        elseif key.EnumType == Enum.UserInputType then
+            return inp.UserInputType == key
+        end
+        return inp.KeyCode == key
+    end
+    
     table.insert(conns, UserInputService.InputBegan:Connect(function(inp, gpe)
         if gpe then return end
         local toggleKey = _G._MenuToggleKey or Enum.KeyCode.Insert
         local unloadKey = _G._UnloadKey or Enum.KeyCode.Delete
         
-        if inp.KeyCode == toggleKey and not _G._SettingKeybind then
+        -- Escape closes menu if open (prevents Roblox escape menu overlap)
+        if isOpen and inp.KeyCode == Enum.KeyCode.Escape then
+            closeMenu()
+            return
+        end
+        
+        if keyMatches(inp, toggleKey) and not _G._SettingKeybind then
             toggleMenu()
-        elseif inp.KeyCode == unloadKey and not _G._SettingKeybind then
+        elseif keyMatches(inp, unloadKey) and not _G._SettingKeybind then
             -- Flag unloaded immediately to stop all callbacks (both local and global)
             unloaded = true
             _G._UnloadTriggered = true
@@ -1677,6 +1975,15 @@ function MenuLib:Init(config)
 
             -- Destroy the entire GUI
             pcall(function() sg:Destroy() end)
+
+            -- Restore CoreGui
+            pcall(function()
+                local CoreGui = game:GetService("CoreGui")
+                local menuGui = CoreGui and CoreGui:FindFirstChild("RobloxGui") and CoreGui.RobloxGui:FindFirstChild("MenuGui")
+                if menuGui then menuGui.Enabled = true end
+                local topbar = CoreGui and CoreGui:FindFirstChild("RobloxGui") and CoreGui.RobloxGui:FindFirstChild("Topbar")
+                if topbar then topbar.Enabled = true end
+            end)
 
             -- Clean up _G variables
             _G._MenuAutoRefresh = nil
@@ -1835,7 +2142,10 @@ function MenuLib:Init(config)
             end
         end))
         
-        return { Get = function() return value end, Set = function(v) value = math.clamp(v, min, max) updateVisuals(true) if callback then callback(value) end end }
+        local sliderObj = { Get = function() return value end, Set = function(v) value = math.clamp(v, min, max) updateVisuals(true) if callback then callback(value) end end }
+        if not _G._MenuSliders then _G._MenuSliders = {} end
+        _G._MenuSliders[label] = sliderObj
+        return sliderObj
     end
     
     API.AddColorPicker = function(tabName, label, callback, defaultColor, side)
@@ -2171,14 +2481,13 @@ function MenuLib:Init(config)
         local stripe = fr(row, UDim2.new(0, 3, 1, -8), UDim2.new(0, 0, 0, 4), C.ACCENT, 0, 0)
         gradV(stripe, C.ACCENT, C.ACCENT2)
         
-        -- FIX: Wider label gap to accommodate 130px button instead of 110px
-        lbl(row, label, UDim2.new(1, -155, 1, 0), UDim2.new(0, 14, 0, 0), 12, C.TEXT)
+        lbl(row, label, UDim2.new(1, -205, 1, 0), UDim2.new(0, 14, 0, 0), 12, C.TEXT)
         
         local selectedIndex = defaultIndex or 1
         local ddIsOpen = false
-        local DROP_W = 130  -- wider button for less wasted space
+        local DROP_W = 180
 
-        -- FIX: Wider button (130px), centered text, right padding to not overlap chevron
+        -- FIX: Wider button (180px), centered text, right padding to not overlap chevron
         local dropdownBtn = Instance.new("TextButton")
         dropdownBtn.Size = UDim2.new(0, DROP_W, 0, 28)
         dropdownBtn.Position = UDim2.new(1, -(DROP_W + 8), 0.5, -14)
@@ -2265,7 +2574,7 @@ function MenuLib:Init(config)
             local dropY = btnAbsPos.Y + btnAbsSize.Y + 4
             local dropX = btnAbsPos.X
 
-            local targetHeight = math.min(#options * 30 + 12, 150)
+            local targetHeight = math.min(#options * 30 + 12, 200)
             
             -- Shadow (slight offset for depth)
             shadow = fr(sg, UDim2.new(0, DROP_W, 0, 0),
@@ -2394,12 +2703,15 @@ function MenuLib:Init(config)
         dropdownBtn.MouseButton1Click:Connect(openDropdown)
         table.insert(activeDropdownClosers, closeDropdown)
         
-        return { 
+        local ddObj = { 
             Get = function() return options[selectedIndex], selectedIndex end, 
             Set = function(idx) selectedIndex = idx dropdownBtn.Text = options[idx] if callback then callback(options[idx], idx) end end,
             GetOptions = function() return options end,
             SetOptions = function(newOpts) options = newOpts selectedIndex = 1 dropdownBtn.Text = options[1] or "Select" end
         }
+        if not _G._MenuDropdowns then _G._MenuDropdowns = {} end
+        _G._MenuDropdowns[label] = ddObj
+        return ddObj
     end
     
     API.AddSetting = function(tabName, label, toggleCallback, default)
@@ -3008,26 +3320,6 @@ function MenuLib:Init(config)
                 
                 clickBtn.MouseButton1Click:Connect(selectThis)
                 
-                -- Bottom button connections
-                renameBtnBottom.MouseButton1Click:Connect(function()
-                    if selectedConfig == name then
-                        renameOldName = name
-                        showPopup("rename", "Rename Config", name)
-                    end
-                end)
-                
-                delBtnBottom.MouseButton1Click:Connect(function()
-                    if selectedConfig == name and _G._ConfigList then
-                        _G._ConfigList[name] = nil
-                        SaveConfigsToFile() -- SAVE TO FILE
-                        selectedConfig = nil
-                        selectedRow = nil
-                        updateBottomActions()
-                        tw(row, {Size = UDim2.new(1, 0, 0, 0)}, 0.15)
-                        task.delay(0.15, function() row:Destroy() end)
-                    end
-                end)
-                
                 -- Hover effect
                 clickBtn.MouseEnter:Connect(function()
                     if selectedConfig ~= name then
@@ -3042,8 +3334,41 @@ function MenuLib:Init(config)
             end
         end
         
+        -- Rename/Delete button connections (outside loop, uses selectedConfig)
+        renameBtnBottom.MouseButton1Click:Connect(function()
+            if selectedConfig and _G._ConfigList then
+                renameOldName = selectedConfig
+                showPopup("rename", "Rename Config", selectedConfig)
+            end
+        end)
+        
+        delBtnBottom.MouseButton1Click:Connect(function()
+            if selectedConfig and _G._ConfigList and _G._ConfigList[selectedConfig] then
+                _G._ConfigList[selectedConfig] = nil
+                SaveConfigsToFile()
+                local oldRow = selectedRow
+                selectedConfig = nil
+                selectedRow = nil
+                updateBottomActions()
+                if oldRow then
+                    tw(oldRow, {Size = UDim2.new(1, 0, 0, 0)}, 0.15)
+                    task.delay(0.15, function() if oldRow then oldRow:Destroy() end end)
+                end
+                RefreshConfigList()
+            end
+        end)
+        
         createBtn.MouseButton1Click:Connect(function()
-            showPopup("create", "Create New Config", "")
+            if selectedConfig and _G._ConfigList and _G._ConfigList[selectedConfig] then
+                local name = selectedConfig
+                if _G.GetConfigData then
+                    _G._ConfigList[name] = _G.GetConfigData()
+                    SaveConfigsToFile()
+                    RefreshConfigList()
+                end
+            else
+                showPopup("create", "Save New Config", "")
+            end
         end)
         
         popupConfirm.MouseButton1Click:Connect(function()
@@ -3091,68 +3416,44 @@ function MenuLib:Init(config)
             end
         end)
         
-        -- Store all toggle/slider references for config loading
-        _G._MenuToggles = {}
-        _G._MenuSliders = {}
-        _G._MenuDropdowns = {}
+        -- Store all toggle/slider references for config loading (don't reset, may already be populated)
+        if not _G._MenuToggles then _G._MenuToggles = {} end
+        if not _G._MenuSliders then _G._MenuSliders = {} end
+        if not _G._MenuDropdowns then _G._MenuDropdowns = {} end
         
-        -- Ensure config functions exist - MUST be defined BEFORE any UI creation
+        -- Generic config save/load using _G._MenuToggles and custom hooks
         if not _G.GetConfigData then
             _G.GetConfigData = function()
                 local data = {}
-                -- Collect ALL global settings
                 data._MenuSettings = {
-                    -- Menu settings
                     BlurEnabled = _G._BlurEnabled,
                     LightingDimEnabled = _G._LightingDimEnabled,
                     MenuToggleKey = tostring(_G._MenuToggleKey),
                     UnloadKey = tostring(_G._UnloadKey),
                     SmoothAnimations = _G._SmoothAnimations,
-                    -- ESP settings
-                    BoxESPEnabled = _G._BoxESPEnabled,
-                    FilledBoxESPEnabled = _G._FilledBoxESPEnabled,
-                    ESPColour = _G._ESPColour and {r = _G._ESPColour.R, g = _G._ESPColour.G, b = _G._ESPColour.B} or nil,
-                    -- Aimbot settings
-                    AimbotEnabled = _G._AimbotEnabled,
-                    ShowFOVCircle = _G._ShowFOVCircle,
-                    AimbotTargetMode = _G._AimbotTargetMode,
-                    AimbotFOV = _G._AimbotFOV,
-                    AimbotFOVMode = _G._AimbotFOVMode,
-                    AimbotMaxDistance = _G._AimbotMaxDistance,
-                    AimbotSmoothness = _G._AimbotSmoothness,
-                    TeamCheck = _G._TeamCheck,
-                    SilentAimFOV = _G._SilentAimFOV,
-                    SilentAimPart = _G._SilentAimPart,
-                    SilentAimEnabled = _G._SilentAimEnabled,
-                    AimKeybind = _G._AimKeybind and tostring(_G._AimKeybind.Name) or nil,
-                    -- More ESP settings
-                    NameESPEnabled = _G._NameESPEnabled,
-                    DistanceESPEnabled = _G._DistanceESPEnabled,
-                    HealthESPEnabled = _G._HealthESPEnabled,
-                    OutlineESPEnabled = _G._OutlineESPEnabled,
-                    ChamsEnabled = _G._ChamsEnabled,
-                    ChamsMaterialToken = _G._ChamsMaterialToken,
-                    WeaponChamsEnabled = _G._WeaponChamsEnabled,
-                    HandChamsEnabled = _G._HandChamsEnabled,
-                    MaxESPDistance = _G._MaxESPDistance,
-                    -- World settings
-                    WorldModulationEnabled = _G._WorldModulationEnabled,
-                    WorldTheme = _G._WorldTheme,
-                    WorldTimeOfDay = _G._WorldTimeOfDay,
-                    WorldBloomIntensity = _G._WorldBloomIntensity,
-                    PlayerAura = _G._PlayerAura,
-                    SyncESPToTheme = _G._SyncESPToTheme,
-                    -- Protection settings
-                    AntiFlingEnabled = _G._AntiFlingEnabled,
-                    AntiKatanaEnabled = _G._AntiKatanaEnabled,
-                    -- HUD settings (from settings tab)
-                    ShowFPS = _G._ShowFPS,
-                    ShowPing = _G._ShowPing,
-                    ShowClock = _G._ShowClock,
-                    ShowWatermark = _G._ShowWatermark,
-                    CompactSidebar = _G._CompactSidebar,
-                    LowQualityMode = _G._LowQualityMode,
                 }
+                -- Collect toggles
+                if _G._MenuToggles then
+                    data._ToggleStates = {}
+                    for label, toggle in pairs(_G._MenuToggles) do
+                        data._ToggleStates[label] = toggle.Get and toggle.Get() or false
+                    end
+                end
+                -- Collect sliders
+                if _G._MenuSliders then
+                    data._SliderStates = {}
+                    for label, slider in pairs(_G._MenuSliders) do
+                        data._SliderStates[label] = slider.Get and slider.Get() or 0
+                    end
+                end
+                -- Collect dropdowns
+                if _G._MenuDropdowns then
+                    data._DropdownStates = {}
+                    for label, dd in pairs(_G._MenuDropdowns) do
+                        local _, idx = dd.Get and dd.Get() or (nil, 1)
+                        data._DropdownStates[label] = idx or 1
+                    end
+                end
                 return data
             end
         end
@@ -3160,72 +3461,42 @@ function MenuLib:Init(config)
         if not _G.LoadConfigData then
             _G.LoadConfigData = function(data)
                 if not data then return end
-                -- Load ALL global settings
                 if data._MenuSettings then
                     local s = data._MenuSettings
-                    -- Menu settings
                     _G._BlurEnabled = s.BlurEnabled
                     _G._LightingDimEnabled = s.LightingDimEnabled
                     _G._SmoothAnimations = s.SmoothAnimations
                     if s.MenuToggleKey then pcall(function() _G._MenuToggleKey = Enum.KeyCode[s.MenuToggleKey] end) end
                     if s.UnloadKey then pcall(function() _G._UnloadKey = Enum.KeyCode[s.UnloadKey] end) end
-                    -- ESP settings
-                    _G._BoxESPEnabled = s.BoxESPEnabled
-                    _G._FilledBoxESPEnabled = s.FilledBoxESPEnabled
-                    if s.ESPColour then pcall(function() _G._ESPColour = Color3.new(s.ESPColour.r, s.ESPColour.g, s.ESPColour.b) end) end
-                    -- Aimbot settings
-                    _G._AimbotEnabled = s.AimbotEnabled
-                    _G._ShowFOVCircle = s.ShowFOVCircle
-                    _G._AimbotTargetMode = s.AimbotTargetMode
-                    _G._AimbotFOV = s.AimbotFOV
-                    if s.AimbotFOVMode ~= nil then _G._AimbotFOVMode = s.AimbotFOVMode end
-                    _G._AimbotMaxDistance = s.AimbotMaxDistance
-                    _G._AimbotSmoothness = s.AimbotSmoothness
-                    _G._TeamCheck = s.TeamCheck
-                    if s.SilentAimFOV ~= nil then _G._SilentAimFOV = s.SilentAimFOV end
-                    if s.SilentAimPart ~= nil then _G._SilentAimPart = s.SilentAimPart end
-                    if s.SilentAimEnabled ~= nil then _G._SilentAimEnabled = s.SilentAimEnabled end
-                    if s.AimKeybind then pcall(function() _G._AimKeybind = Enum.KeyCode[s.AimKeybind] end) end
-                    -- More ESP
-                    _G._NameESPEnabled = s.NameESPEnabled
-                    _G._DistanceESPEnabled = s.DistanceESPEnabled
-                    _G._HealthESPEnabled = s.HealthESPEnabled
-                    _G._OutlineESPEnabled = s.OutlineESPEnabled
-                    _G._ChamsEnabled = s.ChamsEnabled
-                    if s.ChamsMaterialToken ~= nil and type(s.ChamsMaterialToken) == "string" then
-                        local cmt = s.ChamsMaterialToken
-                        if cmt:sub(1, 3) == "MV:" or cmt:sub(1, 5) ~= "ENUM:" then
-                            cmt = "ENUM:ForceField"
-                        end
-                        _G._ChamsMaterialToken = cmt
-                    end
-                    if _G._ChamsMaterialDropdownSync then
-                        pcall(_G._ChamsMaterialDropdownSync)
-                    end
-                    if s.WeaponChamsEnabled ~= nil then _G._WeaponChamsEnabled = s.WeaponChamsEnabled end
-                    if s.HandChamsEnabled ~= nil then _G._HandChamsEnabled = s.HandChamsEnabled end
-                    _G._MaxESPDistance = s.MaxESPDistance
-                    -- World
-                    _G._WorldModulationEnabled = s.WorldModulationEnabled
-                    if s.WorldTheme ~= nil then _G._WorldTheme = s.WorldTheme end
-                    if s.WorldTimeOfDay ~= nil then _G._WorldTimeOfDay = s.WorldTimeOfDay end
-                    if s.WorldBloomIntensity ~= nil then _G._WorldBloomIntensity = s.WorldBloomIntensity end
-                    if s.PlayerAura ~= nil then _G._PlayerAura = s.PlayerAura end
-                    if s.SyncESPToTheme ~= nil then _G._SyncESPToTheme = s.SyncESPToTheme end
-                    -- Protections
-                    _G._AntiFlingEnabled = s.AntiFlingEnabled
-                    _G._AntiKatanaEnabled = s.AntiKatanaEnabled
-                    -- HUD
-                    _G._ShowFPS = s.ShowFPS
-                    _G._ShowPing = s.ShowPing
-                    _G._ShowClock = s.ShowClock
-                    _G._ShowWatermark = s.ShowWatermark
-                    _G._CompactSidebar = s.CompactSidebar
-                    _G._LowQualityMode = s.LowQualityMode
-                    
-                    -- Trigger config loaded event for external scripts
-                    _G._ConfigLoaded = tick()
                 end
+                -- Restore toggles
+                if data._ToggleStates and _G._MenuToggles then
+                    for label, val in pairs(data._ToggleStates) do
+                        local toggle = _G._MenuToggles[label]
+                        if toggle and toggle.Set then
+                            toggle.Set(val)
+                        end
+                    end
+                end
+                -- Restore sliders
+                if data._SliderStates and _G._MenuSliders then
+                    for label, val in pairs(data._SliderStates) do
+                        local slider = _G._MenuSliders[label]
+                        if slider and slider.Set then
+                            slider.Set(val)
+                        end
+                    end
+                end
+                -- Restore dropdowns
+                if data._DropdownStates and _G._MenuDropdowns then
+                    for label, idx in pairs(data._DropdownStates) do
+                        local dd = _G._MenuDropdowns[label]
+                        if dd and dd.Set then
+                            dd.Set(idx)
+                        end
+                    end
+                end
+                _G._ConfigLoaded = tick()
             end
         end
         
