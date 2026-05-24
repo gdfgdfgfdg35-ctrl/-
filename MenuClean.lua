@@ -43,7 +43,11 @@ function MenuLib:Init(config)
         fire = "rbxassetid://14502433595",
         protection = "rbxassetid://73332630842054",
         skin = "rbxassetid://81837937089566",
+        playerTab = "rbxassetid://2795572803",
     }
+    
+    -- Configurable icon size for the Players tab (change this to resize)
+    local PLAYERS_TAB_ICON_SIZE = 20
     
     local function normalizeIconId(id)
         if type(id) ~= "string" and type(id) ~= "number" then return nil end
@@ -57,6 +61,7 @@ function MenuLib:Init(config)
     local controls = nil
     local isOpen = false
     local prevMouseBehavior = Enum.MouseBehavior.Default
+    local StarterGui = game:GetService("StarterGui")
     
     -- Create sg first so inputBlocker can parent to it
     local sg = Instance.new("ScreenGui")
@@ -65,12 +70,30 @@ function MenuLib:Init(config)
     sg.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     sg.IgnoreGuiInset = true
     sg.DisplayOrder = 2147483647
-    -- Parent to CoreGui so the menu renders ABOVE all Roblox UI (escape menu, etc.)
-    local coreGuiOk = pcall(function()
-        sg.Parent = game:GetService("CoreGui")
-    end)
-    if not coreGuiOk then
-        -- Fallback if executor doesn't support CoreGui parenting
+    -- Try multiple methods to make the GUI render ABOVE all Roblox UI
+    -- Priority: gethui() > protect_gui + CoreGui > CoreGui > PlayerGui
+    local guiParented = false
+    if not guiParented then
+        -- Method 1: gethui() - supported by most modern executors, renders above everything
+        guiParented = pcall(function()
+            sg.Parent = gethui()
+        end)
+    end
+    if not guiParented then
+        -- Method 2: Synapse protect_gui + CoreGui
+        guiParented = pcall(function()
+            syn.protect_gui(sg)
+            sg.Parent = game:GetService("CoreGui")
+        end)
+    end
+    if not guiParented then
+        -- Method 3: Direct CoreGui parenting
+        guiParented = pcall(function()
+            sg.Parent = game:GetService("CoreGui")
+        end)
+    end
+    if not guiParented then
+        -- Method 4: Fallback to PlayerGui
         sg.Parent = pg
     end
 
@@ -95,6 +118,8 @@ function MenuLib:Init(config)
         pcall(function() controls:Disable() end)
         UserInputService.MouseBehavior = Enum.MouseBehavior.Default
         UserInputService.MouseIconEnabled = true
+        -- Disable Roblox core GUI so our menu stays on top of everything
+        pcall(function() StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.All, false) end)
     end
     
     local function unlockInput()
@@ -103,6 +128,8 @@ function MenuLib:Init(config)
         pcall(function() controls:Enable() end)
         UserInputService.MouseBehavior = prevMouseBehavior
         UserInputService.MouseIconEnabled = origMouseIconEnabled
+        -- Re-enable Roblox core GUI when our menu is closed
+        pcall(function() StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.All, true) end)
     end
     
     RunService:BindToRenderStep(RS_BIND_INP, Enum.RenderPriority.Input.Value + 1, function()
@@ -688,7 +715,7 @@ function MenuLib:Init(config)
     local settingsDivider = fr(settingsBodyShell, UDim2.new(0, 1, 1, -4), UDim2.new(0, SIDE_W, 0, 4), C.DIV)
     
     local catItems = { "General", "Appearance", "Performance", "Keybinds", "Players" }
-    local catKeys = { ICON.general, ICON.appearance, ICON.performance, ICON.keyboard, ICON.players }
+    local catKeys = { ICON.general, ICON.appearance, ICON.performance, ICON.keyboard, ICON.playerTab }
     local catScroll = Instance.new("ScrollingFrame")
     catScroll.Size = UDim2.new(1, 0, 1, 0)
     catScroll.ZIndex = 2
@@ -725,8 +752,14 @@ function MenuLib:Init(config)
         gradV(selLine, C.ACCENT, C.ACCENT2)
         
         local ci = Instance.new("ImageLabel")
-        ci.Size = UDim2.new(0, 24, 0, 24)
-        ci.Position = UDim2.new(0, 10, 0.5, -12)
+        local ciSize = 24
+        local ciOffset = 10
+        if cat == "Players" then
+            ciSize = PLAYERS_TAB_ICON_SIZE
+            ciOffset = 10 + math.floor((24 - ciSize) / 2)
+        end
+        ci.Size = UDim2.new(0, ciSize, 0, ciSize)
+        ci.Position = UDim2.new(0, ciOffset, 0.5, -math.floor(ciSize / 2))
         ci.BackgroundTransparency = 1
         ci.Image = normalizeIconId(catKeys[i]) or ""
         ci.ImageColor3 = C.DIM
@@ -1344,6 +1377,7 @@ function MenuLib:Init(config)
             playerSearchBox.Size = UDim2.new(1, -30, 1, 0)
             playerSearchBox.Position = UDim2.new(0, 26, 0, 0)
             playerSearchBox.BackgroundTransparency = 1
+            playerSearchBox.Text = ""
             playerSearchBox.TextColor3 = C.TEXT
             playerSearchBox.PlaceholderText = "Search players..."
             playerSearchBox.PlaceholderColor3 = C.DIM
@@ -1396,6 +1430,7 @@ function MenuLib:Init(config)
             friendSearchBox.Size = UDim2.new(1, -30, 1, 0)
             friendSearchBox.Position = UDim2.new(0, 26, 0, 0)
             friendSearchBox.BackgroundTransparency = 1
+            friendSearchBox.Text = ""
             friendSearchBox.TextColor3 = C.TEXT
             friendSearchBox.PlaceholderText = "Search friends..."
             friendSearchBox.PlaceholderColor3 = C.DIM
@@ -2058,6 +2093,9 @@ function MenuLib:Init(config)
 
             -- Destroy blur
             if blurPart then pcall(function() blurPart:Destroy() end) blurPart = nil end
+
+            -- Re-enable Roblox core GUI before destroying
+            pcall(function() StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.All, true) end)
 
             -- Destroy the entire GUI
             pcall(function() sg:Destroy() end)
