@@ -61,7 +61,6 @@ function MenuLib:Init(config)
     local controls = nil
     local isOpen = false
     local prevMouseBehavior = Enum.MouseBehavior.Default
-    local StarterGui = game:GetService("StarterGui")
     
     -- Create sg first so inputBlocker can parent to it
     local sg = Instance.new("ScreenGui")
@@ -118,8 +117,6 @@ function MenuLib:Init(config)
         pcall(function() controls:Disable() end)
         UserInputService.MouseBehavior = Enum.MouseBehavior.Default
         UserInputService.MouseIconEnabled = true
-        -- Disable Roblox core GUI so our menu stays on top of everything
-        pcall(function() StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.All, false) end)
     end
     
     local function unlockInput()
@@ -128,8 +125,6 @@ function MenuLib:Init(config)
         pcall(function() controls:Enable() end)
         UserInputService.MouseBehavior = prevMouseBehavior
         UserInputService.MouseIconEnabled = origMouseIconEnabled
-        -- Re-enable Roblox core GUI when our menu is closed
-        pcall(function() StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.All, true) end)
     end
     
     RunService:BindToRenderStep(RS_BIND_INP, Enum.RenderPriority.Input.Value + 1, function()
@@ -2093,9 +2088,6 @@ function MenuLib:Init(config)
 
             -- Destroy blur
             if blurPart then pcall(function() blurPart:Destroy() end) blurPart = nil end
-
-            -- Re-enable Roblox core GUI before destroying
-            pcall(function() StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.All, true) end)
 
             -- Destroy the entire GUI
             pcall(function() sg:Destroy() end)
