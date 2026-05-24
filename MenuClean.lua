@@ -3450,7 +3450,8 @@ function MenuLib:Init(config)
                 if _G._MenuDropdowns then
                     data._DropdownStates = {}
                     for label, dd in pairs(_G._MenuDropdowns) do
-                        local _, idx = dd.Get and dd.Get() or (nil, 1)
+                        local _, idx = nil, 1
+                        if dd.Get then _, idx = dd.Get() end
                         data._DropdownStates[label] = idx or 1
                     end
                 end
