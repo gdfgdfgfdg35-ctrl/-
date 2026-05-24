@@ -65,7 +65,14 @@ function MenuLib:Init(config)
     sg.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     sg.IgnoreGuiInset = true
     sg.DisplayOrder = 2147483647
-    sg.Parent = pg
+    -- Parent to CoreGui so the menu renders ABOVE all Roblox UI (escape menu, etc.)
+    local coreGuiOk = pcall(function()
+        sg.Parent = game:GetService("CoreGui")
+    end)
+    if not coreGuiOk then
+        -- Fallback if executor doesn't support CoreGui parenting
+        sg.Parent = pg
+    end
 
     local inputBlocker = Instance.new("TextButton")
     inputBlocker.Size = UDim2.new(1, 0, 1, 0)
@@ -1421,7 +1428,9 @@ function MenuLib:Init(config)
             -- ===== REFRESH FRIENDS LIST =====
             refreshFriendList = function(filter)
                 for _, child in ipairs(friendListScroll:GetChildren()) do
-                    if child:IsA("Frame") then child:Destroy() end
+                    if not child:IsA("UIListLayout") and not child:IsA("UIPadding") then
+                        child:Destroy()
+                    end
                 end
                 local count = 0
                 local filterLower = filter and filter:lower() or ""
@@ -1518,12 +1527,15 @@ function MenuLib:Init(config)
             -- ===== REFRESH PLAYER LIST =====
             refreshPlayerList = function(filter)
                 for _, child in ipairs(playerListScroll:GetChildren()) do
-                    if child:IsA("Frame") then child:Destroy() end
+                    if not child:IsA("UIListLayout") and not child:IsA("UIPadding") then
+                        child:Destroy()
+                    end
                 end
                 local count = 0
                 local filterLower = filter and filter:lower() or ""
                 
-                for _, player in ipairs(Players:GetPlayers()) do
+                local allPlayers = Players:GetPlayers()
+                for _, player in ipairs(allPlayers) do
                     local pName = player.Name
                     if filterLower == "" or pName:lower():find(filterLower, 1, true) then
                         count = count + 1
