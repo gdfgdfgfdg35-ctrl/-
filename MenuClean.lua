@@ -3459,14 +3459,10 @@ function MenuLib:Init(config)
             if not _G._ConfigList then _G._ConfigList = {} end
             
             if popupMode == "create" then
-                if _G._ConfigList[name] then
-                    -- Config already exists, do nothing silently
-                else
-                    if _G.GetConfigData then
-                        _G._ConfigList[name] = _G.GetConfigData()
-                        SaveConfigsToFile() -- SAVE TO FILE
-                        RefreshConfigList()
-                    end
+                if _G.GetConfigData then
+                    _G._ConfigList[name] = _G.GetConfigData()
+                    SaveConfigsToFile() -- SAVE TO FILE
+                    RefreshConfigList()
                 end
             elseif popupMode == "rename" and renameOldName then
                 if name == renameOldName then
