@@ -3538,6 +3538,9 @@ function MenuLib:Init(config)
                     end
                 end
                 
+                if _G._equippedCosmetics then data._equippedCosmetics = _G._equippedCosmetics end
+                if _G._favoritedCosmetics then data._favoritedCosmetics = _G._favoritedCosmetics end
+
                 -- Support legacy structure so we don't break Raknet entirely
                 data._MenuSettings = {
                     BlurEnabled = _G._BlurEnabled,
@@ -3612,6 +3615,20 @@ function MenuLib:Init(config)
                     for label, val in pairs(data.ColorPickers) do
                         if _G._MenuColorPickers[label] then _G._MenuColorPickers[label].Set(Color3.new(val.r, val.g, val.b), val.a) end
                     end
+                end
+
+                if data._equippedCosmetics and _G._equippedCosmetics then
+                    table.clear(_G._equippedCosmetics)
+                    for k, v in pairs(data._equippedCosmetics) do _G._equippedCosmetics[k] = v end
+                elseif data._equippedCosmetics then
+                    _G._equippedCosmetics = data._equippedCosmetics
+                end
+                
+                if data._favoritedCosmetics and _G._favoritedCosmetics then
+                    table.clear(_G._favoritedCosmetics)
+                    for k, v in pairs(data._favoritedCosmetics) do _G._favoritedCosmetics[k] = v end
+                elseif data._favoritedCosmetics then
+                    _G._favoritedCosmetics = data._favoritedCosmetics
                 end
 
                 -- Load ALL legacy global settings
