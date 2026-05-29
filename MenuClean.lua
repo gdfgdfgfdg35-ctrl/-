@@ -541,10 +541,10 @@ function MenuLib:Init(config)
             iconSize = 28
             iconX = 2
         elseif iconImage == ICON.performance then
-            iconSize = 26.5
+            iconSize = 27
             iconX = 3
         elseif iconImage == ICON.sfx then
-            iconSize = 23.5
+            iconSize = 23
             iconX = 6
         elseif iconImage == ICON.world then
             iconSize = 20
