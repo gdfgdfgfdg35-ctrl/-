@@ -192,6 +192,7 @@ function MenuLib:Init(config)
     end
     
     local function tw(obj, props, t, style)
+        if not obj then return end
         TweenService:Create(obj, TweenInfo.new(t or 0.15, style or Enum.EasingStyle.Quint), props):Play()
     end
     
@@ -1550,7 +1551,7 @@ function MenuLib:Init(config)
             
             -- ===== REFRESH PLAYER LIST =====
             refreshPlayerList = function(filter)
-                for _, child in ipairs(playerListScroll:GetChildren()) do
+                for _, child in ipairs(playerListScroll and playerListScroll:GetChildren() or {}) do
                     if not child:IsA("UIListLayout") and not child:IsA("UIPadding") then
                         child:Destroy()
                     end
@@ -1937,7 +1938,7 @@ function MenuLib:Init(config)
     -- HUD Layout
     local function updateHudLayout(animate)
         local baseX = 48
-        local nameWidth = nameLbl.AbsoluteSize.X
+        local nameWidth = nameLbl and typeof(nameLbl.AbsoluteSize) == "Vector2" and nameLbl.AbsoluteSize.X or 0
         local spacing = 16
         local currentX = baseX
         
@@ -1956,7 +1957,7 @@ function MenuLib:Init(config)
                 else
                     obj.Position = UDim2.new(0, targetX, 0.5, yOffset or -10)
                 end
-                return targetX + obj.AbsoluteSize.X + spacing
+                return targetX + (obj and typeof(obj.AbsoluteSize) == "Vector2" and obj.AbsoluteSize.X or 0) + spacing
             else
                 obj.Visible = false
                 return targetX
@@ -3177,6 +3178,7 @@ API.AddTab("Protections", ICON.protection, function(f)
         pad(scroll, 8, 10, 8, 8)
         
         local card = fr(scroll, UDim2.new(1, -4, 0, 0), nil, C.HEADER, 0, 16)
+        card.Name = "Card"
         card.AutomaticSize = Enum.AutomaticSize.Y
         local v = Instance.new("UIListLayout")
         v.SortOrder = Enum.SortOrder.LayoutOrder
