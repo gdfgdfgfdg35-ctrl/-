@@ -541,11 +541,11 @@ function MenuLib:Init(config)
             iconSize = 28
             iconX = 2
         elseif iconImage == ICON.performance then
-            iconSize = 35
-            iconX = 3
+            iconSize = 28
+            iconX = 2
         elseif iconImage == ICON.sfx then
             iconSize = 22
-            iconX = 6
+            iconX = 6.5
         elseif iconImage == ICON.world then
             iconSize = 20
         elseif iconImage == ICON.skin then
@@ -741,6 +741,9 @@ function MenuLib:Init(config)
         if cat == "Players" then
             ciSize = PLAYERS_TAB_ICON_SIZE
             ciOffset = 10 + math.floor((24 - ciSize) / 2)
+        elseif cat == "Performance" then
+            ciSize = 27
+            ciOffset = 10 + math.floor((24 - ciSize) / 2)
         end
         ci.Size = UDim2.new(0, ciSize, 0, ciSize)
         ci.Position = UDim2.new(0, ciOffset, 0.5, -math.floor(ciSize / 2))
@@ -909,8 +912,10 @@ function MenuLib:Init(config)
         local hcLine = fr(hcBtn, UDim2.new(0.5, 0, 0, 0), UDim2.new(0.25, 0, 1, -3), C.ACCENT, 1, 2)
         gradV(hcLine, C.ACCENT2, C.ACCENT)
         local hcIco = Instance.new("ImageLabel")
-        hcIco.Size = UDim2.new(0, 16, 0, 16)
-        hcIco.Position = UDim2.new(0, 6, 0.5, -8)
+        local hcSize = 16
+        if cat == "Performance" then hcSize = 19 end
+        hcIco.Size = UDim2.new(0, hcSize, 0, hcSize)
+        hcIco.Position = UDim2.new(0, 6, 0.5, -math.floor(hcSize / 2))
         hcIco.BackgroundTransparency = 1
         hcIco.Image = normalizeIconId(catKeys[i]) or ""
         hcIco.ScaleType = Enum.ScaleType.Fit
