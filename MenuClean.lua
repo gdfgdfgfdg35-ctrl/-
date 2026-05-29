@@ -2902,14 +2902,11 @@ function MenuLib:Init(config)
         
         tb.FocusLost:Connect(function()
             if callback then pcall(callback, tb.Text) end
-            if settingsMap[tabName] and settingsMap[tabName][label] then
-                settingsMap[tabName][label].Value = tb.Text
-            end
         end)
         
-        local entry = { Type = "TextBox", Value = tb.Text }
-        settingsMap[tabName] = settingsMap[tabName] or {}
-        settingsMap[tabName][label] = entry
+        local entry = { Type = "TextBox", Value = tb.Text, Element = tb }
+        if not _G._MenuTextBoxes then _G._MenuTextBoxes = {} end
+        _G._MenuTextBoxes[label] = entry
         
         return entry
     end
