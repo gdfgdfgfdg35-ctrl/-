@@ -2904,7 +2904,7 @@ function MenuLib:Init(config)
             if callback then pcall(callback, tb.Text) end
         end)
         
-        local entry = { Type = "TextBox", Value = tb.Text, Element = tb }
+        local entry = { Type = "TextBox", Value = tb.Text, Element = tb, Container = row }
         if not _G._MenuTextBoxes then _G._MenuTextBoxes = {} end
         _G._MenuTextBoxes[label] = entry
         
