@@ -2869,6 +2869,50 @@ function MenuLib:Init(config)
         
         return { Click = function() pcall(callback) end }
     end
+
+    API.AddTextBox = function(tabName, label, callback, defaultText, side)
+        local container, isPanel = getContainer(tabName, side)
+        if not container then return nil end
+
+        local rowBg = isPanel and C.HEADER or C.SEL
+        local row = fr(container, UDim2.new(1, 0, 0, 44), nil, rowBg, 0, 10)
+        row.LayoutOrder = #container:GetChildren()
+        local stripe = fr(row, UDim2.new(0, 3, 1, -8), UDim2.new(0, 0, 0, 4), C.ACCENT, 0, 0)
+        gradV(stripe, C.ACCENT, C.ACCENT2)
+        
+        lbl(row, label, UDim2.new(1, -145, 1, 0), UDim2.new(0, 14, 0, 0), 12, C.TEXT)
+        
+        local txtBg = fr(row, UDim2.new(0, 120, 0, 28), UDim2.new(1, -128, 0.5, -14), C.BG, 0, 6)
+        local stroke = Instance.new("UIStroke")
+        stroke.Color = C.HEADER
+        stroke.Thickness = 1
+        stroke.Parent = txtBg
+        
+        local tb = Instance.new("TextBox")
+        tb.Size = UDim2.new(1, -10, 1, 0)
+        tb.Position = UDim2.new(0, 5, 0, 0)
+        tb.BackgroundTransparency = 1
+        tb.Text = tostring(defaultText or "")
+        tb.TextColor3 = C.TEXT
+        tb.TextSize = 11
+        tb.Font = Enum.Font.Gotham
+        tb.TextXAlignment = Enum.TextXAlignment.Left
+        tb.ClearTextOnFocus = false
+        tb.Parent = txtBg
+        
+        tb.FocusLost:Connect(function()
+            if callback then pcall(callback, tb.Text) end
+            if settingsMap[tabName] and settingsMap[tabName][label] then
+                settingsMap[tabName][label].Value = tb.Text
+            end
+        end)
+        
+        local entry = { Type = "TextBox", Value = tb.Text }
+        settingsMap[tabName] = settingsMap[tabName] or {}
+        settingsMap[tabName][label] = entry
+        
+        return entry
+    end
     
     
     API.GetScreenGui = function() return sg end
