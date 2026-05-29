@@ -4,12 +4,14 @@ function MenuLib:Init(config)
     config = config or {}
     
     local Players = game:GetService("Players")
+    while not Players do task.wait(); Players = game:GetService("Players") end
     local UserInputService = game:GetService("UserInputService")
     local TweenService = game:GetService("TweenService")
     local RunService = game:GetService("RunService")
     local Lighting = game:GetService("Lighting")
     local HttpService = game:GetService("HttpService")
     
+    while not Players.LocalPlayer do task.wait() end
     local lp = Players.LocalPlayer
     local pg = lp:WaitForChild("PlayerGui")
     local _guid = tostring(tick() * 100000 % 1e12)
@@ -34,6 +36,7 @@ function MenuLib:Init(config)
         players = "rbxassetid://13321848320",
         world = "rbxassetid://7744394226",
         misc = "rbxassetid://84090157888894",
+        sfx = "rbxassetid://7203392850",
         exploits = "rbxassetid://16149155528",
         config = "rbxassetid://130521044774541",
         general = "rbxassetid://7733765398",
@@ -531,9 +534,15 @@ function MenuLib:Init(config)
 
         local iconSize = 24
         local iconX = 6
-        if iconImage == ICON.aim or iconImage == ICON.players then
+        if iconImage == ICON.aim then
+            iconSize = 29
+            iconX = 2
+        elseif iconImage == ICON.players then
             iconSize = 28
             iconX = 2
+        elseif iconImage == ICON.performance then
+            iconSize = 26
+            iconX = 3
         elseif iconImage == ICON.world then
             iconSize = 20
         elseif iconImage == ICON.skin then
@@ -3101,6 +3110,28 @@ function MenuLib:Init(config)
         v.Parent = card
         pad(card, 16, 16, 16, 16)
         lbl(card, "Misc", UDim2.new(1, 0, 0, 0), nil, 18, C.TEXT, Enum.Font.GothamBold)
+    end)
+    RunService.Heartbeat:Wait()
+
+    API.AddTab("SFX", ICON.sfx, function(f)
+        local scroll = Instance.new("ScrollingFrame")
+        scroll.Size = UDim2.new(1, 0, 1, 0)
+        scroll.BackgroundTransparency = 1
+        scroll.BorderSizePixel = 0
+        scroll.ScrollBarThickness = 0
+        scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+        scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+        scroll.Parent = f
+        pad(scroll, 8, 10, 8, 8)
+        
+        local card = fr(scroll, UDim2.new(1, -4, 0, 0), nil, C.HEADER, 0, 16)
+        card.AutomaticSize = Enum.AutomaticSize.Y
+        local v = Instance.new("UIListLayout")
+        v.SortOrder = Enum.SortOrder.LayoutOrder
+        v.Padding = UDim.new(0, 8)
+        v.Parent = card
+        pad(card, 16, 16, 16, 16)
+        lbl(card, "Sound Effects", UDim2.new(1, 0, 0, 0), nil, 18, C.TEXT, Enum.Font.GothamBold)
     end)
     RunService.Heartbeat:Wait()
     
