@@ -2174,7 +2174,7 @@ function MenuLib:Init(config)
         return card, false
     end
 
-    API.AddToggle = function(tabName, label, callback, default, side)
+    API.AddToggle = function(tabName, label, callback, default, side, reserveColorSlots)
         local container, isPanel = getContainer(tabName, side)
         if not container then return nil end
 
@@ -2183,8 +2183,9 @@ function MenuLib:Init(config)
         row.LayoutOrder = #container:GetChildren()
         local stripe = fr(row, UDim2.new(0, 3, 1, -8), UDim2.new(0, 0, 0, 4), C.ACCENT, 0, 0)
         gradV(stripe, C.ACCENT, C.ACCENT2)
-        lbl(row, label, UDim2.new(1, -70, 1, 0), UDim2.new(0, 14, 0, 0), 12, C.TEXT)
+        lbl(row, label, UDim2.new(1, reserveColorSlots and -118 or -70, 1, 0), UDim2.new(0, 14, 0, 0), 12, C.TEXT)
         local toggle = mkToggle(row, -56, default or false, callback)
+        toggle.Row = row
         -- Store reference for config loading
         if not _G._MenuToggles then _G._MenuToggles = {} end
         _G._MenuToggles[label] = toggle
@@ -2264,35 +2265,58 @@ function MenuLib:Init(config)
         return sl
     end
     
-    API.AddColorPicker = function(tabName, label, callback, defaultColor, side)
-        local container, isPanel = getContainer(tabName, side)
-        if not container then return nil end
+    API.AddColorPicker = function(tabName, label, callback, defaultColor, side, compact)
+        local compactMode = type(compact) == "table" and compact.Row ~= nil
+        local row
+        if compactMode then
+            row = compact.Row
+        else
+            local container, isPanel = getContainer(tabName, side)
+            if not container then return nil end
 
-        local rowBg = isPanel and C.HEADER or C.SEL
-        local row = fr(container, UDim2.new(1, 0, 0, 40), nil, rowBg, 0, 10)
-        row.LayoutOrder = #container:GetChildren()
-        local stripe = fr(row, UDim2.new(0, 3, 1, -8), UDim2.new(0, 0, 0, 4), C.ACCENT, 0, 0)
-        gradV(stripe, C.ACCENT, C.ACCENT2)
-        
-        lbl(row, label, UDim2.new(1, -70, 1, 0), UDim2.new(0, 14, 0, 0), 12, C.TEXT)
+            local rowBg = isPanel and C.HEADER or C.SEL
+            row = fr(container, UDim2.new(1, 0, 0, 40), nil, rowBg, 0, 10)
+            row.LayoutOrder = #container:GetChildren()
+            local stripe = fr(row, UDim2.new(0, 3, 1, -8), UDim2.new(0, 0, 0, 4), C.ACCENT, 0, 0)
+            gradV(stripe, C.ACCENT, C.ACCENT2)
+            lbl(row, label, UDim2.new(1, -70, 1, 0), UDim2.new(0, 14, 0, 0), 12, C.TEXT)
+        end
         
         local color = defaultColor or Color3.fromRGB(255, 255, 255)
         local alpha = 1
-        local preview = fr(row, UDim2.new(0, 36, 0, 24), UDim2.new(1, -50, 0.5, -12), color, 0, 6)
-        
+        local preview
         local btn = Instance.new("TextButton")
-        btn.Size = UDim2.new(0, 50, 0, 26)
-        btn.Position = UDim2.new(1, -56, 0.5, -13)
-        btn.BackgroundColor3 = C.BTN
-        btn.Text = "Pick"
+        btn.AutoButtonColor = false
+        if compactMode then
+            btn.Size = UDim2.new(0, 14, 0, 14)
+            btn.Position = UDim2.new(1, compact.Offset or -96, 0.5, -7)
+            btn.BackgroundColor3 = color
+            btn.Text = ""
+            preview = btn
+        else
+            preview = fr(row, UDim2.new(0, 36, 0, 24), UDim2.new(1, -50, 0.5, -12), color, 0, 6)
+            btn.Size = UDim2.new(0, 50, 0, 26)
+            btn.Position = UDim2.new(1, -56, 0.5, -13)
+            btn.BackgroundColor3 = C.BTN
+            btn.Text = "Pick"
+        end
         btn.TextColor3 = C.TEXT
         btn.TextSize = 11
         btn.Font = Enum.Font.GothamBold
         btn.Parent = row
-        Instance.new("UICorner").Parent = btn
-        
-        btn.MouseEnter:Connect(function() tw(btn, { BackgroundColor3 = C.BTNHOV }, 0.12) end)
-        btn.MouseLeave:Connect(function() tw(btn, { BackgroundColor3 = C.BTN }, 0.12) end)
+        local compactCorner = Instance.new("UICorner")
+        compactCorner.CornerRadius = compactMode and UDim.new(1, 0) or UDim.new(0, 6)
+        compactCorner.Parent = btn
+        if compactMode then
+            local dotStroke = Instance.new("UIStroke")
+            dotStroke.Color = Color3.fromRGB(235, 235, 245)
+            dotStroke.Thickness = 1
+            dotStroke.Transparency = 0.25
+            dotStroke.Parent = btn
+        else
+            btn.MouseEnter:Connect(function() tw(btn, { BackgroundColor3 = C.BTNHOV }, 0.12) end)
+            btn.MouseLeave:Connect(function() tw(btn, { BackgroundColor3 = C.BTN }, 0.12) end)
+        end
         
         local pickerFrame = nil
         local pickerCloseConn = nil
@@ -2585,6 +2609,46 @@ function MenuLib:Init(config)
         if not _G._MenuColorPickers then _G._MenuColorPickers = {} end
         _G._MenuColorPickers[label] = cp
         return cp
+    end
+
+    -- Toggle row with two compact live color swatches. The left swatch is the
+    -- visible color and the right swatch is the occluded/hidden color.
+    API.AddColorToggle = function(tabName, label, toggleCallback, defaultState,
+        visibleCallback, visibleColor, hiddenCallback, hiddenColor, side)
+        local toggle = API.AddToggle(
+            tabName,
+            label,
+            toggleCallback,
+            defaultState,
+            side,
+            true
+        )
+        if not toggle or not toggle.Row then
+            return nil
+        end
+
+        local visiblePicker = API.AddColorPicker(
+            tabName,
+            label .. " Visible",
+            visibleCallback,
+            visibleColor,
+            side,
+            { Row = toggle.Row, Offset = -98 }
+        )
+        local hiddenPicker = API.AddColorPicker(
+            tabName,
+            label .. " Hidden",
+            hiddenCallback,
+            hiddenColor,
+            side,
+            { Row = toggle.Row, Offset = -76 }
+        )
+
+        return {
+            Toggle = toggle,
+            Visible = visiblePicker,
+            Hidden = hiddenPicker,
+        }
     end
     
     -- ============================================================
