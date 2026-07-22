@@ -2281,21 +2281,21 @@ function MenuLib:Init(config)
             gradV(stripe, C.ACCENT, C.ACCENT2)
             lbl(row, label, UDim2.new(1, -70, 1, 0), UDim2.new(0, 14, 0, 0), 12, C.TEXT)
         end
-        
+
         local color = defaultColor or Color3.fromRGB(255, 255, 255)
         local alpha = 1
         local preview
         local btn = Instance.new("TextButton")
         btn.AutoButtonColor = false
         if compactMode then
-            btn.Size = UDim2.new(0, 14, 0, 14)
-            btn.Position = UDim2.new(1, compact.Offset or -96, 0.5, -7)
+            btn.Size = UDim2.fromOffset(16, 16)
+            btn.Position = UDim2.new(1, compact.Offset or -96, 0.5, -8)
             btn.BackgroundColor3 = color
             btn.Text = ""
             preview = btn
         else
-            preview = fr(row, UDim2.new(0, 36, 0, 24), UDim2.new(1, -50, 0.5, -12), color, 0, 6)
-            btn.Size = UDim2.new(0, 50, 0, 26)
+            preview = fr(row, UDim2.fromOffset(36, 24), UDim2.new(1, -50, 0.5, -12), color, 0, 6)
+            btn.Size = UDim2.fromOffset(50, 26)
             btn.Position = UDim2.new(1, -56, 0.5, -13)
             btn.BackgroundColor3 = C.BTN
             btn.Text = "Pick"
@@ -2304,312 +2304,569 @@ function MenuLib:Init(config)
         btn.TextSize = 11
         btn.Font = Enum.Font.GothamBold
         btn.Parent = row
+
         local compactCorner = Instance.new("UICorner")
         compactCorner.CornerRadius = compactMode and UDim.new(1, 0) or UDim.new(0, 6)
         compactCorner.Parent = btn
+
         if compactMode then
             local dotStroke = Instance.new("UIStroke")
-            dotStroke.Color = Color3.fromRGB(235, 235, 245)
+            dotStroke.Color = Color3.fromRGB(245, 245, 255)
             dotStroke.Thickness = 1
-            dotStroke.Transparency = 0.25
+            dotStroke.Transparency = 0.18
             dotStroke.Parent = btn
         else
             btn.MouseEnter:Connect(function() tw(btn, { BackgroundColor3 = C.BTNHOV }, 0.12) end)
             btn.MouseLeave:Connect(function() tw(btn, { BackgroundColor3 = C.BTN }, 0.12) end)
         end
-        
+
+        local PICKER_W, PICKER_H = 286, 374
         local pickerFrame = nil
-        local pickerCloseConn = nil
-        
+        local pickerConnections = {}
+        local openRefresh = nil
+        local openSync = nil
+
+        local function disconnectPickerConnections()
+            for _, connection in ipairs(pickerConnections) do
+                pcall(function() connection:Disconnect() end)
+            end
+            table.clear(pickerConnections)
+        end
+
         local function closePicker()
-            if pickerCloseConn then pickerCloseConn:Disconnect() pickerCloseConn = nil end
+            disconnectPickerConnections()
+            openRefresh = nil
+            openSync = nil
             if pickerFrame then
-                tw(pickerFrame, {Size = UDim2.new(0, 200, 0, 0)}, 0.15)
-                local pf = pickerFrame
+                local closingFrame = pickerFrame
                 pickerFrame = nil
-                task.delay(0.2, function() if pf then pf:Destroy() end end)
+                tw(closingFrame, {
+                    Size = UDim2.fromOffset(PICKER_W, 0),
+                    BackgroundTransparency = 0.15,
+                }, 0.14, Enum.EasingStyle.Quint)
+                task.delay(0.16, function()
+                    if closingFrame then closingFrame:Destroy() end
+                end)
             end
         end
         table.insert(activeDropdownClosers, closePicker)
-        
+
         btn.MouseButton1Click:Connect(function()
-            if pickerFrame then closePicker() return end
-            
-            local PW, PH = 260, 300
-            pickerFrame = fr(sg, UDim2.new(0, PW, 0, 0), UDim2.new(0.5, -PW/2, 0.5, -PH/2), C.HEADER, 0, 12)
+            if pickerFrame then
+                closePicker()
+                return
+            end
+
+            for _, closer in ipairs(activeDropdownClosers) do
+                if closer ~= closePicker then pcall(closer) end
+            end
+
+            local GuiService = game:GetService("GuiService")
+            local camera = workspace.CurrentCamera
+            local viewport = camera and camera.ViewportSize or Vector2.new(1280, 720)
+            local startX = math.floor((viewport.X - PICKER_W) * 0.5)
+            local startY = math.floor((viewport.Y - PICKER_H) * 0.5)
+
+            pickerFrame = fr(
+                sg,
+                UDim2.fromOffset(PICKER_W, 0),
+                UDim2.fromOffset(startX, startY),
+                C.HEADER,
+                0,
+                14
+            )
             pickerFrame.ZIndex = 1000
             pickerFrame.ClipsDescendants = true
+
             local pStroke = Instance.new("UIStroke")
             pStroke.Color = C.ACCENT
-            pStroke.Thickness = 1.5
-            pStroke.Transparency = 0.4
+            pStroke.Thickness = 1.25
+            pStroke.Transparency = 0.28
             pStroke.Parent = pickerFrame
-            tw(pickerFrame, {Size = UDim2.new(0, PW, 0, PH)}, 0.2, Enum.EasingStyle.Quint)
-            
-            -- Current HSV
+
+            tw(pickerFrame, { Size = UDim2.fromOffset(PICKER_W, PICKER_H) }, 0.2, Enum.EasingStyle.Quint)
+
+            local function z(object, value)
+                object.ZIndex = value
+                return object
+            end
+
+            local function roundedStroke(object, radius, strokeColor, strokeTransparency, strokeThickness)
+                local corner = Instance.new("UICorner")
+                corner.CornerRadius = UDim.new(0, radius)
+                corner.Parent = object
+                if strokeColor then
+                    local stroke = Instance.new("UIStroke")
+                    stroke.Color = strokeColor
+                    stroke.Transparency = strokeTransparency or 0
+                    stroke.Thickness = strokeThickness or 1
+                    stroke.Parent = object
+                end
+            end
+
+            local function getPointerPosition(input)
+                local point
+                if input and input.Position then
+                    point = Vector2.new(input.Position.X, input.Position.Y)
+                else
+                    point = UserInputService:GetMouseLocation()
+                end
+
+                if sg.IgnoreGuiInset then
+                    local ok, inset = pcall(function()
+                        return GuiService:GetGuiInset()
+                    end)
+                    if ok and typeof(inset) == "Vector2" then
+                        point = point - inset
+                    end
+                end
+                return point
+            end
+
+            -- Draggable title bar so the picker never gets stuck in the middle.
+            local header = z(fr(pickerFrame, UDim2.new(1, 0, 0, 38), nil, C.DARK, 0.12, 14), 1001)
+            local title = lbl(header, label, UDim2.new(1, -64, 1, 0), UDim2.fromOffset(14, 0), 12, C.TEXT, Enum.Font.GothamBold)
+            title.ZIndex = 1002
+            title.TextTruncate = Enum.TextTruncate.AtEnd
+
+            local livePreview = z(fr(header, UDim2.fromOffset(22, 22), UDim2.new(1, -34, 0.5, -11), color, 0, 11), 1002)
+            roundedStroke(livePreview, 11, Color3.fromRGB(245, 245, 255), 0.25, 1)
+
+            local headerDrag = Instance.new("TextButton")
+            headerDrag.Size = UDim2.new(1, -46, 1, 0)
+            headerDrag.BackgroundTransparency = 1
+            headerDrag.Text = ""
+            headerDrag.ZIndex = 1003
+            headerDrag.Parent = header
+
             local h, s, v = color:ToHSV()
-            
-            local function updateColor()
-                color = Color3.fromHSV(h, s, v)
-                preview.BackgroundColor3 = color
-                if callback then callback(color, alpha) end
+            local CANVAS_X, CANVAS_Y = 12, 48
+            local CANVAS_W, CANVAS_H = PICKER_W - 24, 148
+
+            local svCanvas = z(fr(
+                pickerFrame,
+                UDim2.fromOffset(CANVAS_W, CANVAS_H),
+                UDim2.fromOffset(CANVAS_X, CANVAS_Y),
+                Color3.fromHSV(h, 1, 1),
+                0,
+                8
+            ), 1001)
+            svCanvas.ClipsDescendants = false
+            roundedStroke(svCanvas, 8, Color3.fromRGB(255, 255, 255), 0.72, 1)
+
+            local whiteGradient = Instance.new("UIGradient")
+            whiteGradient.Color = ColorSequence.new(Color3.new(1, 1, 1), Color3.fromHSV(h, 1, 1))
+            whiteGradient.Parent = svCanvas
+
+            local darkOverlay = z(fr(svCanvas, UDim2.fromScale(1, 1), nil, Color3.new(0, 0, 0), 0, 8), 1002)
+            local darkGradient = Instance.new("UIGradient")
+            darkGradient.Color = ColorSequence.new(Color3.new(0, 0, 0), Color3.new(0, 0, 0))
+            darkGradient.Transparency = NumberSequence.new({
+                NumberSequenceKeypoint.new(0, 1),
+                NumberSequenceKeypoint.new(1, 0),
+            })
+            darkGradient.Rotation = 90
+            darkGradient.Parent = darkOverlay
+
+            local svKnob = z(fr(
+                svCanvas,
+                UDim2.fromOffset(12, 12),
+                UDim2.fromOffset(s * CANVAS_W - 6, (1 - v) * CANVAS_H - 6),
+                Color3.new(1, 1, 1),
+                1,
+                6
+            ), 1005)
+            roundedStroke(svKnob, 6, Color3.fromRGB(255, 255, 255), 0, 2)
+            local svKnobInner = z(fr(svKnob, UDim2.fromOffset(6, 6), UDim2.fromOffset(3, 3), color, 0, 3), 1006)
+
+            local svButton = Instance.new("TextButton")
+            svButton.Size = UDim2.fromScale(1, 1)
+            svButton.BackgroundTransparency = 1
+            svButton.Text = ""
+            svButton.Active = true
+            svButton.ZIndex = 1004
+            svButton.Parent = svCanvas
+
+            -- One continuous horizontal hue strip instead of six blocky pieces.
+            local hueY = 207
+            local hueTrack = z(fr(
+                pickerFrame,
+                UDim2.fromOffset(CANVAS_W, 14),
+                UDim2.fromOffset(CANVAS_X, hueY),
+                Color3.new(1, 1, 1),
+                0,
+                7
+            ), 1001)
+            hueTrack.ClipsDescendants = false
+            roundedStroke(hueTrack, 7, Color3.fromRGB(255, 255, 255), 0.75, 1)
+
+            local hueGradient = Instance.new("UIGradient")
+            hueGradient.Color = ColorSequence.new({
+                ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 0, 0)),
+                ColorSequenceKeypoint.new(1 / 6, Color3.fromRGB(255, 255, 0)),
+                ColorSequenceKeypoint.new(2 / 6, Color3.fromRGB(0, 255, 0)),
+                ColorSequenceKeypoint.new(3 / 6, Color3.fromRGB(0, 255, 255)),
+                ColorSequenceKeypoint.new(4 / 6, Color3.fromRGB(0, 0, 255)),
+                ColorSequenceKeypoint.new(5 / 6, Color3.fromRGB(255, 0, 255)),
+                ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 0, 0)),
+            })
+            hueGradient.Parent = hueTrack
+
+            local hueKnob = z(fr(
+                hueTrack,
+                UDim2.fromOffset(12, 20),
+                UDim2.new(h, -6, 0.5, -10),
+                Color3.new(1, 1, 1),
+                1,
+                6
+            ), 1004)
+            roundedStroke(hueKnob, 6, Color3.fromRGB(255, 255, 255), 0, 2)
+            local hueKnobInner = z(fr(hueKnob, UDim2.fromOffset(6, 14), UDim2.fromOffset(3, 3), Color3.fromHSV(h, 1, 1), 0, 3), 1005)
+
+            local hueButton = Instance.new("TextButton")
+            hueButton.Size = UDim2.new(1, 0, 1, 10)
+            hueButton.Position = UDim2.fromOffset(0, -5)
+            hueButton.BackgroundTransparency = 1
+            hueButton.Text = ""
+            hueButton.Active = true
+            hueButton.ZIndex = 1003
+            hueButton.Parent = hueTrack
+
+            local alphaLabel = lbl(pickerFrame, "Opacity", UDim2.fromOffset(54, 16), UDim2.fromOffset(CANVAS_X, 230), 10, C.DIM, Enum.Font.GothamBold)
+            alphaLabel.ZIndex = 1001
+            local alphaValue = lbl(pickerFrame, "100%", UDim2.fromOffset(45, 16), UDim2.new(1, -57, 0, 230), 10, C.SEC, Enum.Font.GothamBold)
+            alphaValue.TextXAlignment = Enum.TextXAlignment.Right
+            alphaValue.ZIndex = 1001
+
+            local alphaY = 248
+            local alphaTrack = z(fr(
+                pickerFrame,
+                UDim2.fromOffset(CANVAS_W, 12),
+                UDim2.fromOffset(CANVAS_X, alphaY),
+                C.DARK,
+                0,
+                6
+            ), 1001)
+            alphaTrack.ClipsDescendants = false
+            roundedStroke(alphaTrack, 6, Color3.fromRGB(255, 255, 255), 0.8, 1)
+
+            local alphaInner = z(fr(alphaTrack, UDim2.fromScale(1, 1), nil, C.DARK, 0, 6), 1001)
+            alphaInner.ClipsDescendants = true
+
+            local checkerSize = 8
+            for x = 0, math.ceil(CANVAS_W / checkerSize) - 1 do
+                for y = 0, 1 do
+                    z(fr(
+                        alphaInner,
+                        UDim2.fromOffset(checkerSize, checkerSize),
+                        UDim2.fromOffset(x * checkerSize, y * checkerSize - 2),
+                        ((x + y) % 2 == 0) and Color3.fromRGB(65, 58, 78) or Color3.fromRGB(25, 21, 34),
+                        0,
+                        0
+                    ), 1001)
+                end
             end
-            
-            -- Hue bar (vertical, right side)
-            local hueBar = fr(pickerFrame, UDim2.new(0, 20, 0, 150), UDim2.new(0, PW - 34, 0, 10), C.DARK, 0, 4)
-            hueBar.ZIndex = 1001
-            for i = 0, 5 do
-                local seg = fr(hueBar, UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, i * 25), Color3.fromHSV(i/6, 1, 1), 0, 0)
-                seg.ZIndex = 1001
-                local g = Instance.new("UIGradient")
-                g.Color = ColorSequence.new(Color3.fromHSV(i/6, 1, 1), Color3.fromHSV(math.min((i+1)/6, 1), 1, 1))
-                g.Rotation = 90
-                g.Parent = seg
-            end
-            local hueKnob = fr(hueBar, UDim2.new(1, 4, 0, 4), UDim2.new(0, -2, 0, h * 150 - 2), C.TEXT, 0, 2)
-            hueKnob.ZIndex = 1003
-            
-            local hueBtn = Instance.new("TextButton")
-            hueBtn.Size = UDim2.new(1, 0, 1, 0)
-            hueBtn.BackgroundTransparency = 1
-            hueBtn.Text = ""
-            hueBtn.ZIndex = 1002
-            hueBtn.Parent = hueBar
-            
-            -- SV canvas
-            local canvasSize = PW - 50
-            local svCanvas = fr(pickerFrame, UDim2.new(0, canvasSize, 0, 150), UDim2.new(0, 10, 0, 10), Color3.fromHSV(h, 1, 1), 0, 4)
-            svCanvas.ZIndex = 1001
-            -- White gradient left-right
-            local wGrad = Instance.new("UIGradient")
-            wGrad.Color = ColorSequence.new(Color3.new(1,1,1), Color3.fromHSV(h, 1, 1))
-            wGrad.Parent = svCanvas
-            -- Dark overlay top-bottom
-            local darkOverlay = fr(svCanvas, UDim2.new(1, 0, 1, 0), nil, Color3.new(0,0,0), 0, 4)
-            darkOverlay.ZIndex = 1001
-            local dGrad = Instance.new("UIGradient")
-            dGrad.Color = ColorSequence.new(Color3.new(0,0,0), Color3.new(0,0,0))
-            dGrad.Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(1, 0)})
-            dGrad.Rotation = 90
-            dGrad.Parent = darkOverlay
-            
-            local svKnob = fr(svCanvas, UDim2.new(0, 8, 0, 8), UDim2.new(0, s * canvasSize - 4, 0, (1-v) * 150 - 4), C.TEXT, 0, 4)
-            svKnob.ZIndex = 1003
-            local svKnobStroke = Instance.new("UIStroke")
-            svKnobStroke.Color = Color3.new(0,0,0)
-            svKnobStroke.Thickness = 1
-            svKnobStroke.Parent = svKnob
-            
-            local svBtn = Instance.new("TextButton")
-            svBtn.Size = UDim2.new(1, 0, 1, 0)
-            svBtn.BackgroundTransparency = 1
-            svBtn.Text = ""
-            svBtn.ZIndex = 1002
-            svBtn.Parent = svCanvas
-            
-            -- Alpha slider
-            lbl(pickerFrame, "A", UDim2.new(0, 14, 0, 16), UDim2.new(0, 10, 0, 168), 11, C.DIM, Enum.Font.GothamBold).ZIndex = 1001
-            local alphaTrack = fr(pickerFrame, UDim2.new(0, PW - 50, 0, 12), UDim2.new(0, 28, 0, 170), C.DARK, 0, 3)
-            alphaTrack.ZIndex = 1001
-            local alphaFill = fr(alphaTrack, UDim2.new(alpha, 0, 1, 0), nil, C.ACCENT, 0, 3)
-            alphaFill.ZIndex = 1001
-            gradV(alphaFill, C.ACCENT, C.ACCENT2)
-            local alphaKnob = fr(alphaTrack, UDim2.new(0, 8, 0, 16), UDim2.new(alpha, -4, 0.5, -8), C.TEXT, 0, 4)
-            alphaKnob.ZIndex = 1003
-            local alphaBtn = Instance.new("TextButton")
-            alphaBtn.Size = UDim2.new(1, 0, 1, 0)
-            alphaBtn.BackgroundTransparency = 1
-            alphaBtn.Text = ""
-            alphaBtn.ZIndex = 1002
-            alphaBtn.Parent = alphaTrack
-            
-            -- RGBA inputs
-            local inputY = 195
-            local labels = {"R", "G", "B", "A"}
+
+            local alphaOverlay = z(fr(alphaInner, UDim2.fromScale(1, 1), nil, color, 0, 6), 1002)
+            local alphaGradient = Instance.new("UIGradient")
+            alphaGradient.Color = ColorSequence.new(color, color)
+            alphaGradient.Transparency = NumberSequence.new({
+                NumberSequenceKeypoint.new(0, 1),
+                NumberSequenceKeypoint.new(1, 0),
+            })
+            alphaGradient.Parent = alphaOverlay
+
+            local alphaKnob = z(fr(
+                alphaTrack,
+                UDim2.fromOffset(12, 18),
+                UDim2.new(alpha, -6, 0.5, -9),
+                Color3.new(1, 1, 1),
+                1,
+                6
+            ), 1004)
+            roundedStroke(alphaKnob, 6, Color3.fromRGB(255, 255, 255), 0, 2)
+
+            local alphaButton = Instance.new("TextButton")
+            alphaButton.Size = UDim2.new(1, 0, 1, 10)
+            alphaButton.Position = UDim2.fromOffset(0, -5)
+            alphaButton.BackgroundTransparency = 1
+            alphaButton.Text = ""
+            alphaButton.Active = true
+            alphaButton.ZIndex = 1003
+            alphaButton.Parent = alphaTrack
+
+            local inputY = 273
+            local channelLabels = { "R", "G", "B", "A" }
             local boxes = {}
-            for i, l in ipairs(labels) do
-                local ix = 10 + (i-1) * 62
-                lbl(pickerFrame, l, UDim2.new(0, 12, 0, 20), UDim2.new(0, ix, 0, inputY), 11, C.DIM, Enum.Font.GothamBold).ZIndex = 1001
+            local fieldGap = 6
+            local fieldW = math.floor((CANVAS_W - fieldGap * 3) / 4)
+
+            for i, channel in ipairs(channelLabels) do
+                local fieldX = CANVAS_X + (i - 1) * (fieldW + fieldGap)
+                local field = z(fr(
+                    pickerFrame,
+                    UDim2.fromOffset(fieldW, 26),
+                    UDim2.fromOffset(fieldX, inputY),
+                    C.DARK,
+                    0,
+                    6
+                ), 1001)
+                roundedStroke(field, 6, Color3.fromRGB(255, 255, 255), 0.88, 1)
+
+                local channelLabel = lbl(field, channel, UDim2.fromOffset(14, 26), UDim2.fromOffset(8, 0), 10, C.DIM, Enum.Font.GothamBold)
+                channelLabel.ZIndex = 1002
+
                 local box = Instance.new("TextBox")
-                box.Size = UDim2.new(0, 42, 0, 22)
-                box.Position = UDim2.new(0, ix + 14, 0, inputY)
-                box.BackgroundColor3 = C.DARK
+                box.Size = UDim2.new(1, -27, 1, 0)
+                box.Position = UDim2.fromOffset(24, 0)
+                box.BackgroundTransparency = 1
                 box.TextColor3 = C.TEXT
+                box.PlaceholderColor3 = C.DIM
                 box.TextSize = 11
                 box.Font = Enum.Font.GothamBold
-                box.Text = ""
+                box.TextXAlignment = Enum.TextXAlignment.Center
                 box.ClearTextOnFocus = true
-                box.Parent = pickerFrame
-                box.ZIndex = 1002
-                Instance.new("UICorner", box).CornerRadius = UDim.new(0, 4)
+                box.ZIndex = 1003
+                box.Parent = field
                 boxes[i] = box
             end
-            
-            local function refreshInputs()
-                local r = math.round(color.R * 255)
-                local g = math.round(color.G * 255)
-                local b = math.round(color.B * 255)
-                boxes[1].Text = tostring(r)
-                boxes[2].Text = tostring(g)
-                boxes[3].Text = tostring(b)
-                boxes[4].Text = tostring(math.round(alpha * 255))
-            end
-            refreshInputs()
-            
-            local function refreshVisuals()
-                svCanvas.BackgroundColor3 = Color3.fromHSV(h, 1, 1)
-                wGrad.Color = ColorSequence.new(Color3.new(1,1,1), Color3.fromHSV(h, 1, 1))
-                svKnob.Position = UDim2.new(0, s * canvasSize - 4, 0, (1-v) * 150 - 4)
-                hueKnob.Position = UDim2.new(0, -2, 0, h * 150 - 2)
-                alphaFill.Size = UDim2.new(alpha, 0, 1, 0)
-                alphaKnob.Position = UDim2.new(alpha, -4, 0.5, -8)
-                refreshInputs()
-            end
-            
-            -- Preset swatches row
+
             local presets = {
-                Color3.fromRGB(255,0,0), Color3.fromRGB(0,255,0), Color3.fromRGB(0,0,255),
-                Color3.fromRGB(255,255,0), Color3.fromRGB(255,0,255), Color3.fromRGB(0,255,255),
-                Color3.fromRGB(255,105,180), Color3.fromRGB(255,165,0), Color3.fromRGB(128,0,128),
-                Color3.fromRGB(255,255,255), Color3.fromRGB(0,0,0), Color3.fromRGB(120,40,240)
+                Color3.fromRGB(255, 70, 85),
+                Color3.fromRGB(255, 170, 45),
+                Color3.fromRGB(255, 235, 70),
+                Color3.fromRGB(70, 235, 120),
+                Color3.fromRGB(65, 220, 255),
+                Color3.fromRGB(75, 125, 255),
+                Color3.fromRGB(160, 90, 255),
+                Color3.fromRGB(235, 75, 190),
+                Color3.fromRGB(255, 255, 255),
+                Color3.fromRGB(145, 145, 160),
+                Color3.fromRGB(25, 25, 32),
+                C.ACCENT,
             }
-            local swatchY = 228
-            for i, pc in ipairs(presets) do
-                local sx = 10 + (i-1) * 20
-                local sw = Instance.new("TextButton")
-                sw.Size = UDim2.new(0, 16, 0, 16)
-                sw.Position = UDim2.new(0, sx, 0, swatchY)
-                sw.BackgroundColor3 = pc
-                sw.Text = ""
-                sw.Parent = pickerFrame
-                sw.ZIndex = 1001
-                Instance.new("UICorner", sw).CornerRadius = UDim.new(0, 3)
-                sw.MouseButton1Click:Connect(function()
-                    color = pc
+
+            local swatchY = 307
+            local swatchSize = 14
+            local swatchGap = math.floor((CANVAS_W - (#presets * swatchSize)) / (#presets - 1))
+            for i, presetColor in ipairs(presets) do
+                local swatch = Instance.new("TextButton")
+                swatch.Size = UDim2.fromOffset(swatchSize, swatchSize)
+                local swatchX = CANVAS_X + (i - 1) * (swatchSize + swatchGap)
+                local swatchPosition = UDim2.fromOffset(swatchX, swatchY)
+                swatch.Position = swatchPosition
+                swatch.BackgroundColor3 = presetColor
+                swatch.Text = ""
+                swatch.AutoButtonColor = false
+                swatch.ZIndex = 1002
+                swatch.Parent = pickerFrame
+                roundedStroke(swatch, 4, Color3.fromRGB(255, 255, 255), 0.72, 1)
+                swatch.MouseEnter:Connect(function()
+                    tw(swatch, { Size = UDim2.fromOffset(16, 16), Position = UDim2.fromOffset(swatchX - 1, swatchY - 1) }, 0.1)
+                end)
+                swatch.MouseLeave:Connect(function()
+                    tw(swatch, { Size = UDim2.fromOffset(14, 14), Position = swatchPosition }, 0.1)
+                end)
+                swatch.MouseButton1Click:Connect(function()
+                    color = presetColor
                     h, s, v = color:ToHSV()
-                    updateColor()
-                    refreshVisuals()
+                    if openRefresh then openRefresh(true) end
                 end)
             end
-            
-            -- OK button
-            local okBtn = Instance.new("TextButton")
-            okBtn.Size = UDim2.new(1, -20, 0, 28)
-            okBtn.Position = UDim2.new(0, 10, 0, 258)
-            okBtn.BackgroundColor3 = C.ACCENT
-            okBtn.Text = "Done"
-            okBtn.TextColor3 = C.TEXT
-            okBtn.TextSize = 12
-            okBtn.Font = Enum.Font.GothamBold
-            okBtn.Parent = pickerFrame
-            okBtn.ZIndex = 1001
-            Instance.new("UICorner", okBtn).CornerRadius = UDim.new(0, 6)
-            local okGrad = Instance.new("UIGradient", okBtn)
-            okGrad.Color = ColorSequence.new({ColorSequenceKeypoint.new(0, C.ACCENT), ColorSequenceKeypoint.new(1, C.ACCENT2)})
-            okGrad.Rotation = 90
-            okBtn.MouseButton1Click:Connect(closePicker)
-            
-            -- Interaction: SV canvas
-            local svDragging = false
-            svBtn.InputBegan:Connect(function(inp)
-                if inp.UserInputType == Enum.UserInputType.MouseButton1 then svDragging = true end
+
+            local doneButton = Instance.new("TextButton")
+            doneButton.Size = UDim2.fromOffset(CANVAS_W, 28)
+            doneButton.Position = UDim2.fromOffset(CANVAS_X, 336)
+            doneButton.BackgroundColor3 = C.ACCENT
+            doneButton.Text = "Done"
+            doneButton.TextColor3 = C.TEXT
+            doneButton.TextSize = 11
+            doneButton.Font = Enum.Font.GothamBold
+            doneButton.AutoButtonColor = false
+            doneButton.ZIndex = 1002
+            doneButton.Parent = pickerFrame
+            roundedStroke(doneButton, 7, nil)
+            local doneGradient = Instance.new("UIGradient")
+            doneGradient.Color = ColorSequence.new({
+                ColorSequenceKeypoint.new(0, C.ACCENT),
+                ColorSequenceKeypoint.new(1, C.ACCENT2),
+            })
+            doneGradient.Parent = doneButton
+            doneButton.MouseEnter:Connect(function() tw(doneButton, { BackgroundTransparency = 0.08 }, 0.1) end)
+            doneButton.MouseLeave:Connect(function() tw(doneButton, { BackgroundTransparency = 0 }, 0.1) end)
+            doneButton.MouseButton1Click:Connect(closePicker)
+
+            local function refreshInputs()
+                boxes[1].Text = tostring(math.round(color.R * 255))
+                boxes[2].Text = tostring(math.round(color.G * 255))
+                boxes[3].Text = tostring(math.round(color.B * 255))
+                boxes[4].Text = tostring(math.round(alpha * 255))
+            end
+
+            local function emitColor()
+                color = Color3.fromHSV(h, s, v)
+                preview.BackgroundColor3 = color
+                livePreview.BackgroundColor3 = color
+                svKnobInner.BackgroundColor3 = color
+                alphaOverlay.BackgroundColor3 = color
+                alphaGradient.Color = ColorSequence.new(color, color)
+                if callback then callback(color, alpha) end
+            end
+
+            local function refreshVisuals(emit)
+                svCanvas.BackgroundColor3 = Color3.fromHSV(h, 1, 1)
+                whiteGradient.Color = ColorSequence.new(Color3.new(1, 1, 1), Color3.fromHSV(h, 1, 1))
+                svKnob.Position = UDim2.fromOffset(s * CANVAS_W - 6, (1 - v) * CANVAS_H - 6)
+                hueKnob.Position = UDim2.new(h, -6, 0.5, -10)
+                hueKnobInner.BackgroundColor3 = Color3.fromHSV(h, 1, 1)
+                alphaKnob.Position = UDim2.new(alpha, -6, 0.5, -9)
+                alphaValue.Text = tostring(math.round(alpha * 100)) .. "%"
+                if emit then emitColor() end
+                refreshInputs()
+            end
+            openRefresh = refreshVisuals
+            openSync = function(emit)
+                h, s, v = color:ToHSV()
+                refreshVisuals(emit)
+            end
+            refreshVisuals(false)
+
+            local activeDrag = nil
+            local popupDragging = false
+            local popupDragStart = nil
+            local popupStartPosition = nil
+
+            local function updateSV(point)
+                s = math.clamp((point.X - svCanvas.AbsolutePosition.X) / math.max(svCanvas.AbsoluteSize.X, 1), 0, 1)
+                v = 1 - math.clamp((point.Y - svCanvas.AbsolutePosition.Y) / math.max(svCanvas.AbsoluteSize.Y, 1), 0, 1)
+                refreshVisuals(true)
+            end
+
+            local function updateHue(point)
+                h = math.clamp((point.X - hueTrack.AbsolutePosition.X) / math.max(hueTrack.AbsoluteSize.X, 1), 0, 1)
+                refreshVisuals(true)
+            end
+
+            local function updateAlpha(point)
+                alpha = math.clamp((point.X - alphaTrack.AbsolutePosition.X) / math.max(alphaTrack.AbsoluteSize.X, 1), 0, 1)
+                refreshVisuals(true)
+            end
+
+            local function beginControlDrag(kind, input)
+                activeDrag = kind
+                local point = getPointerPosition(input)
+                if kind == "sv" then
+                    updateSV(point)
+                elseif kind == "hue" then
+                    updateHue(point)
+                elseif kind == "alpha" then
+                    updateAlpha(point)
+                end
+            end
+
+            svButton.InputBegan:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                    beginControlDrag("sv", input)
+                end
             end)
-            table.insert(conns, UserInputService.InputEnded:Connect(function(inp)
-                if inp.UserInputType == Enum.UserInputType.MouseButton1 then svDragging = false end
-            end))
-            table.insert(conns, UserInputService.InputChanged:Connect(function(inp)
-                if svDragging and inp.UserInputType == Enum.UserInputType.MouseMovement then
-                    local ax = math.clamp((inp.Position.X - svCanvas.AbsolutePosition.X) / canvasSize, 0, 1)
-                    local ay = math.clamp((inp.Position.Y - svCanvas.AbsolutePosition.Y) / 150, 0, 1)
-                    s = ax
-                    v = 1 - ay
-                    updateColor()
-                    refreshVisuals()
-                end
-            end))
-            svBtn.InputBegan:Connect(function(inp)
-                if inp.UserInputType == Enum.UserInputType.MouseButton1 then
-                    local ax = math.clamp((inp.Position.X - svCanvas.AbsolutePosition.X) / canvasSize, 0, 1)
-                    local ay = math.clamp((inp.Position.Y - svCanvas.AbsolutePosition.Y) / 150, 0, 1)
-                    s = ax
-                    v = 1 - ay
-                    updateColor()
-                    refreshVisuals()
+            hueButton.InputBegan:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                    beginControlDrag("hue", input)
                 end
             end)
-            
-            -- Interaction: Hue bar
-            local hueDragging = false
-            hueBtn.InputBegan:Connect(function(inp)
-                if inp.UserInputType == Enum.UserInputType.MouseButton1 then
-                    hueDragging = true
-                    h = math.clamp((inp.Position.Y - hueBar.AbsolutePosition.Y) / 150, 0, 1)
-                    updateColor()
-                    refreshVisuals()
+            alphaButton.InputBegan:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                    beginControlDrag("alpha", input)
                 end
             end)
-            table.insert(conns, UserInputService.InputEnded:Connect(function(inp)
-                if inp.UserInputType == Enum.UserInputType.MouseButton1 then hueDragging = false end
-            end))
-            table.insert(conns, UserInputService.InputChanged:Connect(function(inp)
-                if hueDragging and inp.UserInputType == Enum.UserInputType.MouseMovement then
-                    h = math.clamp((inp.Position.Y - hueBar.AbsolutePosition.Y) / 150, 0, 1)
-                    updateColor()
-                    refreshVisuals()
-                end
-            end))
-            
-            -- Interaction: Alpha slider
-            local alphaDragging = false
-            alphaBtn.InputBegan:Connect(function(inp)
-                if inp.UserInputType == Enum.UserInputType.MouseButton1 then
-                    alphaDragging = true
-                    alpha = math.clamp((inp.Position.X - alphaTrack.AbsolutePosition.X) / alphaTrack.AbsoluteSize.X, 0, 1)
-                    updateColor()
-                    refreshVisuals()
+
+            headerDrag.InputBegan:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                    popupDragging = true
+                    popupDragStart = getPointerPosition(input)
+                    popupStartPosition = Vector2.new(pickerFrame.AbsolutePosition.X, pickerFrame.AbsolutePosition.Y)
                 end
             end)
-            table.insert(conns, UserInputService.InputEnded:Connect(function(inp)
-                if inp.UserInputType == Enum.UserInputType.MouseButton1 then alphaDragging = false end
-            end))
-            table.insert(conns, UserInputService.InputChanged:Connect(function(inp)
-                if alphaDragging and inp.UserInputType == Enum.UserInputType.MouseMovement then
-                    alpha = math.clamp((inp.Position.X - alphaTrack.AbsolutePosition.X) / alphaTrack.AbsoluteSize.X, 0, 1)
-                    updateColor()
-                    refreshVisuals()
+
+            table.insert(pickerConnections, UserInputService.InputChanged:Connect(function(input)
+                if input.UserInputType ~= Enum.UserInputType.MouseMovement then return end
+                local point = getPointerPosition(input)
+
+                if activeDrag == "sv" then
+                    updateSV(point)
+                elseif activeDrag == "hue" then
+                    updateHue(point)
+                elseif activeDrag == "alpha" then
+                    updateAlpha(point)
+                elseif popupDragging and popupDragStart and popupStartPosition then
+                    local delta = point - popupDragStart
+                    local newX = popupStartPosition.X + delta.X
+                    local newY = popupStartPosition.Y + delta.Y
+                    local currentCamera = workspace.CurrentCamera
+                    local currentViewport = currentCamera and currentCamera.ViewportSize or viewport
+                    newX = math.clamp(newX, 8, math.max(8, currentViewport.X - PICKER_W - 8))
+                    newY = math.clamp(newY, 8, math.max(8, currentViewport.Y - PICKER_H - 8))
+                    pickerFrame.Position = UDim2.fromOffset(newX, newY)
                 end
             end))
-            
-            -- RGBA text input handling
+
+            table.insert(pickerConnections, UserInputService.InputEnded:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                    activeDrag = nil
+                    popupDragging = false
+                end
+            end))
+
             for i, box in ipairs(boxes) do
                 box.FocusLost:Connect(function()
-                    local val = tonumber(box.Text)
-                    if not val then refreshInputs() return end
-                    val = math.clamp(math.round(val), 0, 255)
-                    if i == 1 then
-                        color = Color3.fromRGB(val, math.round(color.G*255), math.round(color.B*255))
-                    elseif i == 2 then
-                        color = Color3.fromRGB(math.round(color.R*255), val, math.round(color.B*255))
-                    elseif i == 3 then
-                        color = Color3.fromRGB(math.round(color.R*255), math.round(color.G*255), val)
-                    elseif i == 4 then
-                        alpha = val / 255
+                    local value = tonumber(box.Text)
+                    if not value then
+                        refreshInputs()
+                        return
                     end
+                    value = math.clamp(math.round(value), 0, 255)
+                    local r = math.round(color.R * 255)
+                    local g = math.round(color.G * 255)
+                    local b = math.round(color.B * 255)
+                    if i == 1 then
+                        r = value
+                    elseif i == 2 then
+                        g = value
+                    elseif i == 3 then
+                        b = value
+                    else
+                        alpha = value / 255
+                    end
+                    color = Color3.fromRGB(r, g, b)
                     h, s, v = color:ToHSV()
-                    updateColor()
-                    refreshVisuals()
+                    refreshVisuals(true)
                 end)
             end
         end)
-        
-        local cp = { 
-            Get = function() return color, alpha end, 
-            Set = function(c, a) color = c if a then alpha = a end preview.BackgroundColor3 = c if callback then callback(c, alpha) end end 
+
+        local cp = {
+            Get = function()
+                return color, alpha
+            end,
+            Set = function(newColor, newAlpha)
+                if typeof(newColor) == "Color3" then
+                    color = newColor
+                end
+                if newAlpha ~= nil then
+                    alpha = math.clamp(newAlpha, 0, 1)
+                end
+                preview.BackgroundColor3 = color
+                if openSync then
+                    openSync(false)
+                end
+                if callback then callback(color, alpha) end
+            end,
         }
         if not _G._MenuColorPickers then _G._MenuColorPickers = {} end
         _G._MenuColorPickers[label] = cp
         return cp
     end
+
 
     -- Toggle row with two compact live color swatches. The left swatch is the
     -- visible color and the right swatch is the occluded/hidden color.
