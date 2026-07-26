@@ -2320,7 +2320,7 @@ function MenuLib:Init(config)
             btn.MouseLeave:Connect(function() tw(btn, { BackgroundColor3 = C.BTN }, 0.12) end)
         end
 
-        local PICKER_W, PICKER_H = 286, 374
+        local PICKER_W, PICKER_H = 254, 324
         local pickerFrame = nil
         local pickerConnections = {}
         local openRefresh = nil
@@ -2416,7 +2416,7 @@ function MenuLib:Init(config)
             end
 
             -- Draggable title bar so the picker never gets stuck in the middle.
-            local header = z(fr(pickerFrame, UDim2.new(1, 0, 0, 38), nil, C.DARK, 0.12, 14), 1001)
+            local header = z(fr(pickerFrame, UDim2.new(1, 0, 0, 34), nil, C.DARK, 0.05, 12), 1001)
             local title = lbl(header, label, UDim2.new(1, -92, 1, 0), UDim2.fromOffset(14, 0), 12, C.TEXT, Enum.Font.GothamBold)
             title.ZIndex = 1002
             title.TextTruncate = Enum.TextTruncate.AtEnd
@@ -2453,8 +2453,8 @@ function MenuLib:Init(config)
             headerDrag.Parent = header
 
             local h, s, v = color:ToHSV()
-            local CANVAS_X, CANVAS_Y = 12, 48
-            local CANVAS_W, CANVAS_H = PICKER_W - 24, 148
+            local CANVAS_X, CANVAS_Y = 12, 42
+            local CANVAS_W, CANVAS_H = PICKER_W - 24, 112
 
             local svCanvas = z(fr(
                 pickerFrame,
@@ -2501,7 +2501,7 @@ function MenuLib:Init(config)
             svButton.Parent = svCanvas
 
             -- One continuous horizontal hue strip instead of six blocky pieces.
-            local hueY = 207
+            local hueY = 166
             local hueTrack = z(fr(
                 pickerFrame,
                 UDim2.fromOffset(CANVAS_W, 14),
@@ -2545,13 +2545,13 @@ function MenuLib:Init(config)
             hueButton.ZIndex = 1003
             hueButton.Parent = hueTrack
 
-            local alphaLabel = lbl(pickerFrame, "Opacity", UDim2.fromOffset(54, 16), UDim2.fromOffset(CANVAS_X, 230), 10, C.DIM, Enum.Font.GothamBold)
+            local alphaLabel = lbl(pickerFrame, "Opacity", UDim2.fromOffset(54, 16), UDim2.fromOffset(CANVAS_X, 188), 10, C.DIM, Enum.Font.GothamBold)
             alphaLabel.ZIndex = 1001
-            local alphaValue = lbl(pickerFrame, "100%", UDim2.fromOffset(45, 16), UDim2.new(1, -57, 0, 230), 10, C.SEC, Enum.Font.GothamBold)
+            local alphaValue = lbl(pickerFrame, "100%", UDim2.fromOffset(45, 16), UDim2.new(1, -57, 0, 188), 10, C.SEC, Enum.Font.GothamBold)
             alphaValue.TextXAlignment = Enum.TextXAlignment.Right
             alphaValue.ZIndex = 1001
 
-            local alphaY = 248
+            local alphaY = 205
             local alphaTrack = z(fr(
                 pickerFrame,
                 UDim2.fromOffset(CANVAS_W, 12),
@@ -2608,7 +2608,7 @@ function MenuLib:Init(config)
             alphaButton.ZIndex = 1003
             alphaButton.Parent = alphaTrack
 
-            local inputY = 273
+            local inputY = 228
             local channelLabels = { "R", "G", "B", "A" }
             local boxes = {}
             local fieldGap = 6
@@ -2659,7 +2659,7 @@ function MenuLib:Init(config)
                 C.ACCENT,
             }
 
-            local swatchY = 307
+            local swatchY = 266
             local swatchSize = 14
             local swatchGap = math.floor((CANVAS_W - (#presets * swatchSize)) / (#presets - 1))
             for i, presetColor in ipairs(presets) do
@@ -2688,8 +2688,8 @@ function MenuLib:Init(config)
             end
 
             local doneButton = Instance.new("TextButton")
-            doneButton.Size = UDim2.fromOffset(CANVAS_W, 28)
-            doneButton.Position = UDim2.fromOffset(CANVAS_X, 336)
+            doneButton.Size = UDim2.fromOffset(CANVAS_W, 24)
+            doneButton.Position = UDim2.fromOffset(CANVAS_X, 290)
             doneButton.BackgroundColor3 = C.ACCENT
             doneButton.Text = "Done"
             doneButton.TextColor3 = C.TEXT
