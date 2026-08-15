@@ -3868,18 +3868,22 @@ API.AddTab("Protections", ICON.protection, function(f)
                     else
                         SetAutoLoadConfig(nil)
                     end
+                    local animTime = 0.25
                     if turningOn then
                         autoBox.Text = "X"
-                        tw(autoBox, {BackgroundColor3 = C.GREEN}, 0.2)
-                        tw(autoStroke, {Color = C.GREEN, Transparency = 0.3}, 0.2)
-                        tw(autoLbl, {TextColor3 = C.GREEN}, 0.2)
+                        autoBox.TextTransparency = 1
+                        tw(autoBox, {BackgroundColor3 = C.GREEN}, animTime, Enum.EasingStyle.Quad)
+                        tw(autoStroke, {Color = C.GREEN, Transparency = 0.3}, animTime, Enum.EasingStyle.Quad)
+                        tw(autoLbl, {TextColor3 = C.GREEN}, animTime, Enum.EasingStyle.Quad)
+                        tw(autoBox, {TextTransparency = 0}, animTime, Enum.EasingStyle.Quad)
                     else
-                        tw(autoBox, {BackgroundColor3 = C.BTN}, 0.2)
-                        tw(autoStroke, {Color = C.DIM, Transparency = 0.1}, 0.2)
-                        tw(autoLbl, {TextColor3 = C.DIM}, 0.2)
-                        task.delay(0.15, function() autoBox.Text = "" end)
+                        tw(autoBox, {BackgroundColor3 = C.BTN}, animTime, Enum.EasingStyle.Quad)
+                        tw(autoStroke, {Color = C.DIM, Transparency = 0.1}, animTime, Enum.EasingStyle.Quad)
+                        tw(autoLbl, {TextColor3 = C.DIM}, animTime, Enum.EasingStyle.Quad)
+                        tw(autoBox, {TextTransparency = 1}, animTime, Enum.EasingStyle.Quad)
+                        task.delay(animTime, function() autoBox.Text = "" end)
                     end
-                    task.delay(0.25, function() RefreshConfigList() end)
+                    task.delay(animTime + 0.05, function() RefreshConfigList() end)
                 end)
                 clickBtn.MouseEnter:Connect(function()
                     if selectedConfig ~= name then
