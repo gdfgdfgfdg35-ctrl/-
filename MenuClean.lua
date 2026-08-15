@@ -103,15 +103,25 @@ function MenuLib:Init(config)
         isOpen = false
         inputBlocker.Visible = false
         pcall(function() controls:Enable() end)
-        UserInputService.MouseBehavior = prevMouseBehavior
-        UserInputService.MouseIconEnabled = prevMouseIconEnabled
+        pcall(function() UserInputService.MouseBehavior = prevMouseBehavior end)
+        pcall(function() UserInputService.MouseIconEnabled = prevMouseIconEnabled end)
     end
     
     RunService:BindToRenderStep(RS_BIND_INP, Enum.RenderPriority.Last.Value + 1, function()
         if not isOpen then return end
-        UserInputService.MouseBehavior = Enum.MouseBehavior.Default
-        UserInputService.MouseIconEnabled = true
+        if not win.Visible and not settingsPanel.Visible then
+            isOpen = false
+            return
+        end
+        pcall(function() UserInputService.MouseBehavior = Enum.MouseBehavior.Default end)
+        pcall(function() UserInputService.MouseIconEnabled = true end)
     end)
+
+    table.insert(conns, UserInputService.WindowFocusReleased:Connect(function()
+        if isOpen then
+            pcall(toggleMenu)
+        end
+    end))
     
     local C = {
         BG = Color3.fromRGB(8, 4, 18),
@@ -218,7 +228,7 @@ function MenuLib:Init(config)
         togBtn.Parent = track
         local state = initState
         local function apply(anim, silent)
-            -- Animate SIZE instead of transparency — knob and fill move together at exactly the same speed
+            -- Animate SIZE instead of transparency â€” knob and fill move together at exactly the same speed
             local fillDest = state and UDim2.new(1, 0, 1, 0) or UDim2.new(0, 0, 1, 0)
             local dest = state and UDim2.new(0, 23, 0.5, -9) or UDim2.new(0, 3, 0.5, -9)
             if anim then
@@ -1605,7 +1615,7 @@ function MenuLib:Init(config)
                         -- Add Friend button (only if not self and not already friend)
                         if player ~= lp then
                             if isFriend then
-                                local addedLbl = lbl(row, "✓ Friend", UDim2.new(0, 56, 0, 24), UDim2.new(1, -62, 0.5, -12), 10, C.GREEN, Enum.Font.GothamBold)
+                                local addedLbl = lbl(row, "âœ“ Friend", UDim2.new(0, 56, 0, 24), UDim2.new(1, -62, 0.5, -12), 10, C.GREEN, Enum.Font.GothamBold)
                                 addedLbl.TextXAlignment = Enum.TextXAlignment.Center
                             else
                                 local addBtn = Instance.new("TextButton")
@@ -1632,7 +1642,7 @@ function MenuLib:Init(config)
                                     SaveFriendsToFile()
                                     -- Flash confirmation
                                     tw(addBtn, {BackgroundColor3 = C.GREEN}, 0.1)
-                                    addBtn.Text = "✓"
+                                    addBtn.Text = "âœ“"
                                     task.delay(0.3, function()
                                         refreshPlayerList(playerSearchBox.Text)
                                         refreshFriendList(friendSearchBox.Text)
@@ -1825,16 +1835,16 @@ function MenuLib:Init(config)
             task.delay(0.15, function() if currentBlur then currentBlur:Destroy() if blurPart == currentBlur then blurPart = nil end end end)
         end
         if inSettings then
+            unlockInput()
             tw(settingsPanel, { Size = UDim2.new(0, 0, 0, 0), Position = UDim2.new(0.5, 0, 0.5, 0) }, 0.15)
             task.delay(0.15, function()
                 settingsPanel.Visible = false
-                unlockInput()
             end)
         else
+            unlockInput()
             tw(win, { Size = UDim2.new(0, 0, 0, 0), Position = UDim2.new(0.5, 0, 0.5, 0) }, 0.15)
             task.delay(0.15, function()
                 win.Visible = false
-                unlockInput()
             end)
         end
     end
@@ -2429,7 +2439,7 @@ function MenuLib:Init(config)
             closeButton.Position = UDim2.new(1, -30, 0.5, -12)
             closeButton.BackgroundColor3 = C.BTN
             closeButton.BackgroundTransparency = 0.15
-            closeButton.Text = "×"
+            closeButton.Text = "Ã—"
             closeButton.TextColor3 = C.SEC
             closeButton.TextSize = 18
             closeButton.Font = Enum.Font.GothamBold
@@ -2922,7 +2932,7 @@ function MenuLib:Init(config)
     end
     
     -- ============================================================
-    -- FIX 2+3+4: Dropdown — rolls DOWN, text centered, smooth anim
+    -- FIX 2+3+4: Dropdown â€” rolls DOWN, text centered, smooth anim
     -- ============================================================
     API.AddDropdown = function(tabName, label, options, callback, defaultIndex, side)
         local container, isPanel = getContainer(tabName, side)
@@ -3035,7 +3045,7 @@ function MenuLib:Init(config)
                 UDim2.new(0, dropX + 2, 0, dropY + 2), Color3.fromRGB(0, 0, 0), 0.7, 8)
             shadow.ZIndex = 998
             
-            -- Main dropdown frame — starts at height 0, grows DOWNWARD
+            -- Main dropdown frame â€” starts at height 0, grows DOWNWARD
             -- FIX: ClipsDescendants = true so contents are hidden until frame reveals them
             dropdownFrame = fr(sg, UDim2.new(0, DROP_W, 0, 0),
                 UDim2.new(0, dropX, 0, dropY), C.DARK, 0, 8)
@@ -3119,7 +3129,7 @@ function MenuLib:Init(config)
                 table.insert(optionButtons, optBtn)
             end
             
-            -- FIX: Animate DOWNWARD — top stays fixed, height grows to targetHeight
+            -- FIX: Animate DOWNWARD â€” top stays fixed, height grows to targetHeight
             tw(shadow, { Size = UDim2.new(0, DROP_W, 0, targetHeight) }, 0.25, Enum.EasingStyle.Quint)
             tw(dropdownFrame, { Size = UDim2.new(0, DROP_W, 0, targetHeight) }, 0.25, Enum.EasingStyle.Quint)
             
