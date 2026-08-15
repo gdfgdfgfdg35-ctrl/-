@@ -3633,8 +3633,8 @@ API.AddTab("Protections", ICON.protection, function(f)
         local loadBtn = makeBtn(leftPanel, "Load", 48, C.GREEN, Color3.fromRGB(35, 180, 75))
         local renameBtn = makeBtn(leftPanel, "Rename", 86, C.YELLOW, Color3.fromRGB(230, 160, 20))
         local deleteBtn = makeBtn(leftPanel, "Delete", 124, C.RED, Color3.fromRGB(190, 45, 45))
-        local importBtn = makeBtn(leftPanel, "Import from Clipboard", 162, C.BTN, C.BTNHOV)
-        local exportBtn = makeBtn(leftPanel, "Export to Clipboard", 200, C.BTN, C.BTNHOV)
+        local importBtn = makeBtn(leftPanel, "Import from Clipboard", 162, Color3.fromRGB(40, 100, 200), Color3.fromRGB(30, 70, 160))
+        local exportBtn = makeBtn(leftPanel, "Export to Clipboard", 200, Color3.fromRGB(180, 60, 200), Color3.fromRGB(140, 40, 170))
 
         local listTitle = lbl(rightPanel, "Saved Configs", UDim2.new(1, -16, 0, 20), UDim2.new(0, 10, 0, 8), 12, C.TEXT, Enum.Font.GothamBold)
 
@@ -3755,18 +3755,33 @@ API.AddTab("Protections", ICON.protection, function(f)
 
         local popupMode = "create"
         local renameOldName = nil
+        local deleteTargetName = nil
 
         local function showPopup(mode, title, defaultText)
             popupMode = mode
             popupTitle.Text = title
-            popupBox.Text = defaultText or ""
+            if mode == "delete" then
+                popupBox.Visible = false
+                popupTitle.Text = "Delete '" .. (defaultText or "?") .. "'?"
+                popupTitle.Size = UDim2.new(1, -20, 0, 48)
+                popupTitle.Position = UDim2.new(0, 10, 0, 20)
+                popupBtnRow.Position = UDim2.new(0, 10, 0, 76)
+            else
+                popupBox.Visible = true
+                popupTitle.Size = UDim2.new(1, -20, 0, 24)
+                popupTitle.Position = UDim2.new(0, 10, 0, 12)
+                popupBtnRow.Position = UDim2.new(0, 10, 0, 80)
+                popupBox.Text = defaultText or ""
+            end
             popupOverlay.Visible = true
             popupOverlay.BackgroundTransparency = 1
             popupFrame.Size = UDim2.new(0, 200, 0, 100)
             popupFrame.Position = UDim2.new(0.5, -100, 0.5, -50)
             tw(popupOverlay, {BackgroundTransparency = 0.6}, 0.2)
             tw(popupFrame, {Size = UDim2.new(0, 280, 0, 120), Position = UDim2.new(0.5, -140, 0.5, -60)}, 0.25, Enum.EasingStyle.Back)
-            task.delay(0.15, function() popupBox:CaptureFocus() end)
+            if mode ~= "delete" then
+                task.delay(0.15, function() popupBox:CaptureFocus() end)
+            end
         end
 
         local function hidePopup()
@@ -3795,17 +3810,24 @@ API.AddTab("Protections", ICON.protection, function(f)
                 local stripe = fr(row, UDim2.new(0, 4, 0.6, 0), UDim2.new(0, 0, 0.2, 0), C.ACCENT, 1, 2)
                 gradV(stripe, C.ACCENT, C.ACCENT2)
                 local isAutoLoad = (autoLoadName == name)
-                local autoBtn = Instance.new("TextButton")
-                autoBtn.Size = UDim2.new(0, 40, 0, 20)
-                autoBtn.Position = UDim2.new(1, -46, 0.5, -10)
-                autoBtn.BackgroundColor3 = isAutoLoad and C.GREEN or C.BTN
-                autoBtn.Text = isAutoLoad and "ON" or "OFF"
-                autoBtn.TextColor3 = C.TEXT
-                autoBtn.TextSize = 10
-                autoBtn.Font = Enum.Font.GothamBold
-                autoBtn.AutoButtonColor = false
-                autoBtn.Parent = row
-                Instance.new("UICorner", autoBtn).CornerRadius = UDim.new(0, 4)
+                local autoLbl = lbl(row, "Auto", UDim2.new(0, 30, 0, 14), UDim2.new(1, -82, 0.5, -7), 9, C.DIM, Enum.Font.Gotham)
+                autoLbl.TextXAlignment = Enum.TextXAlignment.Right
+                local autoBox = Instance.new("TextButton")
+                autoBox.Size = UDim2.new(0, 18, 0, 18)
+                autoBox.Position = UDim2.new(1, -48, 0.5, -9)
+                autoBox.BackgroundColor3 = isAutoLoad and C.GREEN or C.BTN
+                autoBox.Text = isAutoLoad and "X" or ""
+                autoBox.TextColor3 = C.TEXT
+                autoBox.TextSize = 14
+                autoBox.Font = Enum.Font.GothamBold
+                autoBox.AutoButtonColor = false
+                autoBox.Parent = row
+                Instance.new("UICorner", autoBox).CornerRadius = UDim.new(0, 4)
+                local autoStroke = Instance.new("UIStroke")
+                autoStroke.Color = isAutoLoad and C.GREEN or C.DIM
+                autoStroke.Thickness = 1.5
+                autoStroke.Transparency = isAutoLoad and 0.5 or 0.2
+                autoStroke.Parent = autoBox
                 local clickBtn = Instance.new("TextButton")
                 clickBtn.Size = UDim2.new(1, -50, 1, 0)
                 clickBtn.BackgroundTransparency = 1
@@ -3827,7 +3849,7 @@ API.AddTab("Protections", ICON.protection, function(f)
                     tw(stripe, {BackgroundTransparency = 0}, 0.25)
                 end
                 clickBtn.MouseButton1Click:Connect(selectThis)
-                autoBtn.MouseButton1Click:Connect(function()
+                autoBox.MouseButton1Click:Connect(function()
                     local current = GetAutoLoadConfig()
                     if current == name then
                         SetAutoLoadConfig(nil)
@@ -3850,6 +3872,20 @@ API.AddTab("Protections", ICON.protection, function(f)
         end
 
         local function confirmPopup()
+            if popupMode == "delete" then
+                if deleteTargetName and _G._ConfigList then
+                    _G._ConfigList[deleteTargetName] = nil
+                    SaveConfigsToFile()
+                    local autoLoadName = GetAutoLoadConfig()
+                    if autoLoadName == deleteTargetName then SetAutoLoadConfig(nil) end
+                    deleteTargetName = nil
+                    selectedConfig = nil
+                    selectedRow = nil
+                    RefreshConfigList()
+                end
+                hidePopup()
+                return
+            end
             local name = popupBox.Text:gsub("^%s+", ""):gsub("%s+$", "")
             if name == "" then hidePopup() return end
             if not _G._ConfigList then _G._ConfigList = {} end
@@ -3901,17 +3937,17 @@ API.AddTab("Protections", ICON.protection, function(f)
 
         deleteBtn.MouseButton1Click:Connect(function()
             if selectedConfig and _G._ConfigList then
-                _G._ConfigList[selectedConfig] = nil
-                SaveConfigsToFile()
-                local autoLoadName = GetAutoLoadConfig()
-                if autoLoadName == selectedConfig then SetAutoLoadConfig(nil) end
-                selectedConfig = nil
-                selectedRow = nil
-                RefreshConfigList()
+                deleteTargetName = selectedConfig
+                showPopup("delete", "Delete Config", selectedConfig)
             end
         end)
 
-        popupConfirm.MouseButton1Click:Connect(confirmPopup)
+        popupConfirm.MouseButton1Click:Connect(function()
+            if popupMode == "delete" then
+                popupConfirm.BackgroundColor3 = C.RED
+            end
+            confirmPopup()
+        end)
         popupCancel.MouseButton1Click:Connect(hidePopup)
         popupBox.FocusLost:Connect(function(enter)
             if enter then confirmPopup() end
