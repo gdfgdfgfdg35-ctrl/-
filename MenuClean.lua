@@ -3869,21 +3869,28 @@ API.AddTab("Protections", ICON.protection, function(f)
                         SetAutoLoadConfig(nil)
                     end
                     local animTime = 0.25
+                    local ease = Enum.EasingStyle.Quad
                     if turningOn then
                         autoBox.Text = "X"
                         autoBox.TextTransparency = 1
-                        tw(autoBox, {BackgroundColor3 = C.GREEN}, animTime, Enum.EasingStyle.Quad)
-                        tw(autoStroke, {Color = C.GREEN, Transparency = 0.3}, animTime, Enum.EasingStyle.Quad)
-                        tw(autoLbl, {TextColor3 = C.GREEN}, animTime, Enum.EasingStyle.Quad)
-                        tw(autoBox, {TextTransparency = 0}, animTime, Enum.EasingStyle.Quad)
+                        local bgTween = TweenService:Create(autoBox, TweenInfo.new(animTime, ease), {BackgroundColor3 = C.GREEN, TextTransparency = 0})
+                        local strokeTween = TweenService:Create(autoStroke, TweenInfo.new(animTime, ease), {Color = C.GREEN, Transparency = 0.3})
+                        local lblTween = TweenService:Create(autoLbl, TweenInfo.new(animTime, ease), {TextColor3 = C.GREEN})
+                        bgTween:Play()
+                        strokeTween:Play()
+                        lblTween:Play()
                     else
-                        tw(autoBox, {BackgroundColor3 = C.BTN}, animTime, Enum.EasingStyle.Quad)
-                        tw(autoStroke, {Color = C.DIM, Transparency = 0.1}, animTime, Enum.EasingStyle.Quad)
-                        tw(autoLbl, {TextColor3 = C.DIM}, animTime, Enum.EasingStyle.Quad)
-                        tw(autoBox, {TextTransparency = 1}, animTime, Enum.EasingStyle.Quad)
-                        task.delay(animTime, function() autoBox.Text = "" end)
+                        local bgTween = TweenService:Create(autoBox, TweenInfo.new(animTime, ease), {BackgroundColor3 = C.BTN, TextTransparency = 1})
+                        local strokeTween = TweenService:Create(autoStroke, TweenInfo.new(animTime, ease), {Color = C.DIM, Transparency = 0.1})
+                        local lblTween = TweenService:Create(autoLbl, TweenInfo.new(animTime, ease), {TextColor3 = C.DIM})
+                        bgTween.Completed:Connect(function()
+                            autoBox.Text = ""
+                            RefreshConfigList()
+                        end)
+                        bgTween:Play()
+                        strokeTween:Play()
+                        lblTween:Play()
                     end
-                    task.delay(animTime + 0.05, function() RefreshConfigList() end)
                 end)
                 clickBtn.MouseEnter:Connect(function()
                     if selectedConfig ~= name then
