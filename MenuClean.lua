@@ -3744,14 +3744,19 @@ API.AddTab("Protections", ICON.protection, function(f)
         local popupCancel = Instance.new("TextButton")
         popupCancel.Size = UDim2.new(0.48, 0, 1, 0)
         popupCancel.Position = UDim2.new(0.52, 0, 0, 0)
-        popupCancel.BackgroundColor3 = C.RED
+        popupCancel.BackgroundColor3 = C.BTN
         popupCancel.Text = "Cancel"
-        popupCancel.TextColor3 = C.TEXT
+        popupCancel.TextColor3 = C.DIM
         popupCancel.TextSize = 12
         popupCancel.Font = Enum.Font.GothamBold
         popupCancel.Parent = popupBtnRow
         popupCancel.ZIndex = 103
         Instance.new("UICorner", popupCancel).CornerRadius = UDim.new(0, 6)
+        local cancelStroke = Instance.new("UIStroke")
+        cancelStroke.Color = C.DIM
+        cancelStroke.Thickness = 1
+        cancelStroke.Transparency = 0.5
+        cancelStroke.Parent = popupCancel
 
         local popupMode = "create"
         local renameOldName = nil
@@ -3766,12 +3771,16 @@ API.AddTab("Protections", ICON.protection, function(f)
                 popupTitle.Size = UDim2.new(1, -20, 0, 48)
                 popupTitle.Position = UDim2.new(0, 10, 0, 20)
                 popupBtnRow.Position = UDim2.new(0, 10, 0, 76)
+                popupConfirm.BackgroundColor3 = C.RED
+                popupConfirm.Text = "Delete"
             else
                 popupBox.Visible = true
                 popupTitle.Size = UDim2.new(1, -20, 0, 24)
                 popupTitle.Position = UDim2.new(0, 10, 0, 12)
                 popupBtnRow.Position = UDim2.new(0, 10, 0, 80)
                 popupBox.Text = defaultText or ""
+                popupConfirm.BackgroundColor3 = C.GREEN
+                popupConfirm.Text = "OK"
             end
             popupOverlay.Visible = true
             popupOverlay.BackgroundTransparency = 1
@@ -3810,11 +3819,13 @@ API.AddTab("Protections", ICON.protection, function(f)
                 local stripe = fr(row, UDim2.new(0, 4, 0.6, 0), UDim2.new(0, 0, 0.2, 0), C.ACCENT, 1, 2)
                 gradV(stripe, C.ACCENT, C.ACCENT2)
                 local isAutoLoad = (autoLoadName == name)
-                local autoLbl = lbl(row, "Auto", UDim2.new(0, 30, 0, 14), UDim2.new(1, -82, 0.5, -7), 9, C.DIM, Enum.Font.Gotham)
+                local autoLbl = lbl(row, "Auto-Load", UDim2.new(0, 60, 0, 16), UDim2.new(1, -88, 0.5, -8), 10, isAutoLoad and C.GREEN or C.DIM, Enum.Font.GothamBold)
                 autoLbl.TextXAlignment = Enum.TextXAlignment.Right
+                autoLbl.Name = "AutoLoadLabel"
                 local autoBox = Instance.new("TextButton")
-                autoBox.Size = UDim2.new(0, 18, 0, 18)
-                autoBox.Position = UDim2.new(1, -48, 0.5, -9)
+                autoBox.Size = UDim2.new(0, 20, 0, 20)
+                autoBox.Position = UDim2.new(1, -26, 0.5, -10)
+                autoBox.Name = "AutoLoadBox"
                 autoBox.BackgroundColor3 = isAutoLoad and C.GREEN or C.BTN
                 autoBox.Text = isAutoLoad and "X" or ""
                 autoBox.TextColor3 = C.TEXT
@@ -3825,8 +3836,8 @@ API.AddTab("Protections", ICON.protection, function(f)
                 Instance.new("UICorner", autoBox).CornerRadius = UDim.new(0, 4)
                 local autoStroke = Instance.new("UIStroke")
                 autoStroke.Color = isAutoLoad and C.GREEN or C.DIM
-                autoStroke.Thickness = 1.5
-                autoStroke.Transparency = isAutoLoad and 0.5 or 0.2
+                autoStroke.Thickness = 2
+                autoStroke.Transparency = isAutoLoad and 0.3 or 0.1
                 autoStroke.Parent = autoBox
                 local clickBtn = Instance.new("TextButton")
                 clickBtn.Size = UDim2.new(1, -50, 1, 0)
@@ -3851,12 +3862,24 @@ API.AddTab("Protections", ICON.protection, function(f)
                 clickBtn.MouseButton1Click:Connect(selectThis)
                 autoBox.MouseButton1Click:Connect(function()
                     local current = GetAutoLoadConfig()
-                    if current == name then
-                        SetAutoLoadConfig(nil)
-                    else
+                    local turningOn = (current ~= name)
+                    if turningOn then
                         SetAutoLoadConfig(name)
+                    else
+                        SetAutoLoadConfig(nil)
                     end
-                    RefreshConfigList()
+                    if turningOn then
+                        autoBox.Text = "X"
+                        tw(autoBox, {BackgroundColor3 = C.GREEN}, 0.2)
+                        tw(autoStroke, {Color = C.GREEN, Transparency = 0.3}, 0.2)
+                        tw(autoLbl, {TextColor3 = C.GREEN}, 0.2)
+                    else
+                        tw(autoBox, {BackgroundColor3 = C.BTN}, 0.2)
+                        tw(autoStroke, {Color = C.DIM, Transparency = 0.1}, 0.2)
+                        tw(autoLbl, {TextColor3 = C.DIM}, 0.2)
+                        task.delay(0.15, function() autoBox.Text = "" end)
+                    end
+                    task.delay(0.25, function() RefreshConfigList() end)
                 end)
                 clickBtn.MouseEnter:Connect(function()
                     if selectedConfig ~= name then
@@ -3942,12 +3965,7 @@ API.AddTab("Protections", ICON.protection, function(f)
             end
         end)
 
-        popupConfirm.MouseButton1Click:Connect(function()
-            if popupMode == "delete" then
-                popupConfirm.BackgroundColor3 = C.RED
-            end
-            confirmPopup()
-        end)
+        popupConfirm.MouseButton1Click:Connect(confirmPopup)
         popupCancel.MouseButton1Click:Connect(hidePopup)
         popupBox.FocusLost:Connect(function(enter)
             if enter then confirmPopup() end
