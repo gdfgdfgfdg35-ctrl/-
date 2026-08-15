@@ -375,11 +375,13 @@ function MenuLib:Init(config)
     mainLayer.ZIndex = 2
     
     local dragHandle = Instance.new("TextButton")
-    dragHandle.Size = UDim2.new(1, 0, 0, 12)
+    dragHandle.Size = UDim2.new(1, 0, 0, 36)
     dragHandle.Position = UDim2.new(0, 0, 0, 0)
     dragHandle.BackgroundTransparency = 1
     dragHandle.Text = ""
     dragHandle.ZIndex = 30
+    dragHandle.Active = true
+    dragHandle.AutoButtonColor = false
     dragHandle.Parent = mainLayer
     
     local bodyShell = fr(mainLayer, UDim2.new(1, 0, 1, -12), UDim2.new(0, 0, 0, 12), C.BG, 1, 0)
@@ -718,11 +720,13 @@ function MenuLib:Init(config)
     settingsMainLayer.ZIndex = 2
     
     local settingsDrag = Instance.new("TextButton")
-    settingsDrag.Size = UDim2.new(1, 0, 0, 12)
+    settingsDrag.Size = UDim2.new(1, 0, 0, 36)
     settingsDrag.Position = UDim2.new(0, 0, 0, 0)
     settingsDrag.BackgroundTransparency = 1
     settingsDrag.Text = ""
     settingsDrag.ZIndex = 50
+    settingsDrag.Active = true
+    settingsDrag.AutoButtonColor = false
     settingsDrag.Parent = settingsMainLayer
     
     local settingsBodyShell = fr(settingsMainLayer, UDim2.new(1, 0, 1, -12), UDim2.new(0, 0, 0, 12), C.BG, 1, 0)
@@ -1935,6 +1939,11 @@ function MenuLib:Init(config)
     local winOrig = UDim2.new()
     local settingsOrig = UDim2.new()
     local dragTarget = nil
+    local guiInset = Vector2.new(0, 0)
+    pcall(function()
+        local gi = game:GetService("GuiService"):GetGuiInset()
+        guiInset = Vector2.new(gi.X, gi.Y)
+    end)
     
     dragHandle.InputBegan:Connect(function(inp)
         if inp.UserInputType == Enum.UserInputType.MouseButton1 then
@@ -1975,6 +1984,21 @@ function MenuLib:Init(config)
             dragTarget = nil
         end
     end)
+    
+    table.insert(conns, UserInputService.InputChanged:Connect(function(inp)
+        if inp.UserInputType == Enum.UserInputType.MouseMovement and dragging and dragTarget then
+            local mp = UserInputService:GetMouseLocation()
+            if dragTarget == "settings" and settingsPanel then
+                pcall(function()
+                    settingsPanel.Position = UDim2.new(0, settingsOrig.X.Offset + (mp.X - dragOrig.X), 0, settingsOrig.Y.Offset + (mp.Y - dragOrig.Y))
+                end)
+            elseif dragTarget == "main" and win then
+                pcall(function()
+                    win.Position = UDim2.new(0, winOrig.X.Offset + (mp.X - dragOrig.X), 0, winOrig.Y.Offset + (mp.Y - dragOrig.Y))
+                end)
+            end
+        end
+    end))
     
     -- HUD Layout
     local function updateHudLayout(animate)
@@ -2088,14 +2112,6 @@ function MenuLib:Init(config)
             Lighting.ClockTime = 0
         end
 
-        if dragging and dragTarget then
-            local mp = UserInputService:GetMouseLocation()
-            if dragTarget == "settings" and settingsPanel then
-                pcall(function() settingsPanel.Position = UDim2.new(0, settingsOrig.X.Offset + (mp.X - dragOrig.X), 0, settingsOrig.Y.Offset + (mp.Y - dragOrig.Y)) end)
-            elseif dragTarget == "main" and win then
-                pcall(function() win.Position = UDim2.new(0, winOrig.X.Offset + (mp.X - dragOrig.X), 0, winOrig.Y.Offset + (mp.Y - dragOrig.Y)) end)
-            end
-        end
     end))
     
     -- Input Handler
@@ -3821,12 +3837,15 @@ API.AddTab("Protections", ICON.protection, function(f)
                 local isAutoLoad = (autoLoadName == name)
                 local autoLbl = lbl(row, "Auto-Load", UDim2.new(0, 60, 0, 16), UDim2.new(1, -88, 0.5, -8), 10, isAutoLoad and C.GREEN or C.DIM, Enum.Font.GothamBold)
                 autoLbl.TextXAlignment = Enum.TextXAlignment.Right
-                local autoBox = Instance.new("Frame")
+                local autoBox = Instance.new("TextButton")
                 autoBox.Size = UDim2.new(0, 20, 0, 20)
                 autoBox.Position = UDim2.new(1, -26, 0.5, -10)
-                autoBox.BackgroundColor3 = C.BTN
-                autoBox.BorderSizePixel = 0
-                autoBox.ClipsDescendants = true
+                autoBox.BackgroundColor3 = isAutoLoad and C.GREEN or C.BTN
+                autoBox.Text = isAutoLoad and "X" or ""
+                autoBox.TextColor3 = C.TEXT
+                autoBox.TextSize = 14
+                autoBox.Font = Enum.Font.GothamBold
+                autoBox.AutoButtonColor = false
                 autoBox.Parent = row
                 Instance.new("UICorner", autoBox).CornerRadius = UDim.new(0, 4)
                 local autoStroke = Instance.new("UIStroke")
@@ -3834,29 +3853,6 @@ API.AddTab("Protections", ICON.protection, function(f)
                 autoStroke.Thickness = 2
                 autoStroke.Transparency = 0.1
                 autoStroke.Parent = autoBox
-                local autoFill = Instance.new("Frame")
-                autoFill.Size = isAutoLoad and UDim2.new(1, 0, 1, 0) or UDim2.new(0, 0, 0, 0)
-                autoFill.Position = UDim2.new(0.5, 0, 0.5, 0)
-                autoFill.AnchorPoint = Vector2.new(0.5, 0.5)
-                autoFill.BackgroundColor3 = C.GREEN
-                autoFill.BorderSizePixel = 0
-                autoFill.Parent = autoBox
-                Instance.new("UICorner", autoFill).CornerRadius = UDim.new(0, 4)
-                local autoCheck = Instance.new("TextLabel")
-                autoCheck.Size = UDim2.new(1, 0, 1, 0)
-                autoCheck.BackgroundTransparency = 1
-                autoCheck.Text = "\226\156\147"
-                autoCheck.TextColor3 = C.TEXT
-                autoCheck.TextSize = 13
-                autoCheck.Font = Enum.Font.GothamBold
-                autoCheck.Parent = autoFill
-                local autoBtn = Instance.new("TextButton")
-                autoBtn.Size = UDim2.new(0, 24, 0, 24)
-                autoBtn.Position = UDim2.new(1, -28, 0.5, -12)
-                autoBtn.BackgroundTransparency = 1
-                autoBtn.Text = ""
-                autoBtn.AutoButtonColor = false
-                autoBtn.Parent = row
                 local clickBtn = Instance.new("TextButton")
                 clickBtn.Size = UDim2.new(1, -95, 1, 0)
                 clickBtn.BackgroundTransparency = 1
@@ -3878,7 +3874,7 @@ API.AddTab("Protections", ICON.protection, function(f)
                     tw(stripe, {BackgroundTransparency = 0}, 0.25)
                 end
                 clickBtn.MouseButton1Click:Connect(selectThis)
-                autoBtn.MouseButton1Click:Connect(function()
+                autoBox.MouseButton1Click:Connect(function()
                     local current = GetAutoLoadConfig()
                     local turningOn = (current ~= name)
                     if turningOn then
@@ -3886,14 +3882,11 @@ API.AddTab("Protections", ICON.protection, function(f)
                     else
                         SetAutoLoadConfig(nil)
                     end
-                    local ti = TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
-                    local fillTarget = turningOn and UDim2.new(1, 0, 1, 0) or UDim2.new(0, 0, 0, 0)
-                    local strokeTarget = turningOn and C.GREEN or C.DIM
-                    local lblTarget = turningOn and C.GREEN or C.DIM
-                    TweenService:Create(autoFill, ti, {Size = fillTarget}):Play()
-                    TweenService:Create(autoStroke, ti, {Color = strokeTarget}):Play()
-                    TweenService:Create(autoLbl, ti, {TextColor3 = lblTarget}):Play()
-                    task.delay(0.25, function() RefreshConfigList() end)
+                    autoBox.Text = turningOn and "X" or ""
+                    tw(autoBox, {BackgroundColor3 = turningOn and C.GREEN or C.BTN}, 0.15)
+                    tw(autoStroke, {Color = turningOn and C.GREEN or C.DIM}, 0.15)
+                    tw(autoLbl, {TextColor3 = turningOn and C.GREEN or C.DIM}, 0.15)
+                    task.delay(0.2, function() RefreshConfigList() end)
                 end)
                 clickBtn.MouseEnter:Connect(function()
                     if selectedConfig ~= name then
@@ -4174,40 +4167,55 @@ API.AddTab("Protections", ICON.protection, function(f)
     
     -- Window Resizer Grip
     local resizer = Instance.new("TextButton")
-    resizer.Size = UDim2.new(0, 20, 0, 20)
-    resizer.Position = UDim2.new(1, -20, 1, -20)
+    resizer.Size = UDim2.new(0, 24, 0, 24)
+    resizer.Position = UDim2.new(1, -24, 1, -24)
     resizer.BackgroundTransparency = 1
     resizer.Text = ""
     resizer.ZIndex = 50
+    resizer.Active = true
+    resizer.AutoButtonColor = false
     resizer.Parent = win
     
     local settingsResizer = Instance.new("TextButton")
-    settingsResizer.Size = UDim2.new(0, 20, 0, 20)
-    settingsResizer.Position = UDim2.new(1, -20, 1, -20)
+    settingsResizer.Size = UDim2.new(0, 24, 0, 24)
+    settingsResizer.Position = UDim2.new(1, -24, 1, -24)
     settingsResizer.BackgroundTransparency = 1
     settingsResizer.Text = ""
     settingsResizer.ZIndex = 50
+    settingsResizer.Active = true
+    settingsResizer.AutoButtonColor = false
     settingsResizer.Parent = settingsPanel
     
     local isResizing = false
+    local resizeTarget = nil
     local resizeStartMouse = nil
     local resizeStartW = 0
     local resizeStartH = 0
+    local resizeStartPos = UDim2.new()
     
-    local function beginResize(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            isResizing = true
-            resizeStartMouse = UserInputService:GetMouseLocation()
-            resizeStartW = WIN_W
-            resizeStartH = WIN_H
+    local function beginResize(target)
+        return function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                isResizing = true
+                resizeTarget = target
+                resizeStartMouse = UserInputService:GetMouseLocation()
+                resizeStartW = WIN_W
+                resizeStartH = WIN_H
+                if target == "main" and win then
+                    resizeStartPos = win.Position
+                elseif target == "settings" and settingsPanel then
+                    resizeStartPos = settingsPanel.Position
+                end
+            end
         end
     end
-    resizer.InputBegan:Connect(beginResize)
-    settingsResizer.InputBegan:Connect(beginResize)
+    resizer.InputBegan:Connect(beginResize("main"))
+    settingsResizer.InputBegan:Connect(beginResize("settings"))
 
     table.insert(conns, UserInputService.InputEnded:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 then
             isResizing = false
+            resizeTarget = nil
         end
     end))
 
@@ -4215,14 +4223,15 @@ API.AddTab("Protections", ICON.protection, function(f)
         if input.UserInputType == Enum.UserInputType.MouseMovement and isResizing then
             local currMouse = UserInputService:GetMouseLocation()
             local delta = currMouse - resizeStartMouse
-            WIN_W = math.max(600, resizeStartW + delta.X * 2)
-            WIN_H = math.max(380, resizeStartH + delta.Y * 2)
-            
-            win.Size = UDim2.new(0, WIN_W, 0, WIN_H)
-            win.Position = UDim2.new(0.5, -WIN_W / 2, 0.5, -WIN_H / 2)
-            settingsPanel.Size = UDim2.new(0, WIN_W, 0, WIN_H)
-            settingsPanel.Position = UDim2.new(0.5, -WIN_W / 2, 0.5, -WIN_H / 2)
-            
+            local newW = math.max(600, resizeStartW + delta.X)
+            local newH = math.max(380, resizeStartH + delta.Y)
+            WIN_W = newW
+            WIN_H = newH
+            if resizeTarget == "main" and win then
+                win.Size = UDim2.new(0, newW, 0, newH)
+            elseif resizeTarget == "settings" and settingsPanel then
+                settingsPanel.Size = UDim2.new(0, newW, 0, newH)
+            end
             setSidebarWidth(SIDE_W, false)
         end
     end))
