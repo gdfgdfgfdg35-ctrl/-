@@ -3821,39 +3821,44 @@ API.AddTab("Protections", ICON.protection, function(f)
                 local isAutoLoad = (autoLoadName == name)
                 local autoLbl = lbl(row, "Auto-Load", UDim2.new(0, 60, 0, 16), UDim2.new(1, -88, 0.5, -8), 10, isAutoLoad and C.GREEN or C.DIM, Enum.Font.GothamBold)
                 autoLbl.TextXAlignment = Enum.TextXAlignment.Right
-                autoLbl.Name = "AutoLoadLabel"
                 local autoBox = Instance.new("Frame")
                 autoBox.Size = UDim2.new(0, 20, 0, 20)
                 autoBox.Position = UDim2.new(1, -26, 0.5, -10)
-                autoBox.Name = "AutoLoadBox"
-                autoBox.BackgroundColor3 = isAutoLoad and C.GREEN or C.BTN
+                autoBox.BackgroundColor3 = C.BTN
                 autoBox.BorderSizePixel = 0
+                autoBox.ClipsDescendants = true
                 autoBox.Parent = row
                 Instance.new("UICorner", autoBox).CornerRadius = UDim.new(0, 4)
                 local autoStroke = Instance.new("UIStroke")
                 autoStroke.Color = isAutoLoad and C.GREEN or C.DIM
                 autoStroke.Thickness = 2
-                autoStroke.Transparency = isAutoLoad and 0.3 or 0.1
+                autoStroke.Transparency = 0.1
                 autoStroke.Parent = autoBox
+                local autoFill = Instance.new("Frame")
+                autoFill.Size = isAutoLoad and UDim2.new(1, 0, 1, 0) or UDim2.new(0, 0, 0, 0)
+                autoFill.Position = UDim2.new(0.5, 0, 0.5, 0)
+                autoFill.AnchorPoint = Vector2.new(0.5, 0.5)
+                autoFill.BackgroundColor3 = C.GREEN
+                autoFill.BorderSizePixel = 0
+                autoFill.Parent = autoBox
+                Instance.new("UICorner", autoFill).CornerRadius = UDim.new(0, 4)
                 local autoCheck = Instance.new("TextLabel")
                 autoCheck.Size = UDim2.new(1, 0, 1, 0)
-                autoCheck.Position = UDim2.new(0, 0, 0, 0)
                 autoCheck.BackgroundTransparency = 1
-                autoCheck.Text = "X"
+                autoCheck.Text = "\226\156\147"
                 autoCheck.TextColor3 = C.TEXT
-                autoCheck.TextSize = 14
+                autoCheck.TextSize = 13
                 autoCheck.Font = Enum.Font.GothamBold
-                autoCheck.TextTransparency = isAutoLoad and 0 or 1
-                autoCheck.Parent = autoBox
+                autoCheck.Parent = autoFill
                 local autoBtn = Instance.new("TextButton")
-                autoBtn.Size = UDim2.new(0, 20, 0, 20)
-                autoBtn.Position = UDim2.new(1, -26, 0.5, -10)
+                autoBtn.Size = UDim2.new(0, 24, 0, 24)
+                autoBtn.Position = UDim2.new(1, -28, 0.5, -12)
                 autoBtn.BackgroundTransparency = 1
                 autoBtn.Text = ""
                 autoBtn.AutoButtonColor = false
                 autoBtn.Parent = row
                 local clickBtn = Instance.new("TextButton")
-                clickBtn.Size = UDim2.new(1, -90, 1, 0)
+                clickBtn.Size = UDim2.new(1, -95, 1, 0)
                 clickBtn.BackgroundTransparency = 1
                 clickBtn.Text = ""
                 clickBtn.Parent = row
@@ -3881,21 +3886,14 @@ API.AddTab("Protections", ICON.protection, function(f)
                     else
                         SetAutoLoadConfig(nil)
                     end
-                    local ti = TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-                    local targetBG = turningOn and C.GREEN or C.BTN
-                    local targetStrokeColor = turningOn and C.GREEN or C.DIM
-                    local targetStrokeTrans = turningOn and 0.3 or 0.1
-                    local targetLblColor = turningOn and C.GREEN or C.DIM
-                    local targetCheckTrans = turningOn and 0 or 1
-                    local t1 = TweenService:Create(autoBox, ti, {BackgroundColor3 = targetBG})
-                    local t2 = TweenService:Create(autoStroke, ti, {Color = targetStrokeColor, Transparency = targetStrokeTrans})
-                    local t3 = TweenService:Create(autoLbl, ti, {TextColor3 = targetLblColor})
-                    local t4 = TweenService:Create(autoCheck, ti, {TextTransparency = targetCheckTrans})
-                    t1:Play()
-                    t2:Play()
-                    t3:Play()
-                    t4:Play()
-                    task.delay(0.3, function() RefreshConfigList() end)
+                    local ti = TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+                    local fillTarget = turningOn and UDim2.new(1, 0, 1, 0) or UDim2.new(0, 0, 0, 0)
+                    local strokeTarget = turningOn and C.GREEN or C.DIM
+                    local lblTarget = turningOn and C.GREEN or C.DIM
+                    TweenService:Create(autoFill, ti, {Size = fillTarget}):Play()
+                    TweenService:Create(autoStroke, ti, {Color = strokeTarget}):Play()
+                    TweenService:Create(autoLbl, ti, {TextColor3 = lblTarget}):Play()
+                    task.delay(0.25, function() RefreshConfigList() end)
                 end)
                 clickBtn.MouseEnter:Connect(function()
                     if selectedConfig ~= name then
