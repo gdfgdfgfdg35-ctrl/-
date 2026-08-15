@@ -90,25 +90,34 @@ function MenuLib:Init(config)
     end)
     
     local function lockInput()
-        prevMouseBehavior = UserInputService.MouseBehavior
-        prevMouseIconEnabled = UserInputService.MouseIconEnabled
+        pcall(function() prevMouseBehavior = UserInputService.MouseBehavior end)
+        pcall(function() prevMouseIconEnabled = UserInputService.MouseIconEnabled end)
         isOpen = true
-        inputBlocker.Visible = true
+        if inputBlocker then inputBlocker.Visible = true end
         pcall(function() controls:Disable() end)
-        UserInputService.MouseBehavior = Enum.MouseBehavior.Default
-        UserInputService.MouseIconEnabled = true
+        pcall(function() UserInputService.MouseBehavior = Enum.MouseBehavior.Default end)
+        pcall(function() UserInputService.MouseIconEnabled = true end)
     end
     
     local function unlockInput()
         isOpen = false
-        inputBlocker.Visible = false
+        if inputBlocker then pcall(function() inputBlocker.Visible = false end) end
         pcall(function() controls:Enable() end)
         pcall(function() UserInputService.MouseBehavior = prevMouseBehavior end)
         pcall(function() UserInputService.MouseIconEnabled = prevMouseIconEnabled end)
+        pcall(function()
+            local lp = game:GetService("Players").LocalPlayer
+            if lp then
+                local PM = lp:WaitForChild("PlayerScripts"):WaitForChild("PlayerModule")
+                local ctrl = PM:GetControls()
+                ctrl:Enable()
+            end
+        end)
     end
     
     RunService:BindToRenderStep(RS_BIND_INP, Enum.RenderPriority.Last.Value + 1, function()
         if not isOpen then return end
+        if not win or not settingsPanel then return end
         if not win.Visible and not settingsPanel.Visible then
             isOpen = false
             return
@@ -2088,9 +2097,20 @@ function MenuLib:Init(config)
 
             -- Restore input state
             isOpen = false
+            if inputBlocker then pcall(function() inputBlocker.Visible = false end) end
             pcall(function() controls:Enable() end)
-            UserInputService.MouseBehavior = prevMouseBehavior
-            UserInputService.MouseIconEnabled = prevMouseIconEnabled
+            pcall(function() UserInputService.MouseBehavior = prevMouseBehavior end)
+            pcall(function() UserInputService.MouseIconEnabled = prevMouseIconEnabled end)
+            pcall(function() UserInputService.MouseBehavior = Enum.MouseBehavior.Default end)
+            pcall(function() UserInputService.MouseIconEnabled = false end)
+            pcall(function()
+                local lp = game:GetService("Players").LocalPlayer
+                if lp then
+                    local PM = lp:WaitForChild("PlayerScripts"):WaitForChild("PlayerModule")
+                    local ctrl = PM:GetControls()
+                    ctrl:Enable()
+                end
+            end)
 
             -- Restore lighting
             if _G._OriginalBrightness then
