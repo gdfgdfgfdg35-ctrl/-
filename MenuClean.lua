@@ -116,12 +116,6 @@ function MenuLib:Init(config)
         pcall(function() UserInputService.MouseBehavior = Enum.MouseBehavior.Default end)
         pcall(function() UserInputService.MouseIconEnabled = true end)
     end)
-
-    table.insert(conns, UserInputService.WindowFocusReleased:Connect(function()
-        if isOpen then
-            pcall(toggleMenu)
-        end
-    end))
     
     local C = {
         BG = Color3.fromRGB(8, 4, 18),
@@ -250,6 +244,11 @@ function MenuLib:Init(config)
     
     -- Connection tracking for cleanup
     local conns = {}
+    table.insert(conns, UserInputService.WindowFocusReleased:Connect(function()
+        if isOpen then
+            pcall(toggleMenu)
+        end
+    end))
     local unloaded = false
     -- Cleaned up old global mouse var
 
