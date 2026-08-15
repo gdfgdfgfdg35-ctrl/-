@@ -85,8 +85,17 @@ function MenuLib:Init(config)
     inputBlocker.Parent = sg
     
     pcall(function()
-        local PM = require(lp:WaitForChild("PlayerScripts"):WaitForChild("PlayerModule"))
-        controls = PM:GetControls()
+        local ps = lp:FindFirstChild("PlayerScripts")
+        if ps then
+            local pm = ps:FindFirstChild("PlayerModule")
+            if pm then
+                local okPM, PM = pcall(function() return require(pm) end)
+                if okPM and PM and PM.GetControls then
+                    local okCtrl, ctrl = pcall(PM.GetControls, PM)
+                    if okCtrl and ctrl then controls = ctrl end
+                end
+            end
+        end
     end)
     
     local function lockInput()
@@ -108,9 +117,17 @@ function MenuLib:Init(config)
         pcall(function()
             local lp = game:GetService("Players").LocalPlayer
             if lp then
-                local PM = lp:WaitForChild("PlayerScripts"):WaitForChild("PlayerModule")
-                local ctrl = PM:GetControls()
-                ctrl:Enable()
+                local ps = lp:FindFirstChild("PlayerScripts")
+                if ps then
+                    local pm = ps:FindFirstChild("PlayerModule")
+                    if pm then
+                        local okPM, PM = pcall(function() return require(pm) end)
+                        if okPM and PM and PM.GetControls then
+                            local okCtrl, ctrl = pcall(PM.GetControls, PM)
+                            if okCtrl and ctrl then pcall(ctrl.Enable, ctrl) end
+                        end
+                    end
+                end
             end
         end)
     end
@@ -1728,8 +1745,20 @@ function MenuLib:Init(config)
             keyBtn.BackgroundColor3 = C.ACCENT
             _G._SettingKeybind = true
             local conn
+            local timeoutConn
+            local function cleanup()
+                if conn then pcall(function() conn:Disconnect() end) end
+                if timeoutConn then pcall(function() timeoutConn:Disconnect() end) end
+                _G._SettingKeybind = false
+            end
             conn = UserInputService.InputBegan:Connect(function(inp, gpe)
                 if gpe then return end
+                if inp.KeyCode == Enum.KeyCode.Escape then
+                    cleanup()
+                    keyBtn.Text = keyText
+                    keyBtn.BackgroundColor3 = C.SEL
+                    return
+                end
                 local selectedKey = nil
                 local displayText = ""
                 if inp.KeyCode and inp.KeyCode ~= Enum.KeyCode.Unknown then
@@ -1740,22 +1769,16 @@ function MenuLib:Init(config)
                     displayText = inp.UserInputType.Name:gsub("MouseButton", "MB")
                 end
                 if selectedKey then
-                    conn:Disconnect()
+                    cleanup()
                     keyBtn.Text = displayText
                     keyBtn.BackgroundColor3 = C.SEL
                     onChange(selectedKey)
-                    task.defer(function()
-                        _G._SettingKeybind = false
-                    end)
                 end
             end)
-            task.delay(5, function()
-                if conn.Connected then
-                    conn:Disconnect()
-                    _G._SettingKeybind = false
-                    keyBtn.Text = keyText
-                    keyBtn.BackgroundColor3 = C.SEL
-                end
+            timeoutConn = task.delay(5, function()
+                cleanup()
+                keyBtn.Text = keyText
+                keyBtn.BackgroundColor3 = C.SEL
             end)
         end)
     end
@@ -2106,9 +2129,17 @@ function MenuLib:Init(config)
             pcall(function()
                 local lp = game:GetService("Players").LocalPlayer
                 if lp then
-                    local PM = lp:WaitForChild("PlayerScripts"):WaitForChild("PlayerModule")
-                    local ctrl = PM:GetControls()
-                    ctrl:Enable()
+                    local ps = lp:FindFirstChild("PlayerScripts")
+                    if ps then
+                        local pm = ps:FindFirstChild("PlayerModule")
+                        if pm then
+                            local okPM, PM = pcall(function() return require(pm) end)
+                            if okPM and PM and PM.GetControls then
+                                local okCtrl, ctrl = pcall(PM.GetControls, PM)
+                                if okCtrl and ctrl then pcall(ctrl.Enable, ctrl) end
+                            end
+                        end
+                    end
                 end
             end)
 
@@ -3562,58 +3593,51 @@ API.AddTab("Protections", ICON.protection, function(f)
         scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
         scroll.Parent = f
         pad(scroll, 8, 10, 8, 8)
-        
-        local card = fr(scroll, UDim2.new(1, -4, 1, -16), nil, C.HEADER, 0, 16)
-        local v = Instance.new("UIListLayout")
-        v.SortOrder = Enum.SortOrder.LayoutOrder
-        v.Padding = UDim.new(0, 8)
-        v.Parent = card
-        pad(card, 16, 16, 16, 16)
-        lbl(card, "Configuration", UDim2.new(1, 0, 0, 0), nil, 18, C.TEXT, Enum.Font.GothamBold)
-        
-        -- Config UI - Side by side layout (LEFT: buttons, RIGHT: list) - fills remaining height
-        local mainRow = fr(card, UDim2.new(1, 0, 1, -28), nil, C.HEADER, 1, 0)
+
+        local card = fr(scroll, UDim2.new(1, 0, 0, 0), nil, C.HEADER, 0, 16)
+        card.AutomaticSize = Enum.AutomaticSize.Y
+        local cardLayout = Instance.new("UIListLayout")
+        cardLayout.SortOrder = Enum.SortOrder.LayoutOrder
+        cardLayout.Padding = UDim.new(0, 8)
+        cardLayout.Parent = card
+
+        local titleRow = fr(card, UDim2.new(1, 0, 0, 28), nil, C.HEADER, 1, 0)
+        titleRow.LayoutOrder = 0
+        lbl(titleRow, "Configurations", UDim2.new(1, -20, 1, 0), UDim2.new(0, 14, 0, 0), 14, C.TEXT, Enum.Font.GothamBold)
+
+        local mainRow = fr(card, UDim2.new(1, 0, 0, 340), nil, C.HEADER, 1, 0)
         mainRow.LayoutOrder = 1
-        
+
         local leftPanel = fr(mainRow, UDim2.new(0.5, -6, 1, 0), UDim2.new(0, 0, 0, 0), C.SEL, 0, 10)
         local rightPanel = fr(mainRow, UDim2.new(0.5, -6, 1, 0), UDim2.new(0.5, 6, 0, 0), C.SEL, 0, 10)
-        
-        -- LEFT PANEL: Buttons
-        local createBtn = Instance.new("TextButton")
-        createBtn.Size = UDim2.new(1, -16, 0, 32)
-        createBtn.Position = UDim2.new(0, 8, 0, 10)
-        createBtn.BackgroundColor3 = C.ACCENT
-        createBtn.Text = "Save Config"
-        createBtn.TextColor3 = C.TEXT
-        createBtn.TextSize = 12
-        createBtn.Font = Enum.Font.GothamBold
-        createBtn.AutoButtonColor = false
-        createBtn.Parent = leftPanel
-        Instance.new("UICorner", createBtn).CornerRadius = UDim.new(0, 8)
-        local createGrad = Instance.new("UIGradient", createBtn)
-        createGrad.Color = ColorSequence.new({ ColorSequenceKeypoint.new(0, C.ACCENT), ColorSequenceKeypoint.new(1, C.ACCENT2) })
-        createGrad.Rotation = 90
-        
-        local loadBtn = Instance.new("TextButton")
-        loadBtn.Size = UDim2.new(1, -16, 0, 32)
-        loadBtn.Position = UDim2.new(0, 8, 0, 50)
-        loadBtn.BackgroundColor3 = C.ACCENT
-        loadBtn.Text = "Load Config"
-        loadBtn.TextColor3 = C.TEXT
-        loadBtn.TextSize = 12
-        loadBtn.Font = Enum.Font.GothamBold
-        loadBtn.AutoButtonColor = false
-        loadBtn.Parent = leftPanel
-        Instance.new("UICorner", loadBtn).CornerRadius = UDim.new(0, 8)
-        local loadGrad = Instance.new("UIGradient", loadBtn)
-        loadGrad.Color = ColorSequence.new({ ColorSequenceKeypoint.new(0, C.ACCENT), ColorSequenceKeypoint.new(1, C.ACCENT2) })
-        loadGrad.Rotation = 90
-        
-        -- No status label - removed
-        
-        -- RIGHT PANEL: Config List
+
+        local function makeBtn(parent, text, yPos, col, col2)
+            local btn = Instance.new("TextButton")
+            btn.Size = UDim2.new(1, -16, 0, 30)
+            btn.Position = UDim2.new(0, 8, 0, yPos)
+            btn.BackgroundColor3 = col
+            btn.Text = text
+            btn.TextColor3 = C.TEXT
+            btn.TextSize = 12
+            btn.Font = Enum.Font.GothamBold
+            btn.AutoButtonColor = false
+            btn.Parent = parent
+            Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
+            local grad = Instance.new("UIGradient", btn)
+            grad.Color = ColorSequence.new({ColorSequenceKeypoint.new(0, col), ColorSequenceKeypoint.new(1, col2 or col)})
+            grad.Rotation = 90
+            return btn
+        end
+
+        local saveBtn = makeBtn(leftPanel, "Save", 10, C.ACCENT, C.ACCENT2)
+        local loadBtn = makeBtn(leftPanel, "Load", 48, C.GREEN, Color3.fromRGB(35, 180, 75))
+        local renameBtn = makeBtn(leftPanel, "Rename", 86, C.YELLOW, Color3.fromRGB(230, 160, 20))
+        local deleteBtn = makeBtn(leftPanel, "Delete", 124, C.RED, Color3.fromRGB(190, 45, 45))
+        local importBtn = makeBtn(leftPanel, "Import from Clipboard", 162, C.BTN, C.BTNHOV)
+        local exportBtn = makeBtn(leftPanel, "Export to Clipboard", 200, C.BTN, C.BTNHOV)
+
         local listTitle = lbl(rightPanel, "Saved Configs", UDim2.new(1, -16, 0, 20), UDim2.new(0, 10, 0, 8), 12, C.TEXT, Enum.Font.GothamBold)
-        
+
         local configScroll = Instance.new("ScrollingFrame")
         configScroll.Size = UDim2.new(1, -16, 1, -32)
         configScroll.Position = UDim2.new(0, 8, 0, 28)
@@ -3624,22 +3648,20 @@ API.AddTab("Protections", ICON.protection, function(f)
         configScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
         configScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
         configScroll.Parent = rightPanel
-        
-        -- FILE PERSISTENCE FOR CONFIGS
+
         local configFolder = "MenuLibConfigs"
         local configFile = configFolder .. "/" .. tostring(lp.UserId) .. "_configs.json"
-        
-        -- Load saved configs from file
+        local autoLoadFile = configFolder .. "/" .. tostring(lp.UserId) .. "_autoload.json"
+
+        local selectedConfig = nil
+        local selectedRow = nil
+
         local function LoadConfigsFromFile()
             if isfile and isfile(configFile) then
-                local success, content = pcall(function()
-                    return readfile(configFile)
-                end)
-                if success and content then
-                    local success2, decoded = pcall(function()
-                        return HttpService:JSONDecode(content)
-                    end)
-                    if success2 and decoded then
+                local ok, content = pcall(function() return readfile(configFile) end)
+                if ok and content then
+                    local ok2, decoded = pcall(function() return HttpService:JSONDecode(content) end)
+                    if ok2 and decoded then
                         _G._ConfigList = decoded
                         return true
                     end
@@ -3648,91 +3670,50 @@ API.AddTab("Protections", ICON.protection, function(f)
             _G._ConfigList = _G._ConfigList or {}
             return false
         end
-        
-        -- Save configs to file
+
         local function SaveConfigsToFile()
             if not _G._ConfigList then return end
             if makefolder and not isfolder(configFolder) then
                 pcall(function() makefolder(configFolder) end)
             end
-            local success, encoded = pcall(function()
-                return HttpService:JSONEncode(_G._ConfigList)
-            end)
-            if success and encoded and writefile then
-                pcall(function()
-                    writefile(configFile, encoded)
-                end)
+            local ok, encoded = pcall(function() return HttpService:JSONEncode(_G._ConfigList) end)
+            if ok and encoded and writefile then
+                pcall(function() writefile(configFile, encoded) end)
             end
         end
-        
-        -- Initial load
+
+        local function GetAutoLoadConfig()
+            if isfile and isfile(autoLoadFile) then
+                local ok, content = pcall(function() return readfile(autoLoadFile) end)
+                if ok and content then
+                    local ok2, name = pcall(function() return HttpService:JSONDecode(content) end)
+                    if ok2 and type(name) == "string" then return name end
+                end
+            end
+            return nil
+        end
+
+        local function SetAutoLoadConfig(name)
+            if makefolder and not isfolder(configFolder) then
+                pcall(function() makefolder(configFolder) end)
+            end
+            if writefile then
+                pcall(function() writefile(autoLoadFile, HttpService:JSONEncode(name)) end)
+            end
+        end
+
         LoadConfigsFromFile()
-        
-        -- Bottom action buttons (Rename/Delete) - always visible at bottom
-        local bottomActions = fr(rightPanel, UDim2.new(1, -16, 0, 32), UDim2.new(0, 8, 1, -36), C.SEL, 0, 8)
-        bottomActions.ClipsDescendants = false
-        
-        -- Start visible
-        bottomActions.Position = UDim2.new(0, 8, 1, -36)
-        
-        local renameBtnBottom = Instance.new("TextButton")
-        renameBtnBottom.Size = UDim2.new(0.48, 0, 0, 28)
-        renameBtnBottom.Position = UDim2.new(0, 0, 0, 0)
-        renameBtnBottom.BackgroundColor3 = C.YELLOW
-        renameBtnBottom.Text = "Rename"
-        renameBtnBottom.TextColor3 = C.TEXT
-        renameBtnBottom.TextSize = 11
-        renameBtnBottom.Font = Enum.Font.GothamBold
-        renameBtnBottom.AutoButtonColor = false
-        renameBtnBottom.Parent = bottomActions
-        Instance.new("UICorner", renameBtnBottom).CornerRadius = UDim.new(0, 6)
-        local renGradB = Instance.new("UIGradient", renameBtnBottom)
-        renGradB.Color = ColorSequence.new({ ColorSequenceKeypoint.new(0, C.YELLOW), ColorSequenceKeypoint.new(1, Color3.fromRGB(230, 160, 20)) })
-        renGradB.Rotation = 90
-        
-        local delBtnBottom = Instance.new("TextButton")
-        delBtnBottom.Size = UDim2.new(0.48, 0, 0, 28)
-        delBtnBottom.Position = UDim2.new(0.52, 0, 0, 0)
-        delBtnBottom.BackgroundColor3 = C.RED
-        delBtnBottom.Text = "Delete"
-        delBtnBottom.TextColor3 = C.TEXT
-        delBtnBottom.TextSize = 11
-        delBtnBottom.Font = Enum.Font.GothamBold
-        delBtnBottom.AutoButtonColor = false
-        delBtnBottom.Parent = bottomActions
-        Instance.new("UICorner", delBtnBottom).CornerRadius = UDim.new(0, 6)
-        local delGradB = Instance.new("UIGradient", delBtnBottom)
-        delGradB.Color = ColorSequence.new({ ColorSequenceKeypoint.new(0, C.RED), ColorSequenceKeypoint.new(1, Color3.fromRGB(190, 45, 45)) })
-        delGradB.Rotation = 90
-        
-        -- Hide scroll when no selection, adjust size when selected
-        local function updateBottomActions()
-            if selectedConfig then
-                configScroll.Size = UDim2.new(1, -16, 1, -72)
-                -- Keep visible
-                tw(bottomActions, {Position = UDim2.new(0, 8, 1, -36)}, 0.25, Enum.EasingStyle.Back)
-            else
-                configScroll.Size = UDim2.new(1, -16, 1, -32)
-                -- Keep visible
-                tw(bottomActions, {Position = UDim2.new(0, 8, 1, -36)}, 0.2)
-            end
-        end
-        
-        local selectedConfig = nil
-        local selectedRow = nil
-        
-        -- CENTERED POPUP OVERLAY (for both create and rename) - ON TOP OF EVERYTHING
+
         local popupOverlay = fr(sg, UDim2.new(1, 0, 1, 0), UDim2.new(0, 0, 0, 0), Color3.fromRGB(0, 0, 0), 0.6, 0)
         popupOverlay.Visible = false
         popupOverlay.ZIndex = 1000
-        popupOverlay.Active = false -- Let mouse pass through for cursor
-        
+
         local popupFrame = fr(popupOverlay, UDim2.new(0, 280, 0, 120), UDim2.new(0.5, -140, 0.5, -60), C.HEADER, 0, 16)
         popupFrame.ZIndex = 101
-        
+
         local popupTitle = lbl(popupFrame, "Enter Config Name", UDim2.new(1, -20, 0, 24), UDim2.new(0, 10, 0, 12), 14, C.TEXT, Enum.Font.GothamBold)
         popupTitle.TextXAlignment = Enum.TextXAlignment.Center
-        
+
         local popupBox = Instance.new("TextBox")
         popupBox.Size = UDim2.new(1, -20, 0, 28)
         popupBox.Position = UDim2.new(0, 10, 0, 44)
@@ -3745,13 +3726,12 @@ API.AddTab("Protections", ICON.protection, function(f)
         popupBox.Parent = popupFrame
         popupBox.ZIndex = 102
         Instance.new("UICorner", popupBox).CornerRadius = UDim.new(0, 8)
-        
+
         local popupBtnRow = fr(popupFrame, UDim2.new(1, -20, 0, 28), UDim2.new(0, 10, 0, 80), C.HEADER, 1, 0)
         popupBtnRow.ZIndex = 102
-        
+
         local popupConfirm = Instance.new("TextButton")
         popupConfirm.Size = UDim2.new(0.48, 0, 1, 0)
-        popupConfirm.Position = UDim2.new(0, 0, 0, 0)
         popupConfirm.BackgroundColor3 = C.GREEN
         popupConfirm.Text = "OK"
         popupConfirm.TextColor3 = C.TEXT
@@ -3760,10 +3740,7 @@ API.AddTab("Protections", ICON.protection, function(f)
         popupConfirm.Parent = popupBtnRow
         popupConfirm.ZIndex = 103
         Instance.new("UICorner", popupConfirm).CornerRadius = UDim.new(0, 6)
-        local confirmGrad = Instance.new("UIGradient", popupConfirm)
-        confirmGrad.Color = ColorSequence.new({ ColorSequenceKeypoint.new(0, C.GREEN), ColorSequenceKeypoint.new(1, Color3.fromRGB(35, 180, 75)) })
-        confirmGrad.Rotation = 90
-        
+
         local popupCancel = Instance.new("TextButton")
         popupCancel.Size = UDim2.new(0.48, 0, 1, 0)
         popupCancel.Position = UDim2.new(0.52, 0, 0, 0)
@@ -3775,13 +3752,10 @@ API.AddTab("Protections", ICON.protection, function(f)
         popupCancel.Parent = popupBtnRow
         popupCancel.ZIndex = 103
         Instance.new("UICorner", popupCancel).CornerRadius = UDim.new(0, 6)
-        local cancelGrad = Instance.new("UIGradient", popupCancel)
-        cancelGrad.Color = ColorSequence.new({ ColorSequenceKeypoint.new(0, C.RED), ColorSequenceKeypoint.new(1, Color3.fromRGB(190, 45, 45)) })
-        cancelGrad.Rotation = 90
-        
-        local popupMode = "create" -- "create" or "rename"
+
+        local popupMode = "create"
         local renameOldName = nil
-        
+
         local function showPopup(mode, title, defaultText)
             popupMode = mode
             popupTitle.Text = title
@@ -3794,100 +3768,74 @@ API.AddTab("Protections", ICON.protection, function(f)
             tw(popupFrame, {Size = UDim2.new(0, 280, 0, 120), Position = UDim2.new(0.5, -140, 0.5, -60)}, 0.25, Enum.EasingStyle.Back)
             task.delay(0.15, function() popupBox:CaptureFocus() end)
         end
-        
+
         local function hidePopup()
             tw(popupFrame, {Size = UDim2.new(0, 200, 0, 100), Position = UDim2.new(0.5, -100, 0.5, -50)}, 0.2)
             tw(popupOverlay, {BackgroundTransparency = 1}, 0.2)
             task.delay(0.2, function() popupOverlay.Visible = false end)
         end
-        
-        local function RefreshConfigList()
+
+        local RefreshConfigList
+        RefreshConfigList = function()
             for _, child in ipairs(configScroll:GetChildren()) do
                 if child:IsA("Frame") then child:Destroy() end
             end
             selectedConfig = nil
             selectedRow = nil
-            
-            -- Ensure config list exists
-            if not _G._ConfigList then
-                _G._ConfigList = {}
-            end
-            
-            -- Reset selection
-            selectedConfig = nil
-            selectedRow = nil
-            
-            for name, data in pairs(_G._ConfigList) do
-    -- Config row with transparent background
-                local row = fr(configScroll, UDim2.new(1, 0, 0, 32), nil, C.SEL, 0.8, 6)
+            if not _G._ConfigList then _G._ConfigList = {} end
+            local autoLoadName = GetAutoLoadConfig()
+            local sortedNames = {}
+            for name in pairs(_G._ConfigList) do sortedNames[#sortedNames+1] = name end
+            table.sort(sortedNames)
+            for _, name in ipairs(sortedNames) do
+                local row = fr(configScroll, UDim2.new(1, 0, 0, 36), nil, C.SEL, 0.8, 6)
                 row.LayoutOrder = #configScroll:GetChildren()
-                
-                -- Config name label
-                local nameLbl = lbl(row, name, UDim2.new(1, -16, 1, 0), UDim2.new(0, 12, 0, 0), 12, C.TEXT, Enum.Font.GothamBold)
+                local nameLbl = lbl(row, name, UDim2.new(1, -50, 1, 0), UDim2.new(0, 12, 0, 0), 12, C.TEXT, Enum.Font.GothamBold)
                 nameLbl.TextTruncate = Enum.TextTruncate.AtEnd
-                
-                -- Selection indicator (left stripe)
                 local stripe = fr(row, UDim2.new(0, 4, 0.6, 0), UDim2.new(0, 0, 0.2, 0), C.ACCENT, 1, 2)
                 gradV(stripe, C.ACCENT, C.ACCENT2)
-                
-                -- Click to select
+                local isAutoLoad = (autoLoadName == name)
+                local autoBtn = Instance.new("TextButton")
+                autoBtn.Size = UDim2.new(0, 40, 0, 20)
+                autoBtn.Position = UDim2.new(1, -46, 0.5, -10)
+                autoBtn.BackgroundColor3 = isAutoLoad and C.GREEN or C.BTN
+                autoBtn.Text = isAutoLoad and "ON" or "OFF"
+                autoBtn.TextColor3 = C.TEXT
+                autoBtn.TextSize = 10
+                autoBtn.Font = Enum.Font.GothamBold
+                autoBtn.AutoButtonColor = false
+                autoBtn.Parent = row
+                Instance.new("UICorner", autoBtn).CornerRadius = UDim.new(0, 4)
                 local clickBtn = Instance.new("TextButton")
-                clickBtn.Size = UDim2.new(1, 0, 1, 0)
+                clickBtn.Size = UDim2.new(1, -50, 1, 0)
                 clickBtn.BackgroundTransparency = 1
                 clickBtn.Text = ""
                 clickBtn.Parent = row
-                
-                -- Selection logic with pop animation
                 local function selectThis()
                     selectedConfig = name
                     selectedRow = row
-                    
-                    -- Reset all rows
                     for _, child in ipairs(configScroll:GetChildren()) do
                         if child:IsA("Frame") then
                             tw(child, {BackgroundTransparency = 1}, 0.15)
                             local sInd = child:FindFirstChildOfClass("Frame")
-                            if sInd then
-                                tw(sInd, {BackgroundTransparency = 1}, 0.15)
-                            end
+                            if sInd then tw(sInd, {BackgroundTransparency = 1}, 0.15) end
                         end
                     end
-                    
-                    -- Pop animation - expand then settle
-                    row.Size = UDim2.new(1, 0, 0, 38)
-                    tw(row, {Size = UDim2.new(1, 0, 0, 32)}, 0.2, Enum.EasingStyle.Back)
-                    
-                    -- Highlight this row with purple background
+                    row.Size = UDim2.new(1, 0, 0, 42)
+                    tw(row, {Size = UDim2.new(1, 0, 0, 36)}, 0.2, Enum.EasingStyle.Back)
                     tw(row, {BackgroundColor3 = C.ACCENT, BackgroundTransparency = 0.3}, 0.2)
                     tw(stripe, {BackgroundTransparency = 0}, 0.25)
-                    
-                    -- Show bottom buttons
-                    updateBottomActions()
                 end
-                
                 clickBtn.MouseButton1Click:Connect(selectThis)
-                
-                -- Bottom button connections
-                renameBtnBottom.MouseButton1Click:Connect(function()
-                    if selectedConfig == name then
-                        renameOldName = name
-                        showPopup("rename", "Rename Config", name)
+                autoBtn.MouseButton1Click:Connect(function()
+                    local current = GetAutoLoadConfig()
+                    if current == name then
+                        SetAutoLoadConfig(nil)
+                    else
+                        SetAutoLoadConfig(name)
                     end
+                    RefreshConfigList()
                 end)
-                
-                delBtnBottom.MouseButton1Click:Connect(function()
-                    if selectedConfig == name and _G._ConfigList then
-                        _G._ConfigList[name] = nil
-                        SaveConfigsToFile() -- SAVE TO FILE
-                        selectedConfig = nil
-                        selectedRow = nil
-                        updateBottomActions()
-                        tw(row, {Size = UDim2.new(1, 0, 0, 0)}, 0.15)
-                        task.delay(0.15, function() row:Destroy() end)
-                    end
-                end)
-                
-                -- Hover effect
                 clickBtn.MouseEnter:Connect(function()
                     if selectedConfig ~= name then
                         tw(row, {BackgroundColor3 = Color3.fromRGB(35, 20, 60)}, 0.1)
@@ -3900,43 +3848,41 @@ API.AddTab("Protections", ICON.protection, function(f)
                 end)
             end
         end
-        
-        createBtn.MouseButton1Click:Connect(function()
-            showPopup("create", "Create New Config", "")
-        end)
-        
-        popupConfirm.MouseButton1Click:Connect(function()
+
+        local function confirmPopup()
             local name = popupBox.Text:gsub("^%s+", ""):gsub("%s+$", "")
-            if name == "" then
-                hidePopup()
-                return
-            end
-            
+            if name == "" then hidePopup() return end
             if not _G._ConfigList then _G._ConfigList = {} end
-            
             if popupMode == "create" then
                 if _G.GetConfigData then
                     _G._ConfigList[name] = _G.GetConfigData()
-                    SaveConfigsToFile() -- SAVE TO FILE
+                    SaveConfigsToFile()
                     RefreshConfigList()
                 end
             elseif popupMode == "rename" and renameOldName then
-                if name == renameOldName then
-                    -- Same name, do nothing
-                elseif _G._ConfigList[name] then
-                    -- Name already exists, do nothing
-                else
+                if name ~= renameOldName and not _G._ConfigList[name] then
                     _G._ConfigList[name] = _G._ConfigList[renameOldName]
                     _G._ConfigList[renameOldName] = nil
-                    SaveConfigsToFile() -- SAVE TO FILE
+                    local autoLoadName = GetAutoLoadConfig()
+                    if autoLoadName == renameOldName then SetAutoLoadConfig(name) end
+                    SaveConfigsToFile()
                     RefreshConfigList()
                 end
             end
             hidePopup()
+        end
+
+        saveBtn.MouseButton1Click:Connect(function()
+            if selectedConfig and _G._ConfigList[selectedConfig] then
+                if _G.GetConfigData then
+                    _G._ConfigList[selectedConfig] = _G.GetConfigData()
+                    SaveConfigsToFile()
+                end
+            else
+                showPopup("create", "Create New Config", "")
+            end
         end)
-        
-        popupCancel.MouseButton1Click:Connect(hidePopup)
-        
+
         loadBtn.MouseButton1Click:Connect(function()
             if selectedConfig and _G._ConfigList[selectedConfig] then
                 if _G.LoadConfigData then
@@ -3945,13 +3891,122 @@ API.AddTab("Protections", ICON.protection, function(f)
                 end
             end
         end)
-        
-        -- Store all toggle/slider references for config loading
+
+        renameBtn.MouseButton1Click:Connect(function()
+            if selectedConfig then
+                renameOldName = selectedConfig
+                showPopup("rename", "Rename Config", selectedConfig)
+            end
+        end)
+
+        deleteBtn.MouseButton1Click:Connect(function()
+            if selectedConfig and _G._ConfigList then
+                _G._ConfigList[selectedConfig] = nil
+                SaveConfigsToFile()
+                local autoLoadName = GetAutoLoadConfig()
+                if autoLoadName == selectedConfig then SetAutoLoadConfig(nil) end
+                selectedConfig = nil
+                selectedRow = nil
+                RefreshConfigList()
+            end
+        end)
+
+        popupConfirm.MouseButton1Click:Connect(confirmPopup)
+        popupCancel.MouseButton1Click:Connect(hidePopup)
+        popupBox.FocusLost:Connect(function(enter)
+            if enter then confirmPopup() end
+        end)
+
+        local b64chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+        local function b64encode(data)
+            local result = {}
+            local len = #data
+            local i = 1
+            while i <= len do
+                local a = data:byte(i) or 0
+                local b = (i + 1 <= len) and data:byte(i + 1) or 0
+                local c = (i + 2 <= len) and data:byte(i + 2) or 0
+                local hasB = (i + 1 <= len)
+                local hasC = (i + 2 <= len)
+                local idx1 = math.floor(a / 4) + 1
+                local idx2 = ((a % 4) * 16) + math.floor(b / 16) + 1
+                local idx3 = hasB and ((b % 16) * 4 + math.floor(c / 64) + 1) or 1
+                local idx4 = hasC and (c % 64 + 1) or 1
+                result[#result+1] = b64chars:sub(idx1, idx1)
+                result[#result+1] = b64chars:sub(idx2, idx2)
+                result[#result+1] = hasB and b64chars:sub(idx3, idx3) or "="
+                result[#result+1] = hasC and b64chars:sub(idx4, idx4) or "="
+                i = i + 3
+            end
+            return table.concat(result)
+        end
+
+        local function b64decode(data)
+            data = data:gsub("[^A-Za-z0-9%+%/]", "")
+            local result = {}
+            local len = #data
+            local i = 1
+            while i <= len do
+                local c1 = data:sub(i, i)
+                local c2 = data:sub(i+1, i+1)
+                local c3 = data:sub(i+2, i+2)
+                local c4 = data:sub(i+3, i+3)
+                if c1 == "" or c2 == "" then break end
+                local v1 = b64chars:find(c1) - 1
+                local v2 = b64chars:find(c2) - 1
+                local v3 = (c3 ~= "" and c3 ~= "=") and (b64chars:find(c3) - 1) or 0
+                local v4 = (c4 ~= "" and c4 ~= "=") and (b64chars:find(c4) - 1) or 0
+                result[#result+1] = string.char((v1 * 4) + math.floor(v2 / 16))
+                if c3 ~= "" and c3 ~= "=" then
+                    result[#result+1] = string.char(((v2 % 16) * 16) + math.floor(v3 / 4))
+                end
+                if c4 ~= "" and c4 ~= "=" then
+                    result[#result+1] = string.char(((v3 % 4) * 64) + v4)
+                end
+                i = i + 4
+            end
+            return table.concat(result)
+        end
+
+        importBtn.MouseButton1Click:Connect(function()
+            local clipText = nil
+            if getclipboard then clipText = getclipboard()
+            elseif cb then clipText = cb()
+            end
+            if not clipText or clipText == "" then return end
+            local ok, jsonStr = pcall(function() return b64decode(clipText) end)
+            if not ok or not jsonStr then return end
+            local ok2, configData = pcall(function() return HttpService:JSONDecode(jsonStr) end)
+            if not ok2 or type(configData) ~= "table" then return end
+            if not _G._ConfigList then _G._ConfigList = {} end
+            local name = "Imported_" .. os.date("%H%M%S")
+            local baseName = name
+            local counter = 1
+            while _G._ConfigList[name] do
+                name = baseName .. "_" .. counter
+                counter = counter + 1
+            end
+            _G._ConfigList[name] = configData
+            SaveConfigsToFile()
+            RefreshConfigList()
+        end)
+
+        exportBtn.MouseButton1Click:Connect(function()
+            if not selectedConfig or not _G._ConfigList[selectedConfig] then return end
+            local ok, jsonStr = pcall(function() return HttpService:JSONEncode(_G._ConfigList[selectedConfig]) end)
+            if not ok or not jsonStr then return end
+            local encoded = b64encode(jsonStr)
+            if setclipboard then
+                pcall(function() setclipboard(encoded) end)
+            elseif toclipboard then
+                pcall(function() toclipboard(encoded) end)
+            end
+        end)
+
         _G._MenuToggles = {}
         _G._MenuSliders = {}
         _G._MenuDropdowns = {}
-        
-        -- Ensure config functions exist - MUST be defined BEFORE any UI creation
+
         if not _G.GetConfigData then
             _G.GetConfigData = function()
                 local data = {
@@ -3982,170 +4037,61 @@ API.AddTab("Protections", ICON.protection, function(f)
                         data.ColorPickers[label] = {r = c.R, g = c.G, b = c.B, a = a}
                     end
                 end
-                
-                if _G._equippedCosmetics then data._equippedCosmetics = _G._equippedCosmetics end
-                if _G._favoritedCosmetics then data._favoritedCosmetics = _G._favoritedCosmetics end
-
-                -- Support legacy structure so we don't break Raknet entirely
                 data._MenuSettings = {
-                    BlurEnabled = _G._BlurEnabled,
-                    LightingDimEnabled = _G._LightingDimEnabled,
                     MenuToggleKey = tostring(_G._MenuToggleKey),
                     UnloadKey = tostring(_G._UnloadKey),
                     SmoothAnimations = _G._SmoothAnimations,
-                    BoxESPEnabled = _G._BoxESPEnabled,
-                    FilledBoxESPEnabled = _G._FilledBoxESPEnabled,
-                    ESPColour = _G._ESPColour and {r = _G._ESPColour.R, g = _G._ESPColour.G, b = _G._ESPColour.B} or nil,
-                    AimbotEnabled = _G._AimbotEnabled,
-                    ShowFOVCircle = _G._ShowFOVCircle,
-                    AimbotTargetMode = _G._AimbotTargetMode,
-                    AimbotFOV = _G._AimbotFOV,
-                    AimbotFOVMode = _G._AimbotFOVMode,
-                    AimbotMaxDistance = _G._AimbotMaxDistance,
-                    AimbotSmoothness = _G._AimbotSmoothness,
-                    TeamCheck = _G._TeamCheck,
-                    SilentAimFOV = _G._SilentAimFOV,
-                    SilentAimPart = _G._SilentAimPart,
-                    SilentAimEnabled = _G._SilentAimEnabled,
-                    AimKeybind = _G._AimKeybind and tostring(_G._AimKeybind.Name) or nil,
-                    NameESPEnabled = _G._NameESPEnabled,
-                    DistanceESPEnabled = _G._DistanceESPEnabled,
-                    HealthESPEnabled = _G._HealthESPEnabled,
-                    OutlineESPEnabled = _G._OutlineESPEnabled,
-                    ChamsEnabled = _G._ChamsEnabled,
-                    ChamsMaterialToken = _G._ChamsMaterialToken,
-                    WeaponChamsEnabled = _G._WeaponChamsEnabled,
-                    HandChamsEnabled = _G._HandChamsEnabled,
-                    MaxESPDistance = _G._MaxESPDistance,
-                    WorldModulationEnabled = _G._WorldModulationEnabled,
-                    WorldTheme = _G._WorldTheme,
-                    WorldTimeOfDay = _G._WorldTimeOfDay,
-                    WorldBloomIntensity = _G._WorldBloomIntensity,
-                    PlayerAura = _G._PlayerAura,
-                    SyncESPToTheme = _G._SyncESPToTheme,
-                    AntiFlingEnabled = _G._AntiFlingEnabled,
-                    AntiKatanaEnabled = _G._AntiKatanaEnabled,
-                    ShowFPS = _G._ShowFPS,
-                    ShowPing = _G._ShowPing,
-                    ShowClock = _G._ShowClock,
-                    ShowWatermark = _G._ShowWatermark,
-                    CompactSidebar = _G._CompactSidebar,
-                    LowQualityMode = _G._LowQualityMode,
                 }
                 return data
             end
         end
-        
+
         if not _G.LoadConfigData then
             _G.LoadConfigData = function(data)
                 if not data then return end
-                
-                -- Load dynamic UI elements (so the menu updates correctly)
                 if data.Toggles and _G._MenuToggles then
                     for label, val in pairs(data.Toggles) do
-                        if _G._MenuToggles[label] then _G._MenuToggles[label].Set(val) end
+                        if _G._MenuToggles[label] then pcall(function() _G._MenuToggles[label].Set(val) end) end
                     end
                 end
                 if data.Sliders and _G._MenuSliders then
                     for label, val in pairs(data.Sliders) do
-                        if _G._MenuSliders[label] then _G._MenuSliders[label].Set(val) end
+                        if _G._MenuSliders[label] then pcall(function() _G._MenuSliders[label].Set(val) end) end
                     end
                 end
                 if data.Dropdowns and _G._MenuDropdowns then
                     for label, idx in pairs(data.Dropdowns) do
-                        if _G._MenuDropdowns[label] then _G._MenuDropdowns[label].Set(idx) end
+                        if _G._MenuDropdowns[label] then pcall(function() _G._MenuDropdowns[label].Set(idx) end) end
                     end
                 end
                 if data.ColorPickers and _G._MenuColorPickers then
                     for label, val in pairs(data.ColorPickers) do
-                        if _G._MenuColorPickers[label] then _G._MenuColorPickers[label].Set(Color3.new(val.r, val.g, val.b), val.a) end
+                        if _G._MenuColorPickers[label] then
+                            pcall(function() _G._MenuColorPickers[label].Set(Color3.new(val.r, val.g, val.b), val.a) end)
+                        end
                     end
                 end
-
-                if data._equippedCosmetics and _G._equippedCosmetics then
-                    table.clear(_G._equippedCosmetics)
-                    for k, v in pairs(data._equippedCosmetics) do _G._equippedCosmetics[k] = v end
-                elseif data._equippedCosmetics then
-                    _G._equippedCosmetics = data._equippedCosmetics
-                end
-                
-                if data._favoritedCosmetics and _G._favoritedCosmetics then
-                    table.clear(_G._favoritedCosmetics)
-                    for k, v in pairs(data._favoritedCosmetics) do _G._favoritedCosmetics[k] = v end
-                elseif data._favoritedCosmetics then
-                    _G._favoritedCosmetics = data._favoritedCosmetics
-                end
-
-                -- Load ALL legacy global settings
                 if data._MenuSettings then
                     local s = data._MenuSettings
-                    -- Menu settings
-                    _G._BlurEnabled = s.BlurEnabled
-                    _G._LightingDimEnabled = s.LightingDimEnabled
                     _G._SmoothAnimations = s.SmoothAnimations
                     if s.MenuToggleKey then pcall(function() _G._MenuToggleKey = Enum.KeyCode[s.MenuToggleKey] end) end
                     if s.UnloadKey then pcall(function() _G._UnloadKey = Enum.KeyCode[s.UnloadKey] end) end
-                    -- ESP settings
-                    _G._BoxESPEnabled = s.BoxESPEnabled
-                    _G._FilledBoxESPEnabled = s.FilledBoxESPEnabled
-                    if s.ESPColour then pcall(function() _G._ESPColour = Color3.new(s.ESPColour.r, s.ESPColour.g, s.ESPColour.b) end) end
-                    -- Aimbot settings
-                    _G._AimbotEnabled = s.AimbotEnabled
-                    _G._ShowFOVCircle = s.ShowFOVCircle
-                    _G._AimbotTargetMode = s.AimbotTargetMode
-                    _G._AimbotFOV = s.AimbotFOV
-                    if s.AimbotFOVMode ~= nil then _G._AimbotFOVMode = s.AimbotFOVMode end
-                    _G._AimbotMaxDistance = s.AimbotMaxDistance
-                    _G._AimbotSmoothness = s.AimbotSmoothness
-                    _G._TeamCheck = s.TeamCheck
-                    if s.SilentAimFOV ~= nil then _G._SilentAimFOV = s.SilentAimFOV end
-                    if s.SilentAimPart ~= nil then _G._SilentAimPart = s.SilentAimPart end
-                    if s.SilentAimEnabled ~= nil then _G._SilentAimEnabled = s.SilentAimEnabled end
-                    if s.AimKeybind then pcall(function() _G._AimKeybind = Enum.KeyCode[s.AimKeybind] end) end
-                    -- More ESP
-                    _G._NameESPEnabled = s.NameESPEnabled
-                    _G._DistanceESPEnabled = s.DistanceESPEnabled
-                    _G._HealthESPEnabled = s.HealthESPEnabled
-                    _G._OutlineESPEnabled = s.OutlineESPEnabled
-                    _G._ChamsEnabled = s.ChamsEnabled
-                    if s.ChamsMaterialToken ~= nil and type(s.ChamsMaterialToken) == "string" then
-                        local cmt = s.ChamsMaterialToken
-                        if cmt:sub(1, 3) == "MV:" or cmt:sub(1, 5) ~= "ENUM:" then
-                            cmt = "ENUM:ForceField"
-                        end
-                        _G._ChamsMaterialToken = cmt
-                    end
-                    if _G._ChamsMaterialDropdownSync then
-                        pcall(_G._ChamsMaterialDropdownSync)
-                    end
-                    if s.WeaponChamsEnabled ~= nil then _G._WeaponChamsEnabled = s.WeaponChamsEnabled end
-                    if s.HandChamsEnabled ~= nil then _G._HandChamsEnabled = s.HandChamsEnabled end
-                    _G._MaxESPDistance = s.MaxESPDistance
-                    -- World
-                    _G._WorldModulationEnabled = s.WorldModulationEnabled
-                    if s.WorldTheme ~= nil then _G._WorldTheme = s.WorldTheme end
-                    if s.WorldTimeOfDay ~= nil then _G._WorldTimeOfDay = s.WorldTimeOfDay end
-                    if s.WorldBloomIntensity ~= nil then _G._WorldBloomIntensity = s.WorldBloomIntensity end
-                    if s.PlayerAura ~= nil then _G._PlayerAura = s.PlayerAura end
-                    if s.SyncESPToTheme ~= nil then _G._SyncESPToTheme = s.SyncESPToTheme end
-                    -- Protections
-                    _G._AntiFlingEnabled = s.AntiFlingEnabled
-                    _G._AntiKatanaEnabled = s.AntiKatanaEnabled
-                    -- HUD
-                    _G._ShowFPS = s.ShowFPS
-                    _G._ShowPing = s.ShowPing
-                    _G._ShowClock = s.ShowClock
-                    _G._ShowWatermark = s.ShowWatermark
-                    _G._CompactSidebar = s.CompactSidebar
-                    _G._LowQualityMode = s.LowQualityMode
-                    
-                    -- Trigger config loaded event for external scripts
-                    _G._ConfigLoaded = tick()
                 end
+                _G._ConfigLoaded = tick()
             end
         end
-        
+
         RefreshConfigList()
+
+        local autoLoadName = GetAutoLoadConfig()
+        if autoLoadName and _G._ConfigList[autoLoadName] and _G.LoadConfigData then
+            task.delay(1, function()
+                pcall(function()
+                    _G.LoadConfigData(_G._ConfigList[autoLoadName])
+                    _G._CurrentConfig = autoLoadName
+                end)
+            end)
+        end
     end)
     
     -- Select first tab
