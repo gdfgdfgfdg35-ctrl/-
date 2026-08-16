@@ -95,6 +95,7 @@ function MenuLib:Init(config)
     local unloaded = false
     local prevMouseBehavior = Enum.MouseBehavior.Default
     local prevMouseIconEnabled = UserInputService.MouseIconEnabled
+    local behaviorTarget = nil
     local win, settingsPanel, toggleMenu, fpsT, fpsN
 
     local sg = Instance.new("ScreenGui")
@@ -160,6 +161,34 @@ function MenuLib:Init(config)
         pcall(function() UserInputService.MouseIconEnabled = true end)
     end
 
+    local function gameWantsLockedMouse()
+        local locked = nil
+        pcall(function()
+            local okCH, CH = pcall(function()
+                return require(game:GetService("ReplicatedStorage").Modules.Handlers.CameraHandler)
+            end)
+            if okCH and CH then
+                if CH.freeMouseState == true then
+                    locked = false
+                elseif CH.firstPerson == true then
+                    locked = true
+                end
+            end
+        end)
+        return locked
+    end
+
+    local function applyGameMouseState()
+        local locked = gameWantsLockedMouse()
+        if locked == nil then
+            locked = (prevMouseBehavior == Enum.MouseBehavior.LockCenter)
+        end
+        behaviorTarget = locked and Enum.MouseBehavior.LockCenter or Enum.MouseBehavior.Default
+        pcall(function() UserInputService.MouseBehavior = behaviorTarget end)
+        pcall(function() UserInputService.MouseIconEnabled = not locked end)
+        behaviorAssertUntil = os.clock() + 1.5
+    end
+
     local function unlockInput()
         isOpen = false
         controlsDisabledByUs = false
@@ -167,14 +196,10 @@ function MenuLib:Init(config)
         local ctrl = ensureControls()
         if ctrl then pcall(function() ctrl:Enable() end) end
         pcall(function()
-            UserInputService.MouseIconEnabled = (prevMouseIconEnabled ~= false)
-        end)
-        pcall(function()
             local ctrl2 = getControls()
             if ctrl2 then pcall(ctrl2.Enable, ctrl2) end
         end)
-        pcall(function() UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter end)
-        behaviorAssertUntil = os.clock() + 1.5
+        applyGameMouseState()
     end
 
     local function menuIsVisible()
@@ -304,10 +329,10 @@ function MenuLib:Init(config)
 
         -- Hold the restored lock briefly: the game's camera controller can take a
         -- few frames to resume, and anything it does in that window wins afterwards.
-        if os.clock() < behaviorAssertUntil then
+        if os.clock() < behaviorAssertUntil and behaviorTarget ~= nil then
             pcall(function()
-                if UserInputService.MouseBehavior == Enum.MouseBehavior.Default then
-                    UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
+                if UserInputService.MouseBehavior ~= behaviorTarget then
+                    UserInputService.MouseBehavior = behaviorTarget
                 end
             end)
         end
@@ -2196,14 +2221,10 @@ function MenuLib:Init(config)
             local ctrl = ensureControls()
             if ctrl then pcall(function() ctrl:Enable() end) end
             pcall(function() UserInputService.MouseIconEnabled = (prevMouseIconEnabled ~= false) end)
-            pcall(function() UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter end)
+            pcall(applyGameMouseState)
             pcall(function()
                 task.delay(0.5, function()
-                    pcall(function()
-                        if UserInputService.MouseBehavior == Enum.MouseBehavior.Default then
-                            UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
-                        end
-                    end)
+                    pcall(applyGameMouseState)
                 end)
             end)
             pcall(function()
