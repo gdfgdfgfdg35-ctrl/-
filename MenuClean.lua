@@ -1273,6 +1273,19 @@ function MenuLib:Init(config)
             end
 
             table.insert(conns, layoutDropBtn.MouseButton1Click:Connect(openDrop))
+
+            if not _G._MenuDropdowns then _G._MenuDropdowns = {} end
+            _G._MenuDropdowns["Appearance_Tab layout"] = {
+                Get = function() return layoutOptions[selectedIdx], selectedIdx end,
+                Set = function(idx)
+                    idx = tonumber(idx)
+                    if not idx or not layoutOptions[idx] then return end
+                    selectedIdx = idx
+                    layoutDropBtn.Text = layoutOptions[idx]
+                    setTabLayout(layoutOptions[idx] == "Horizontal", false)
+                end,
+                GetOptions = function() return layoutOptions end,
+            }
         end
     end
 
@@ -1655,6 +1668,12 @@ function MenuLib:Init(config)
 
             refreshPlayerList("")
             refreshFriendList("")
+
+            _G._SaveFriendsList = SaveFriendsToFile
+            _G._RefreshFriendsList = function()
+                pcall(refreshFriendList, "")
+                pcall(refreshPlayerList, "")
+            end
         end
     end
 
@@ -1686,6 +1705,48 @@ function MenuLib:Init(config)
         keyBtn.Font = FONT_BOLD
         keyBtn.Parent = row
         Instance.new("UICorner").Parent = keyBtn
+
+        local currentKey = key
+
+        local function displayFor(k)
+            if typeof(k) == "EnumItem" then
+                if k.EnumType == Enum.KeyCode then return k.Name end
+                if k.EnumType == Enum.UserInputType then return (k.Name:gsub("MouseButton", "MB")) end
+            end
+            return tostring(k)
+        end
+
+        local function assignKey(k, fire)
+            if typeof(k) ~= "EnumItem" then return end
+            currentKey = k
+            keyText = displayFor(k)
+            keyBtn.Text = keyText
+            keyBtn.BackgroundColor3 = C.SEL
+            if fire ~= false then pcall(onChange, k) end
+        end
+
+        local kb = {
+            Get = function()
+                if typeof(currentKey) == "EnumItem" then
+                    return { t = tostring(currentKey.EnumType), n = currentKey.Name }
+                end
+                return nil
+            end,
+            Set = function(v)
+                if type(v) ~= "table" or not v.n then return end
+                local resolved = nil
+                if v.t == "Enum.UserInputType" then
+                    resolved = Enum.UserInputType[v.n]
+                else
+                    resolved = Enum.KeyCode[v.n]
+                end
+                if resolved then assignKey(resolved, true) end
+            end,
+            GetKey = function() return currentKey end,
+            SetKey = function(k) assignKey(k, true) end,
+        }
+        if not _G._MenuKeybinds then _G._MenuKeybinds = {} end
+        _G._MenuKeybinds[tabName .. "_" .. label] = kb
         table.insert(conns, keyBtn.MouseButton1Click:Connect(function()
             keyBtn.Text = "..."
             keyBtn.BackgroundColor3 = C.ACCENT
@@ -1716,9 +1777,7 @@ function MenuLib:Init(config)
                 end
                 if selectedKey then
                     cleanup()
-                    keyBtn.Text = displayText
-                    keyBtn.BackgroundColor3 = C.SEL
-                    pcall(onChange, selectedKey)
+                    assignKey(selectedKey, true)
                 end
             end)
             timeoutToken = task.delay(5, function()
@@ -1727,6 +1786,7 @@ function MenuLib:Init(config)
                 keyBtn.BackgroundColor3 = C.SEL
             end)
         end))
+        return kb
     end
 
     addKeybindOption("Keybinds", "Toggle menu key", M.MenuToggleKey, function(k) M.MenuToggleKey = k end)
@@ -2116,6 +2176,12 @@ function MenuLib:Init(config)
             _G._CurrentConfig = nil
             _G._ConfigLoaded = nil
             _G._FriendsList = nil
+            _G._MenuKeybinds = nil
+            _G._ConfigExtensions = nil
+            _G._ConfigLoading = nil
+            _G._SaveConfigList = nil
+            _G._SaveFriendsList = nil
+            _G._RefreshFriendsList = nil
             _G.GetConfigData = nil
             _G.LoadConfigData = nil
             settingKeybind = false
@@ -3137,6 +3203,21 @@ function MenuLib:Init(config)
         return addSettingOption(tabName, label, true, toggleCallback, default)
     end
 
+    API.RegisterConfigExtension = function(name, getter, setter)
+        if type(name) ~= "string" or type(getter) ~= "function" or type(setter) ~= "function" then return nil end
+        _G._ConfigExtensions = _G._ConfigExtensions or {}
+        _G._ConfigExtensions[name] = { Get = getter, Set = setter }
+        return _G._ConfigExtensions[name]
+    end
+
+    API.SaveCurrentConfig = function()
+        if _G._CurrentConfig and _G.GetConfigData and _G._SaveConfigList and _G._ConfigList then
+            _G._ConfigList[_G._CurrentConfig] = _G.GetConfigData()
+            return _G._SaveConfigList()
+        end
+        return false
+    end
+
     API.AddKeybindOption = function(tabName, label, key, onChange)
         return addKeybindOption(tabName, label, key, onChange)
     end
@@ -3220,6 +3301,12 @@ function MenuLib:Init(config)
         tb.Parent = txtBg
 
         local entry = { Type = "TextBox", Value = tb.Text, Element = tb, Container = row }
+        entry.Get = function() return tb.Text end
+        entry.Set = function(v)
+            tb.Text = tostring(v or "")
+            entry.Value = tb.Text
+            if callback then pcall(callback, tb.Text) end
+        end
         table.insert(conns, tb.FocusLost:Connect(function()
             if callback then pcall(callback, tb.Text) end
         end))
@@ -3607,6 +3694,7 @@ function MenuLib:Init(config)
         end
 
         LoadConfigsFromFile()
+        _G._SaveConfigList = SaveConfigsToFile
 
         local popupOverlay = fr(sg, UDim2.new(1, 0, 1, 0), UDim2.new(0, 0, 0, 0), Color3.fromRGB(0, 0, 0), 0.6, 0)
         popupOverlay.Visible = false
@@ -3969,44 +4057,109 @@ function MenuLib:Init(config)
             end
         end))
 
-        _G._MenuToggles = {}
-        _G._MenuSliders = {}
-        _G._MenuDropdowns = {}
+        _G._MenuToggles = _G._MenuToggles or {}
+        _G._MenuSliders = _G._MenuSliders or {}
+        _G._MenuDropdowns = _G._MenuDropdowns or {}
+        _G._MenuColorPickers = _G._MenuColorPickers or {}
+        _G._MenuTextBoxes = _G._MenuTextBoxes or {}
+        _G._MenuKeybinds = _G._MenuKeybinds or {}
+        _G._ConfigExtensions = _G._ConfigExtensions or {}
+
+        local function keyToTable(k)
+            if typeof(k) == "EnumItem" then
+                return { t = tostring(k.EnumType), n = k.Name }
+            end
+            return nil
+        end
+
+        local function tableToKey(v)
+            if type(v) == "table" and v.n then
+                if v.t == "Enum.UserInputType" then return Enum.UserInputType[v.n] end
+                return Enum.KeyCode[v.n]
+            end
+            if type(v) == "string" then
+                local name = v:gsub("^Enum%.KeyCode%.", ""):gsub("^Enum%.UserInputType%.", "")
+                return Enum.KeyCode[name] or Enum.UserInputType[name]
+            end
+            return nil
+        end
 
         if not _G.GetConfigData then
             _G.GetConfigData = function()
                 local data = {
+                    Version = 2,
                     Toggles = {},
                     Sliders = {},
                     Dropdowns = {},
-                    ColorPickers = {}
+                    ColorPickers = {},
+                    TextBoxes = {},
+                    Keybinds = {},
+                    Extras = {},
                 }
-                if _G._MenuToggles then
-                    for label, tog in pairs(_G._MenuToggles) do
-                        data.Toggles[label] = tog.Get()
+                for label, tog in pairs(_G._MenuToggles or {}) do
+                    if not tog.NoSave then
+                        local ok, v = pcall(tog.Get)
+                        if ok then data.Toggles[label] = v end
                     end
                 end
-                if _G._MenuSliders then
-                    for label, sl in pairs(_G._MenuSliders) do
-                        data.Sliders[label] = sl.Get()
+                for label, sl in pairs(_G._MenuSliders or {}) do
+                    if not sl.NoSave then
+                        local ok, v = pcall(sl.Get)
+                        if ok then data.Sliders[label] = v end
                     end
                 end
-                if _G._MenuDropdowns then
-                    for label, dd in pairs(_G._MenuDropdowns) do
-                        local opt, idx = dd.Get()
-                        data.Dropdowns[label] = idx
+                for label, dd in pairs(_G._MenuDropdowns or {}) do
+                    if not dd.NoSave then
+                        local ok, opt, idx = pcall(dd.Get)
+                        if ok then data.Dropdowns[label] = { i = idx, v = (type(opt) == "string") and opt or nil } end
                     end
                 end
-                if _G._MenuColorPickers then
-                    for label, cp in pairs(_G._MenuColorPickers) do
-                        local c, a = cp.Get()
-                        data.ColorPickers[label] = {r = c.R, g = c.G, b = c.B, a = a}
+                for label, cp in pairs(_G._MenuColorPickers or {}) do
+                    if not cp.NoSave then
+                        local ok, c, a = pcall(cp.Get)
+                        if ok and typeof(c) == "Color3" then
+                            data.ColorPickers[label] = { r = c.R, g = c.G, b = c.B, a = a or 1 }
+                        end
                     end
                 end
+                for label, tb in pairs(_G._MenuTextBoxes or {}) do
+                    if not tb.NoSave then
+                        local v = tb.Value
+                        if v == nil and tb.Element then v = tb.Element.Text end
+                        if v ~= nil then data.TextBoxes[label] = tostring(v) end
+                    end
+                end
+                for label, kb in pairs(_G._MenuKeybinds or {}) do
+                    if not kb.NoSave then
+                        local ok, v = pcall(kb.Get)
+                        if ok and v then data.Keybinds[label] = v end
+                    end
+                end
+                for name, ext in pairs(_G._ConfigExtensions or {}) do
+                    if type(ext) == "table" and type(ext.Get) == "function" then
+                        local ok, v = pcall(ext.Get)
+                        if ok and v ~= nil then data.Extras[name] = v end
+                    end
+                end
+
+                local friends = {}
+                for _, name in ipairs(_G._FriendsList or {}) do
+                    friends[#friends + 1] = tostring(name)
+                end
+
                 data._MenuSettings = {
-                    MenuToggleKey = tostring(M.MenuToggleKey),
-                    UnloadKey = tostring(M.UnloadKey),
+                    MenuToggleKey = keyToTable(M.MenuToggleKey),
+                    UnloadKey = keyToTable(M.UnloadKey),
                     SmoothAnimations = M.SmoothAnimations,
+                    AutoRefresh = M.AutoRefresh,
+                    BlurEnabled = M.BlurEnabled,
+                    LightingDimEnabled = M.LightingDimEnabled,
+                    ESPColour = (typeof(M.ESPColour) == "Color3")
+                        and { r = M.ESPColour.R, g = M.ESPColour.G, b = M.ESPColour.B } or nil,
+                    WindowWidth = WIN_W,
+                    WindowHeight = WIN_H,
+                    SidebarWidth = SIDE_W,
+                    Friends = friends,
                 }
                 return data
             end
@@ -4014,35 +4167,103 @@ function MenuLib:Init(config)
 
         if not _G.LoadConfigData then
             _G.LoadConfigData = function(data)
-                if not data then return end
-                if data.Toggles and _G._MenuToggles then
-                    for label, val in pairs(data.Toggles) do
-                        if _G._MenuToggles[label] then pcall(function() _G._MenuToggles[label].Set(val) end) end
-                    end
+                if type(data) ~= "table" then return end
+                _G._ConfigLoading = true
+
+                for label, val in pairs(data.Toggles or {}) do
+                    local w = (_G._MenuToggles or {})[label]
+                    if w then pcall(w.Set, val and true or false) end
                 end
-                if data.Sliders and _G._MenuSliders then
-                    for label, val in pairs(data.Sliders) do
-                        if _G._MenuSliders[label] then pcall(function() _G._MenuSliders[label].Set(val) end) end
-                    end
+                for label, val in pairs(data.Sliders or {}) do
+                    local w = (_G._MenuSliders or {})[label]
+                    if w and tonumber(val) then pcall(w.Set, tonumber(val)) end
                 end
-                if data.Dropdowns and _G._MenuDropdowns then
-                    for label, idx in pairs(data.Dropdowns) do
-                        if _G._MenuDropdowns[label] then pcall(function() _G._MenuDropdowns[label].Set(idx) end) end
-                    end
-                end
-                if data.ColorPickers and _G._MenuColorPickers then
-                    for label, val in pairs(data.ColorPickers) do
-                        if _G._MenuColorPickers[label] then
-                            pcall(function() _G._MenuColorPickers[label].Set(Color3.new(val.r, val.g, val.b), val.a) end)
+                for label, val in pairs(data.Dropdowns or {}) do
+                    local w = (_G._MenuDropdowns or {})[label]
+                    if w then
+                        local idx, text
+                        if type(val) == "table" then idx, text = tonumber(val.i), val.v else idx = tonumber(val) end
+                        if text and w.GetOptions then
+                            local ok, opts = pcall(w.GetOptions)
+                            if ok and type(opts) == "table" then
+                                for i, opt in ipairs(opts) do
+                                    if opt == text then idx = i break end
+                                end
+                            end
+                        end
+                        if idx then
+                            pcall(w.Set, idx)
+                            if text and w.SetText then pcall(w.SetText, text) end
                         end
                     end
                 end
-                if data._MenuSettings then
-                    local s = data._MenuSettings
-                    M.SmoothAnimations = s.SmoothAnimations
-                    if s.MenuToggleKey then pcall(function() M.MenuToggleKey = Enum.KeyCode[s.MenuToggleKey] end) end
-                    if s.UnloadKey then pcall(function() M.UnloadKey = Enum.KeyCode[s.UnloadKey] end) end
+                for label, val in pairs(data.ColorPickers or {}) do
+                    local w = (_G._MenuColorPickers or {})[label]
+                    if w and type(val) == "table" and val.r then
+                        pcall(w.Set, Color3.new(val.r, val.g, val.b), val.a)
+                    end
                 end
+                for label, val in pairs(data.TextBoxes or {}) do
+                    local w = (_G._MenuTextBoxes or {})[label]
+                    if w then
+                        if type(w.Set) == "function" then
+                            pcall(w.Set, tostring(val))
+                        elseif w.Element then
+                            pcall(function()
+                                w.Element.Text = tostring(val)
+                                w.Value = tostring(val)
+                            end)
+                        end
+                    end
+                end
+                for label, val in pairs(data.Keybinds or {}) do
+                    local w = (_G._MenuKeybinds or {})[label]
+                    if w then pcall(w.Set, val) end
+                end
+
+                local s = data._MenuSettings
+                if type(s) == "table" then
+                    if s.SmoothAnimations ~= nil then M.SmoothAnimations = s.SmoothAnimations end
+                    if s.AutoRefresh ~= nil then M.AutoRefresh = s.AutoRefresh end
+                    if s.BlurEnabled ~= nil then M.BlurEnabled = s.BlurEnabled end
+                    if s.LightingDimEnabled ~= nil then M.LightingDimEnabled = s.LightingDimEnabled end
+                    if s.ESPColour and s.ESPColour.r then
+                        M.ESPColour = Color3.new(s.ESPColour.r, s.ESPColour.g, s.ESPColour.b)
+                    end
+                    local mk = tableToKey(s.MenuToggleKey)
+                    if mk then M.MenuToggleKey = mk end
+                    local uk = tableToKey(s.UnloadKey)
+                    if uk then M.UnloadKey = uk end
+                    if tonumber(s.WindowWidth) and tonumber(s.WindowHeight) then
+                        WIN_W = math.max(600, tonumber(s.WindowWidth))
+                        WIN_H = math.max(380, tonumber(s.WindowHeight))
+                        pcall(function()
+                            if win then win.Size = UDim2.new(0, WIN_W, 0, WIN_H) end
+                            if settingsPanel then settingsPanel.Size = UDim2.new(0, WIN_W, 0, WIN_H) end
+                        end)
+                    end
+                    if tonumber(s.SidebarWidth) then
+                        pcall(setSidebarWidth, tonumber(s.SidebarWidth), false)
+                    end
+                    if type(s.Friends) == "table" then
+                        _G._FriendsList = _G._FriendsList or {}
+                        table.clear(_G._FriendsList)
+                        for _, name in ipairs(s.Friends) do
+                            _G._FriendsList[#_G._FriendsList + 1] = tostring(name)
+                        end
+                        if _G._SaveFriendsList then pcall(_G._SaveFriendsList) end
+                        if _G._RefreshFriendsList then pcall(_G._RefreshFriendsList) end
+                    end
+                end
+
+                for name, val in pairs(data.Extras or {}) do
+                    local ext = (_G._ConfigExtensions or {})[name]
+                    if type(ext) == "table" and type(ext.Set) == "function" then
+                        pcall(ext.Set, val)
+                    end
+                end
+
+                _G._ConfigLoading = false
                 _G._ConfigLoaded = tick()
             end
         end
@@ -4051,7 +4272,29 @@ function MenuLib:Init(config)
 
         local autoLoadName = GetAutoLoadConfig()
         if autoLoadName and _G._ConfigList[autoLoadName] and _G.LoadConfigData then
-            task.delay(1, function()
+            task.spawn(function()
+                local function widgetCount()
+                    local n = 0
+                    for _, reg in ipairs({ _G._MenuToggles, _G._MenuSliders, _G._MenuDropdowns,
+                        _G._MenuColorPickers, _G._MenuTextBoxes, _G._MenuKeybinds }) do
+                        for _ in pairs(reg or {}) do n = n + 1 end
+                    end
+                    return n
+                end
+                local last = -1
+                local stable = 0
+                local deadline = tick() + 15
+                while tick() < deadline do
+                    task.wait(0.25)
+                    local n = widgetCount()
+                    if n == last and n > 0 then
+                        stable = stable + 1
+                        if stable >= 4 then break end
+                    else
+                        stable = 0
+                        last = n
+                    end
+                end
                 pcall(function()
                     _G.LoadConfigData(_G._ConfigList[autoLoadName])
                     _G._CurrentConfig = autoLoadName
