@@ -59,8 +59,8 @@ function MenuLib:Init(config)
 
     local PLAYERS_TAB_ICON_SIZE = 20
 
-    local FONT = FONT
-    local FONT_BOLD = FONT_BOLD
+    local FONT = Enum.Font.SourceSans
+    local FONT_BOLD = Enum.Font.SourceSansBold
 
     local Z = {
         BASE = 1, CONTENT = 2, SIDEBAR = 3, TAB = 5, HUD = 5,
