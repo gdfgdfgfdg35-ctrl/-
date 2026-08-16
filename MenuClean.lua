@@ -173,13 +173,8 @@ function MenuLib:Init(config)
             local ctrl2 = getControls()
             if ctrl2 then pcall(ctrl2.Enable, ctrl2) end
         end)
-        -- This game drives the mouse lock from its own camera controller, not from
-        -- PlayerModule, and it does not re-assert it after we release. Whatever the
-        -- lock was when the menu opened has to be put back by hand.
-        if prevMouseBehavior and prevMouseBehavior ~= Enum.MouseBehavior.Default then
-            pcall(function() UserInputService.MouseBehavior = prevMouseBehavior end)
-            behaviorAssertUntil = os.clock() + 1
-        end
+        pcall(function() UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter end)
+        behaviorAssertUntil = os.clock() + 1.5
     end
 
     local function menuIsVisible()
@@ -309,11 +304,10 @@ function MenuLib:Init(config)
 
         -- Hold the restored lock briefly: the game's camera controller can take a
         -- few frames to resume, and anything it does in that window wins afterwards.
-        if os.clock() < behaviorAssertUntil
-            and prevMouseBehavior and prevMouseBehavior ~= Enum.MouseBehavior.Default then
+        if os.clock() < behaviorAssertUntil then
             pcall(function()
                 if UserInputService.MouseBehavior == Enum.MouseBehavior.Default then
-                    UserInputService.MouseBehavior = prevMouseBehavior
+                    UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
                 end
             end)
         end
@@ -2202,6 +2196,16 @@ function MenuLib:Init(config)
             local ctrl = ensureControls()
             if ctrl then pcall(function() ctrl:Enable() end) end
             pcall(function() UserInputService.MouseIconEnabled = (prevMouseIconEnabled ~= false) end)
+            pcall(function() UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter end)
+            pcall(function()
+                task.delay(0.5, function()
+                    pcall(function()
+                        if UserInputService.MouseBehavior == Enum.MouseBehavior.Default then
+                            UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
+                        end
+                    end)
+                end)
+            end)
             pcall(function()
                 local lp = game:GetService("Players").LocalPlayer
                 if lp then
