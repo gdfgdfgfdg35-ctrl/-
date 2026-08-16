@@ -1622,7 +1622,7 @@ function MenuLib:Init(config)
                                         refreshPlayerList(playerSearchBox.Text)
                                         refreshFriendList(friendSearchBox.Text)
                                     end) end)
-                                end)
+                                end))
                             end
                         end
 
