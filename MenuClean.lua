@@ -93,6 +93,7 @@ function MenuLib:Init(config)
     local unloaded = false
     local prevMouseBehavior = Enum.MouseBehavior.Default
     local prevMouseIconEnabled = UserInputService.MouseIconEnabled
+    local win, settingsPanel, toggleMenu, fpsT, fpsN
 
     local sg = Instance.new("ScreenGui")
     sg.Name = "MenuGui_v4"
@@ -390,7 +391,7 @@ function MenuLib:Init(config)
     fireClick.ZIndex = Z.HUD + 5
     fireClick.Parent = badge
 
-    local win = fr(sg, UDim2.new(0, WIN_W, 0, WIN_H), UDim2.new(0.5, -WIN_W / 2, 0.5, -WIN_H / 2), C.BG, 0, 20)
+    win = fr(sg, UDim2.new(0, WIN_W, 0, WIN_H), UDim2.new(0.5, -WIN_W / 2, 0.5, -WIN_H / 2), C.BG, 0, 20)
     win.ClipsDescendants = true
     win.ZIndex = Z.BASE
     win.Visible = false
@@ -713,7 +714,7 @@ function MenuLib:Init(config)
         if applySettingsLayout then applySettingsLayout(horizontal, t, ease) end
     end
 
-    local settingsPanel = fr(sg, UDim2.new(0, WIN_W, 0, WIN_H), UDim2.new(0.5, -WIN_W/2, 0.5, -WIN_H/2), C.BG, 0, 20)
+    settingsPanel = fr(sg, UDim2.new(0, WIN_W, 0, WIN_H), UDim2.new(0.5, -WIN_W/2, 0.5, -WIN_H/2), C.BG, 0, 20)
     settingsPanel.ClipsDescendants = true
     settingsPanel.ZIndex = Z.OVERLAY
     settingsPanel.Visible = false
@@ -1592,14 +1593,14 @@ function MenuLib:Init(config)
 
                         if player ~= lp then
                             if isFriend then
-                                local addedLbl = lbl(row, "âœ“ Friend", UDim2.new(0, 56, 0, 24), UDim2.new(1, -62, 0.5, -12), 10, C.GREEN, FONT_BOLD)
+                                local addedLbl = lbl(row, "✓ Friend", UDim2.new(0, 56, 0, 24), UDim2.new(1, -62, 0.5, -12), 10, C.GREEN, FONT_BOLD)
                                 addedLbl.TextXAlignment = Enum.TextXAlignment.Center
                             else
                                 local addBtn = Instance.new("TextButton")
                                 addBtn.Size = UDim2.new(0, 46, 0, 24)
                                 addBtn.Position = UDim2.new(1, -52, 0.5, -12)
                                 addBtn.BackgroundColor3 = C.ACCENT
-                                addBtn.Text = "Add"
+                                addBtn.Text = "✓"
                                 addBtn.TextColor3 = C.TEXT
                                 addBtn.TextSize = 10
                                 addBtn.Font = FONT_BOLD
@@ -1617,7 +1618,7 @@ function MenuLib:Init(config)
                                     table.insert(_G._FriendsList, pName)
                                     SaveFriendsToFile()
                                     tw(addBtn, {BackgroundColor3 = C.GREEN}, 0.1)
-                                    addBtn.Text = "âœ“"
+                                    addBtn.Text = "✓"
                                     task.delay(0.3, function() pcall(function()
                                         refreshPlayerList(playerSearchBox.Text)
                                         refreshFriendList(friendSearchBox.Text)
@@ -1844,7 +1845,7 @@ function MenuLib:Init(config)
         end
     end
 
-    local function toggleMenu()
+    function toggleMenu()
         if isOpen then
             closeMenu()
         else
@@ -2018,7 +2019,7 @@ function MenuLib:Init(config)
     table.insert(conns, pingLbl:GetPropertyChangedSignal("AbsoluteSize"):Connect(function() updateHudLayout(true) end))
     table.insert(conns, timeLbl:GetPropertyChangedSignal("AbsoluteSize"):Connect(function() updateHudLayout(true) end))
 
-    local fpsT, fpsN = 0, 0
+    fpsT, fpsN = 0, 0
 
     table.insert(conns, RunService.RenderStepped:Connect(function(dt)
         if unloaded then return end
@@ -2418,7 +2419,7 @@ function MenuLib:Init(config)
             closeButton.Position = UDim2.new(1, -30, 0.5, -12)
             closeButton.BackgroundColor3 = C.BTN
             closeButton.BackgroundTransparency = 0.15
-            closeButton.Text = "Ã—"
+            closeButton.Text = "×"
             closeButton.TextColor3 = C.SEC
             closeButton.TextSize = 18
             closeButton.Font = FONT_BOLD
