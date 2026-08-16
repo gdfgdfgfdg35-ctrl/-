@@ -90,6 +90,7 @@ function MenuLib:Init(config)
 
     local controls = nil
     local isOpen = false
+    local controlsDisabledByUs = false
     local unloaded = false
     local prevMouseBehavior = Enum.MouseBehavior.Default
     local prevMouseIconEnabled = UserInputService.MouseIconEnabled
@@ -146,6 +147,7 @@ function MenuLib:Init(config)
                 prevMouseBehavior = UserInputService.MouseBehavior
             end)
         end
+        controlsDisabledByUs = true
         isOpen = true
         if inputBlocker then inputBlocker.Visible = true end
         local ctrl = ensureControls()
@@ -156,6 +158,7 @@ function MenuLib:Init(config)
 
     local function unlockInput()
         isOpen = false
+        controlsDisabledByUs = false
         if inputBlocker then pcall(function() inputBlocker.Visible = false end) end
         local ctrl = ensureControls()
         if ctrl then pcall(function() ctrl:Enable() end) end
@@ -167,6 +170,19 @@ function MenuLib:Init(config)
             if ctrl2 then pcall(ctrl2.Enable, ctrl2) end
         end)
     end
+
+    local function menuIsVisible()
+        if not win or not settingsPanel then return false end
+        local okW, winVisible = pcall(function() return win.Visible end)
+        local okS, panelVisible = pcall(function() return settingsPanel.Visible end)
+        return (okW and winVisible) or (okS and panelVisible) or false
+    end
+
+    local function ensureUnlocked()
+        if menuIsVisible() then return end
+        if isOpen or controlsDisabledByUs then pcall(unlockInput) end
+    end
+
 
     RunService:BindToRenderStep(RS_BIND_INP, Enum.RenderPriority.Last.Value, function()
         if not isOpen then return end
@@ -270,6 +286,27 @@ function MenuLib:Init(config)
     local activeDropdownClosers = {}
     local conns = {}
 
+    local reassertClock = 0
+    table.insert(conns, RunService.Heartbeat:Connect(function(dt)
+        if unloaded then return end
+        if menuIsVisible() then return end
+
+        if isOpen or controlsDisabledByUs then
+            pcall(unlockInput)
+            return
+        end
+
+        reassertClock = reassertClock + dt
+        if reassertClock < 0.5 then return end
+        reassertClock = 0
+        local ctrl = getControls()
+        if ctrl then pcall(ctrl.Enable, ctrl) end
+        if inputBlocker then
+            local okV, visible = pcall(function() return inputBlocker.Visible end)
+            if okV and visible then pcall(function() inputBlocker.Visible = false end) end
+        end
+    end))
+
     local function mkToggle(parent, posX, initState, onToggle)
         local track = fr(parent, UDim2.new(0, 44, 0, 24), UDim2.new(1, posX, 0.5, -12), Color3.fromRGB(18, 8, 36), 0, 12)
         track.ClipsDescendants = true
@@ -306,6 +343,11 @@ function MenuLib:Init(config)
         if isOpen then
             pcall(toggleMenu)
         end
+        pcall(ensureUnlocked)
+    end))
+
+    table.insert(conns, UserInputService.WindowFocused:Connect(function()
+        pcall(ensureUnlocked)
     end))
     local settingKeybind = false
 
@@ -1861,7 +1903,10 @@ function MenuLib:Init(config)
     end
 
     local function closeMenu()
-        if not win.Visible and not settingsPanel.Visible then return end
+        if not win.Visible and not settingsPanel.Visible then
+            pcall(ensureUnlocked)
+            return
+        end
         isOpen = false
         for _, closer in ipairs(activeDropdownClosers) do
             pcall(closer)
@@ -2128,8 +2173,8 @@ function MenuLib:Init(config)
             pcall(function() RunService:UnbindFromRenderStep(RS_BIND_INP) end)
 
             isOpen = false
+            controlsDisabledByUs = false
             if inputBlocker then
-                pcall(function() inputBlocker.Modal = false end)
                 pcall(function() inputBlocker.Visible = false end)
             end
             local ctrl = ensureControls()
@@ -3333,6 +3378,7 @@ function MenuLib:Init(config)
 
     API.Shutdown = function()
         if unloaded then return end
+        pcall(unlockInput)
         unloaded = true
         for _, c in ipairs(conns) do pcall(function() c:Disconnect() end) end
         table.clear(conns)
