@@ -3865,7 +3865,7 @@ function MenuLib:Init(config)
     settingsResizer.Position = UDim2.new(1, -24, 1, -24)
     settingsResizer.BackgroundTransparency = 1
     settingsResizer.Text = ""
-    settingsresizer.ZIndex = Z.RESIZER
+    settingsResizer.ZIndex = Z.RESIZER
     settingsResizer.Active = true
     settingsResizer.AutoButtonColor = false
     settingsResizer.Parent = settingsPanel
