@@ -719,7 +719,7 @@ function MenuLib:Init(config)
     settingsPanel.Visible = false
 
     local settingsMainLayer = fr(settingsPanel, UDim2.new(1, 0, 1, 0), UDim2.new(0, 0, 0, 0), C.BG, 1, 0)
-    settingsmainLayer.ZIndex = Z.CONTENT
+    settingsMainLayer.ZIndex = Z.CONTENT
 
     local settingsDrag = Instance.new("TextButton")
     settingsDrag.Size = UDim2.new(1, 0, 0, 36)
@@ -1535,8 +1535,8 @@ function MenuLib:Init(config)
                         rowBtn.BackgroundTransparency = 1
                         rowBtn.Text = ""
                         rowBtn.Parent = row
-                        table.insert(conns, table.insert(conns, rowBtn.MouseEnter:Connect(function() tw(row, {BackgroundColor3 = C.BTNHOV}, 0.1) end)))
-                        table.insert(conns, table.insert(conns, rowBtn.MouseLeave:Connect(function() tw(row, {BackgroundColor3 = C.SEL}, 0.1) end)))
+                        table.insert(conns, rowBtn.MouseEnter:Connect(function() tw(row, {BackgroundColor3 = C.BTNHOV}, 0.1) end))
+                        table.insert(conns, rowBtn.MouseLeave:Connect(function() tw(row, {BackgroundColor3 = C.SEL}, 0.1) end))
                     end
                 end
                 friendCountLbl.Text = tostring(count)
