@@ -142,7 +142,10 @@ function MenuLib:Init(config)
     end
 
     local function lockInput()
-        if not isOpen then
+        -- Guard on controlsDisabledByUs, NOT isOpen: openMenu sets isOpen = true
+        -- before calling this, so an isOpen guard never samples anything and the
+        -- restore on close has nothing to put back.
+        if not controlsDisabledByUs then
             pcall(function()
                 prevMouseIconEnabled = UserInputService.MouseIconEnabled
                 prevMouseBehavior = UserInputService.MouseBehavior
