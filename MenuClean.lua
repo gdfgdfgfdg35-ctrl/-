@@ -140,8 +140,17 @@ function MenuLib:Init(config)
     end
 
     local function lockInput()
+        if not isOpen then
+            pcall(function()
+                prevMouseIconEnabled = UserInputService.MouseIconEnabled
+                prevMouseBehavior = UserInputService.MouseBehavior
+            end)
+        end
         isOpen = true
-        if inputBlocker then inputBlocker.Visible = true end
+        if inputBlocker then
+            inputBlocker.Visible = true
+            pcall(function() inputBlocker.Modal = true end)
+        end
         local ctrl = ensureControls()
         if ctrl then pcall(function() ctrl:Disable() end) end
         pcall(function() UserInputService.MouseBehavior = Enum.MouseBehavior.Default end)
@@ -150,11 +159,18 @@ function MenuLib:Init(config)
 
     local function unlockInput()
         isOpen = false
-        if inputBlocker then pcall(function() inputBlocker.Visible = false end) end
+        if inputBlocker then
+            pcall(function() inputBlocker.Modal = false end)
+            pcall(function() inputBlocker.Visible = false end)
+        end
         local ctrl = ensureControls()
         if ctrl then pcall(function() ctrl:Enable() end) end
-        pcall(function() UserInputService.MouseBehavior = Enum.MouseBehavior.Default end)
-        pcall(function() UserInputService.MouseIconEnabled = false end)
+        pcall(function()
+            UserInputService.MouseIconEnabled = (prevMouseIconEnabled ~= false)
+        end)
+        pcall(function()
+            UserInputService.MouseBehavior = prevMouseBehavior or Enum.MouseBehavior.Default
+        end)
         pcall(function()
             local ctrl2 = getControls()
             if ctrl2 then pcall(ctrl2.Enable, ctrl2) end
@@ -2121,11 +2137,14 @@ function MenuLib:Init(config)
             pcall(function() RunService:UnbindFromRenderStep(RS_BIND_INP) end)
 
             isOpen = false
-            if inputBlocker then pcall(function() inputBlocker.Visible = false end) end
+            if inputBlocker then
+                pcall(function() inputBlocker.Modal = false end)
+                pcall(function() inputBlocker.Visible = false end)
+            end
             local ctrl = ensureControls()
             if ctrl then pcall(function() ctrl:Enable() end) end
-            pcall(function() UserInputService.MouseBehavior = Enum.MouseBehavior.Default end)
-            pcall(function() UserInputService.MouseIconEnabled = false end)
+            pcall(function() UserInputService.MouseBehavior = prevMouseBehavior or Enum.MouseBehavior.Default end)
+            pcall(function() UserInputService.MouseIconEnabled = (prevMouseIconEnabled ~= false) end)
             pcall(function()
                 local lp = game:GetService("Players").LocalPlayer
                 if lp then
