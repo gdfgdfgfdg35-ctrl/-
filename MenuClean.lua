@@ -3245,40 +3245,245 @@ function MenuLib:Init(config)
         closeMenu()
     end
 
-    local function makeSimpleTab(name, icon)
-        return API.AddTab(name, icon, function(f)
-            local scroll = Instance.new("ScrollingFrame")
-            scroll.Size = UDim2.new(1, 0, 1, 0)
-            scroll.BackgroundTransparency = 1
-            scroll.BorderSizePixel = 0
-            scroll.ScrollBarThickness = 0
-            scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-            scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
-            scroll.Parent = f
-            pad(scroll, 8, 10, 8, 8)
-            local card = fr(scroll, UDim2.new(1, -4, 0, 0), nil, C.HEADER, 0, 16)
-            card.AutomaticSize = Enum.AutomaticSize.Y
-            local v = Instance.new("UIListLayout")
-            v.SortOrder = Enum.SortOrder.LayoutOrder
-            v.Padding = UDim.new(0, 8)
-            v.Parent = card
-            pad(card, 16, 16, 16, 16)
-            lbl(card, name, UDim2.new(1, 0, 0, 0), nil, 18, C.TEXT, FONT_BOLD)
-        end)
-    end
+    addSection("AIM")
+    local firstTab = API.AddTab("Aimbot", ICON.aim, function(f)
+        local scroll = Instance.new("ScrollingFrame")
+        scroll.Size = UDim2.new(1, 0, 1, 0)
+        scroll.BackgroundTransparency = 1
+        scroll.BorderSizePixel = 0
+        scroll.ScrollBarThickness = 0
+        scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+        scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+        scroll.Parent = f
+        pad(scroll, 8, 10, 8, 8)
+
+        local card = fr(scroll, UDim2.new(1, -4, 0, 0), nil, C.HEADER, 0, 16)
+        card.AutomaticSize = Enum.AutomaticSize.Y
+        local v = Instance.new("UIListLayout")
+        v.SortOrder = Enum.SortOrder.LayoutOrder
+        v.Padding = UDim.new(0, 8)
+        v.Parent = card
+        pad(card, 16, 16, 16, 16)
+        lbl(card, "Aimbot", UDim2.new(1, 0, 0, 0), nil, 18, C.TEXT, FONT_BOLD)
+
+        local mainRow = fr(card, UDim2.new(1, 0, 0, 0), nil, C.HEADER, 1, 0)
+        mainRow.LayoutOrder = 1
+        mainRow.AutomaticSize = Enum.AutomaticSize.Y
+        local rowLayout = Instance.new("UIListLayout")
+        rowLayout.SortOrder = Enum.SortOrder.LayoutOrder
+        rowLayout.Padding = UDim.new(0, 8)
+        rowLayout.FillDirection = Enum.FillDirection.Horizontal
+        rowLayout.Parent = mainRow
+
+        local leftPanel = fr(mainRow, UDim2.new(0.5, -4, 0, 0), UDim2.new(0, 0, 0, 0), C.SEL, 0, 10)
+        leftPanel.AutomaticSize = Enum.AutomaticSize.Y
+        leftPanel.LayoutOrder = 1
+        local leftV = Instance.new("UIListLayout")
+        leftV.SortOrder = Enum.SortOrder.LayoutOrder
+        leftV.Padding = UDim.new(0, 8)
+        leftV.Parent = leftPanel
+        pad(leftPanel, 12, 12, 12, 12)
+        lbl(leftPanel, "Main", UDim2.new(1, 0, 0, 0), nil, 14, C.TEXT, FONT_BOLD)
+
+        local rightPanel = fr(mainRow, UDim2.new(0.5, -4, 0, 0), UDim2.new(0.5, 4, 0, 0), C.SEL, 0, 10)
+        rightPanel.AutomaticSize = Enum.AutomaticSize.Y
+        rightPanel.LayoutOrder = 2
+        local rightV = Instance.new("UIListLayout")
+        rightV.SortOrder = Enum.SortOrder.LayoutOrder
+        rightV.Padding = UDim.new(0, 8)
+        rightV.Parent = rightPanel
+        pad(rightPanel, 12, 12, 12, 12)
+        lbl(rightPanel, "Silent Aim", UDim2.new(1, 0, 0, 0), nil, 14, C.TEXT, FONT_BOLD)
+
+        tabPanels["Aimbot"] = { leftPanel = leftPanel, rightPanel = rightPanel }
+    end)
+    RunService.Heartbeat:Wait()
 
     addSection("VISUALS")
-    local firstTab = makeSimpleTab("Visuals", ICON.appearance)
-    addSection("COMBAT")
-    makeSimpleTab("Aimbot", ICON.aim)
-    addSection("WORLD")
-    makeSimpleTab("World", ICON.world)
+    API.AddTab("Visuals", ICON.players, function(f)
+        local scroll = Instance.new("ScrollingFrame")
+        scroll.Size = UDim2.new(1, 0, 1, 0)
+        scroll.BackgroundTransparency = 1
+        scroll.BorderSizePixel = 0
+        scroll.ScrollBarThickness = 0
+        scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+        scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+        scroll.Parent = f
+        pad(scroll, 8, 10, 8, 8)
+
+        local card = fr(scroll, UDim2.new(1, -4, 0, 0), nil, C.HEADER, 0, 16)
+        card.AutomaticSize = Enum.AutomaticSize.Y
+        local v = Instance.new("UIListLayout")
+        v.SortOrder = Enum.SortOrder.LayoutOrder
+        v.Padding = UDim.new(0, 8)
+        v.Parent = card
+        pad(card, 16, 16, 16, 16)
+        lbl(card, "Visuals", UDim2.new(1, 0, 0, 0), nil, 18, C.TEXT, FONT_BOLD)
+
+        local mainRow = fr(card, UDim2.new(1, 0, 0, 0), nil, C.HEADER, 1, 0)
+        mainRow.LayoutOrder = 1
+        mainRow.AutomaticSize = Enum.AutomaticSize.Y
+        local rowLayout = Instance.new("UIListLayout")
+        rowLayout.SortOrder = Enum.SortOrder.LayoutOrder
+        rowLayout.Padding = UDim.new(0, 8)
+        rowLayout.FillDirection = Enum.FillDirection.Horizontal
+        rowLayout.Parent = mainRow
+
+        local leftPanel = fr(mainRow, UDim2.new(0.5, -4, 0, 0), UDim2.new(0, 0, 0, 0), C.SEL, 0, 10)
+        leftPanel.AutomaticSize = Enum.AutomaticSize.Y
+        leftPanel.LayoutOrder = 1
+        local leftV = Instance.new("UIListLayout")
+        leftV.SortOrder = Enum.SortOrder.LayoutOrder
+        leftV.Padding = UDim.new(0, 8)
+        leftV.Parent = leftPanel
+        pad(leftPanel, 12, 12, 12, 12)
+
+        local rightPanel = fr(mainRow, UDim2.new(0.5, -4, 0, 0), UDim2.new(0.5, 4, 0, 0), C.SEL, 0, 10)
+        rightPanel.AutomaticSize = Enum.AutomaticSize.Y
+        rightPanel.LayoutOrder = 2
+        local rightV = Instance.new("UIListLayout")
+        rightV.SortOrder = Enum.SortOrder.LayoutOrder
+        rightV.Padding = UDim.new(0, 8)
+        rightV.Parent = rightPanel
+        pad(rightPanel, 12, 12, 12, 12)
+
+        tabPanels["Visuals"] = { leftPanel = leftPanel, rightPanel = rightPanel }
+    end)
+    RunService.Heartbeat:Wait()
+
+    API.AddTab("World", ICON.world, function(f)
+        local scroll = Instance.new("ScrollingFrame")
+        scroll.Size = UDim2.new(1, 0, 1, 0)
+        scroll.BackgroundTransparency = 1
+        scroll.BorderSizePixel = 0
+        scroll.ScrollBarThickness = 0
+        scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+        scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+        scroll.Parent = f
+        pad(scroll, 8, 10, 8, 8)
+
+        local card = fr(scroll, UDim2.new(1, -4, 0, 0), nil, C.HEADER, 0, 16)
+        card.AutomaticSize = Enum.AutomaticSize.Y
+        local v = Instance.new("UIListLayout")
+        v.SortOrder = Enum.SortOrder.LayoutOrder
+        v.Padding = UDim.new(0, 8)
+        v.Parent = card
+        pad(card, 16, 16, 16, 16)
+        lbl(card, "World", UDim2.new(1, 0, 0, 0), nil, 18, C.TEXT, FONT_BOLD)
+    end)
+    RunService.Heartbeat:Wait()
+
+    API.AddTab("Skin Changer", ICON.skin, function(f)
+        local scroll = Instance.new("ScrollingFrame")
+        scroll.Size = UDim2.new(1, 0, 1, 0)
+        scroll.BackgroundTransparency = 1
+        scroll.BorderSizePixel = 0
+        scroll.ScrollBarThickness = 3
+        scroll.ScrollBarImageColor3 = C.ACCENT
+        scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+        scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+        scroll.Parent = f
+        pad(scroll, 8, 10, 8, 8)
+
+        local card = fr(scroll, UDim2.new(1, -4, 0, 0), nil, C.HEADER, 0, 16)
+        card.AutomaticSize = Enum.AutomaticSize.Y
+        local v = Instance.new("UIListLayout")
+        v.SortOrder = Enum.SortOrder.LayoutOrder
+        v.Padding = UDim.new(0, 8)
+        v.Parent = card
+        pad(card, 16, 16, 16, 16)
+    end)
+    RunService.Heartbeat:Wait()
+
     addSection("MISC")
-    makeSimpleTab("Misc", ICON.misc)
-    makeSimpleTab("Exploits", ICON.exploits)
-    addSection("SETTINGS")
-    makeSimpleTab("Keybinds", ICON.keyboard)
-    makeSimpleTab("Skin Changer", ICON.skin)
+    API.AddTab("Misc", ICON.misc, function(f)
+        local scroll = Instance.new("ScrollingFrame")
+        scroll.Size = UDim2.new(1, 0, 1, 0)
+        scroll.BackgroundTransparency = 1
+        scroll.BorderSizePixel = 0
+        scroll.ScrollBarThickness = 0
+        scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+        scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+        scroll.Parent = f
+        pad(scroll, 8, 10, 8, 8)
+
+        local card = fr(scroll, UDim2.new(1, -4, 0, 0), nil, C.HEADER, 0, 16)
+        card.AutomaticSize = Enum.AutomaticSize.Y
+        local v = Instance.new("UIListLayout")
+        v.SortOrder = Enum.SortOrder.LayoutOrder
+        v.Padding = UDim.new(0, 8)
+        v.Parent = card
+        pad(card, 16, 16, 16, 16)
+        lbl(card, "Misc", UDim2.new(1, 0, 0, 0), nil, 18, C.TEXT, FONT_BOLD)
+    end)
+    RunService.Heartbeat:Wait()
+
+    API.AddTab("Protections", ICON.protection, function(f)
+        local scroll = Instance.new("ScrollingFrame")
+        scroll.Size = UDim2.new(1, 0, 1, 0)
+        scroll.BackgroundTransparency = 1
+        scroll.BorderSizePixel = 0
+        scroll.ScrollBarThickness = 0
+        scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+        scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+        scroll.Parent = f
+        pad(scroll, 8, 10, 8, 8)
+
+        local card = fr(scroll, UDim2.new(1, -4, 0, 0), nil, C.HEADER, 0, 16)
+        card.AutomaticSize = Enum.AutomaticSize.Y
+        local v = Instance.new("UIListLayout")
+        v.SortOrder = Enum.SortOrder.LayoutOrder
+        v.Padding = UDim.new(0, 8)
+        v.Parent = card
+        pad(card, 16, 16, 16, 16)
+        lbl(card, "Protections", UDim2.new(1, 0, 0, 0), nil, 18, C.TEXT, FONT_BOLD)
+    end)
+    RunService.Heartbeat:Wait()
+
+    API.AddTab("Exploits", ICON.exploits, function(f)
+        local scroll = Instance.new("ScrollingFrame")
+        scroll.Size = UDim2.new(1, 0, 1, 0)
+        scroll.BackgroundTransparency = 1
+        scroll.BorderSizePixel = 0
+        scroll.ScrollBarThickness = 0
+        scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+        scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+        scroll.Parent = f
+        pad(scroll, 8, 10, 8, 8)
+
+        local card = fr(scroll, UDim2.new(1, -4, 0, 0), nil, C.HEADER, 0, 16)
+        card.AutomaticSize = Enum.AutomaticSize.Y
+        local v = Instance.new("UIListLayout")
+        v.SortOrder = Enum.SortOrder.LayoutOrder
+        v.Padding = UDim.new(0, 8)
+        v.Parent = card
+        pad(card, 16, 16, 16, 16)
+        lbl(card, "Exploits", UDim2.new(1, 0, 0, 0), nil, 18, C.TEXT, FONT_BOLD)
+    end)
+    RunService.Heartbeat:Wait()
+
+    API.AddTab("SFX", ICON.sfx, function(f)
+        local scroll = Instance.new("ScrollingFrame")
+        scroll.Size = UDim2.new(1, 0, 1, 0)
+        scroll.BackgroundTransparency = 1
+        scroll.BorderSizePixel = 0
+        scroll.ScrollBarThickness = 0
+        scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+        scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+        scroll.Parent = f
+        pad(scroll, 8, 10, 8, 8)
+
+        local card = fr(scroll, UDim2.new(1, -4, 0, 0), nil, C.HEADER, 0, 16)
+        card.Name = "Card"
+        card.AutomaticSize = Enum.AutomaticSize.Y
+        local v = Instance.new("UIListLayout")
+        v.SortOrder = Enum.SortOrder.LayoutOrder
+        v.Padding = UDim.new(0, 8)
+        v.Parent = card
+        pad(card, 16, 16, 16, 16)
+        lbl(card, "Sound Effects", UDim2.new(1, 0, 0, 0), nil, 18, C.TEXT, FONT_BOLD)
+    end)
+    RunService.Heartbeat:Wait()
 
     API.AddTab("Configuration", ICON.config, function(f)
         local scroll = Instance.new("ScrollingFrame")
