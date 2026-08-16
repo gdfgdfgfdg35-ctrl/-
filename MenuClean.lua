@@ -103,17 +103,14 @@ function MenuLib:Init(config)
         pcall(function() prevMouseIconEnabled = UserInputService.MouseIconEnabled end)
         isOpen = true
         if inputBlocker then inputBlocker.Visible = true end
-        pcall(function() controls:Disable() end)
+        local ctrl = ensureControls()
+        if ctrl then pcall(function() ctrl:Disable() end) end
         pcall(function() UserInputService.MouseBehavior = Enum.MouseBehavior.Default end)
         pcall(function() UserInputService.MouseIconEnabled = true end)
     end
     
-    local function unlockInput()
-        isOpen = false
-        if inputBlocker then pcall(function() inputBlocker.Visible = false end) end
-        pcall(function() controls:Enable() end)
-        pcall(function() UserInputService.MouseBehavior = prevMouseBehavior end)
-        pcall(function() UserInputService.MouseIconEnabled = prevMouseIconEnabled end)
+    local function ensureControls()
+        if controls then return controls end
         pcall(function()
             local lp = game:GetService("Players").LocalPlayer
             if lp then
@@ -124,7 +121,33 @@ function MenuLib:Init(config)
                         local okPM, PM = pcall(function() return require(pm) end)
                         if okPM and PM and PM.GetControls then
                             local okCtrl, ctrl = pcall(PM.GetControls, PM)
-                            if okCtrl and ctrl then pcall(ctrl.Enable, ctrl) end
+                            if okCtrl and ctrl then controls = ctrl end
+                        end
+                    end
+                end
+            end
+        end)
+        return controls
+    end
+
+    local function unlockInput()
+        isOpen = false
+        if inputBlocker then pcall(function() inputBlocker.Visible = false end) end
+        local ctrl = ensureControls()
+        if ctrl then pcall(function() ctrl:Enable() end) end
+        pcall(function() UserInputService.MouseBehavior = Enum.MouseBehavior.Default end)
+        pcall(function() UserInputService.MouseIconEnabled = false end)
+        pcall(function()
+            local lp = game:GetService("Players").LocalPlayer
+            if lp then
+                local ps = lp:FindFirstChild("PlayerScripts")
+                if ps then
+                    local pm = ps:FindFirstChild("PlayerModule")
+                    if pm then
+                        local okPM, PM = pcall(function() return require(pm) end)
+                        if okPM and PM and PM.GetControls then
+                            local okCtrl, ctrl2 = pcall(PM.GetControls, PM)
+                            if okCtrl and ctrl2 then pcall(ctrl2.Enable, ctrl2) end
                         end
                     end
                 end
@@ -2120,10 +2143,9 @@ function MenuLib:Init(config)
         local toggleKey = _G._MenuToggleKey or Enum.KeyCode.Insert
         local unloadKey = _G._UnloadKey or Enum.KeyCode.Delete
         
-        if inp.KeyCode == toggleKey and not _G._SettingKeybind then
-            toggleMenu()
-        elseif inp.KeyCode == unloadKey and not _G._SettingKeybind then
-            -- Flag unloaded immediately to stop all callbacks (both local and global)
+        if inp.KeyCode == unloadKey then
+            -- Unload always works, even during keybind setting
+            _G._SettingKeybind = false
             unloaded = true
             _G._UnloadTriggered = true
 
@@ -2137,9 +2159,8 @@ function MenuLib:Init(config)
             -- Restore input state
             isOpen = false
             if inputBlocker then pcall(function() inputBlocker.Visible = false end) end
-            pcall(function() controls:Enable() end)
-            pcall(function() UserInputService.MouseBehavior = prevMouseBehavior end)
-            pcall(function() UserInputService.MouseIconEnabled = prevMouseIconEnabled end)
+            local ctrl = ensureControls()
+            if ctrl then pcall(function() ctrl:Enable() end) end
             pcall(function() UserInputService.MouseBehavior = Enum.MouseBehavior.Default end)
             pcall(function() UserInputService.MouseIconEnabled = false end)
             pcall(function()
@@ -2151,8 +2172,8 @@ function MenuLib:Init(config)
                         if pm then
                             local okPM, PM = pcall(function() return require(pm) end)
                             if okPM and PM and PM.GetControls then
-                                local okCtrl, ctrl = pcall(PM.GetControls, PM)
-                                if okCtrl and ctrl then pcall(ctrl.Enable, ctrl) end
+                                local okCtrl, ctrl2 = pcall(PM.GetControls, PM)
+                                if okCtrl and ctrl2 then pcall(ctrl2.Enable, ctrl2) end
                             end
                         end
                     end
@@ -2198,6 +2219,8 @@ function MenuLib:Init(config)
             _G._FriendsList = nil
             _G.GetConfigData = nil
             _G.LoadConfigData = nil
+        elseif inp.KeyCode == toggleKey and not _G._SettingKeybind then
+            toggleMenu()
         end
     end))
     
