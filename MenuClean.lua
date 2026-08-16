@@ -3341,6 +3341,17 @@ function MenuLib:Init(config)
     end
 
 
+    API.Shutdown = function()
+        if unloaded then return end
+        unloaded = true
+        for _, c in ipairs(conns) do pcall(function() c:Disconnect() end) end
+        table.clear(conns)
+        pcall(function() RunService:UnbindFromRenderStep(RS_BIND_INP) end)
+        isOpen = false
+        if blurPart then pcall(function() blurPart:Destroy() end) blurPart = nil end
+        pcall(function() sg:Destroy() end)
+    end
+
     API.GetScreenGui = function() return sg end
     API.GetWindow = function() return win end
     API.GetHUD = function() return hudBar end
