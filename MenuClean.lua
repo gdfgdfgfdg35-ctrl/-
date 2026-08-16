@@ -550,7 +550,7 @@ function MenuLib:Init(config)
         tw(entry.line, { BackgroundTransparency = 1, Size = UDim2.new(0, 4, 0, 0) }, 0.2)
         tw(entry.lbl, { TextColor3 = C.DIM }, 0.2)
         tw(entry.ico, { ImageColor3 = C.DIM, Position = isCompact and UDim2.new(0.5, -entry.iconSize/2, 0.5, -entry.iconSize/2) or UDim2.new(0, entry.iconX, 0.5, -entry.iconSize / 2) }, 0.25)
-        task.delay(0.35, function() tf.Visible = false end)
+        task.delay(0.35, function() pcall(function() tf.Visible = false end) end)
         if entry.hBtn then
             tw(entry.hBg, { BackgroundTransparency = 1 }, 0.25)
             tw(entry.hLine, { BackgroundTransparency = 1, Size = UDim2.new(0.5, 0, 0, 0) }, 0.2)
@@ -669,10 +669,10 @@ function MenuLib:Init(config)
         if horizontal then
             tw(sidebar, { Size = UDim2.new(0, 0, 1, -4) }, t, ease)
             tw(sidebarDivider, { BackgroundTransparency = 1, Position = UDim2.new(0, 0, 0, 4) }, t, ease)
-            task.delay(t, function()
+            task.delay(t, function() pcall(function()
                 sidebar.Visible = false
                 sidebarDivider.Visible = false
-            end)
+            end) end)
             topTabBar.Visible = true
             topTabBar.BackgroundTransparency = 1
             tw(topTabBar, { BackgroundTransparency = 0 }, t, ease)
@@ -696,10 +696,10 @@ function MenuLib:Init(config)
             tw(sidebarDivider, { BackgroundTransparency = 0, Position = UDim2.new(0, targetW, 0, 4) }, t, ease)
             tw(topTabBar, { BackgroundTransparency = 1 }, t, ease)
             tw(topTabDivider, { BackgroundTransparency = 1 }, t, ease)
-            task.delay(t, function()
+            task.delay(t, function() pcall(function()
                 topTabBar.Visible = false
                 topTabDivider.Visible = false
-            end)
+            end) end)
             tw(contentArea, {
                 Size = UDim2.new(1, -targetW - 2, 1, -32),
                 Position = UDim2.new(0, targetW + 2, 0, 4)
@@ -870,7 +870,7 @@ function MenuLib:Init(config)
         for _, s in ipairs(sectionLabels or {}) do
             if isCompact then
                 tw(s, {TextTransparency = 1}, tatn)
-                task.delay(tatn, function() if s then s.Visible = false end end)
+                task.delay(tatn, function() pcall(function() if s then s.Visible = false end end) end)
             else
                 s.Visible = true
                 tw(s, {TextTransparency = 0}, tatn)
@@ -881,7 +881,7 @@ function MenuLib:Init(config)
             if t.lbl then
                 if isCompact then
                     tw(t.lbl, {TextTransparency = 1}, tatn)
-                    task.delay(tatn, function() if t.lbl then t.lbl.Visible = false end end)
+                    task.delay(tatn, function() pcall(function() if t.lbl then t.lbl.Visible = false end end) end)
                 else
                     t.lbl.Visible = true
                     tw(t.lbl, {TextTransparency = 0}, tatn)
@@ -899,7 +899,7 @@ function MenuLib:Init(config)
             if t.lbl then
                 if isCompact then
                     tw(t.lbl, {TextTransparency = 1}, tatn)
-                    task.delay(tatn, function() if t.lbl then t.lbl.Visible = false end end)
+                    task.delay(tatn, function() pcall(function() if t.lbl then t.lbl.Visible = false end end) end)
                 else
                     t.lbl.Visible = true
                     tw(t.lbl, {TextTransparency = 0}, tatn)
@@ -1035,10 +1035,10 @@ function MenuLib:Init(config)
         if horizontal then
             tw(settingsLeft, { Size = UDim2.new(0, 0, 1, -4) }, t, ease)
             tw(settingsDivider, { BackgroundTransparency = 1, Position = UDim2.new(0, 0, 0, 4) }, t, ease)
-            task.delay(t, function()
+            task.delay(t, function() pcall(function()
                 settingsLeft.Visible = false
                 settingsDivider.Visible = false
-            end)
+            end) end)
             tw(sRight, {
                 Size = UDim2.new(1, -4, 1, -32),
                 Position = UDim2.new(0, 2, 0, 4)
@@ -1055,7 +1055,7 @@ function MenuLib:Init(config)
             tw(settingsLeft, { Size = UDim2.new(0, targetW, 1, -4) }, t, ease)
             tw(settingsDivider, { BackgroundTransparency = 0, Position = UDim2.new(0, targetW, 0, 4) }, t, ease)
             tw(settingsCatBar, { BackgroundTransparency = 1 }, t, ease)
-            task.delay(t, function() settingsCatBar.Visible = false end)
+            task.delay(t, function() pcall(function() settingsCatBar.Visible = false end) end)
             tw(sRight, {
                 Size = UDim2.new(1, -targetW - 2, 1, -32),
                 Position = UDim2.new(0, targetW + 2, 0, 4)
@@ -1169,10 +1169,10 @@ function MenuLib:Init(config)
                     local cs = dropShadow
                     dropFrame = nil
                     dropShadow = nil
-                    task.delay(0.25, function()
+                    task.delay(0.25, function() pcall(function()
                         if cf then cf:Destroy() end
                         if cs then cs:Destroy() end
-                    end)
+                    end) end)
                 end
             end
 
@@ -1592,7 +1592,7 @@ function MenuLib:Init(config)
 
                         if player ~= lp then
                             if isFriend then
-                                local addedLbl = lbl(row, "Ã¢Å“â€œ Friend", UDim2.new(0, 56, 0, 24), UDim2.new(1, -62, 0.5, -12), 10, C.GREEN, FONT_BOLD)
+                                local addedLbl = lbl(row, "âœ“ Friend", UDim2.new(0, 56, 0, 24), UDim2.new(1, -62, 0.5, -12), 10, C.GREEN, FONT_BOLD)
                                 addedLbl.TextXAlignment = Enum.TextXAlignment.Center
                             else
                                 local addBtn = Instance.new("TextButton")
@@ -1617,11 +1617,11 @@ function MenuLib:Init(config)
                                     table.insert(_G._FriendsList, pName)
                                     SaveFriendsToFile()
                                     tw(addBtn, {BackgroundColor3 = C.GREEN}, 0.1)
-                                    addBtn.Text = "Ã¢Å“â€œ"
-                                    task.delay(0.3, function()
+                                    addBtn.Text = "âœ“"
+                                    task.delay(0.3, function() pcall(function()
                                         refreshPlayerList(playerSearchBox.Text)
                                         refreshFriendList(friendSearchBox.Text)
-                                    end)
+                                    end) end)
                                 end)
                             end
                         end
@@ -2008,7 +2008,7 @@ function MenuLib:Init(config)
         end
     end
 
-    task.defer(function() updateHudLayout(false) end)
+    task.defer(function() pcall(function() updateHudLayout(false) end) end)
     table.insert(conns, nameLbl:GetPropertyChangedSignal("AbsoluteSize"):Connect(function() updateHudLayout(true) end))
     table.insert(conns, fpsLbl:GetPropertyChangedSignal("Text"):Connect(function() updateHudLayout(true) end))
     table.insert(conns, fpsLbl:GetPropertyChangedSignal("Visible"):Connect(function() updateHudLayout(true) end))
@@ -2418,7 +2418,7 @@ function MenuLib:Init(config)
             closeButton.Position = UDim2.new(1, -30, 0.5, -12)
             closeButton.BackgroundColor3 = C.BTN
             closeButton.BackgroundTransparency = 0.15
-            closeButton.Text = "Ãƒâ€”"
+            closeButton.Text = "Ã—"
             closeButton.TextColor3 = C.SEC
             closeButton.TextSize = 18
             closeButton.Font = FONT_BOLD
@@ -3218,11 +3218,13 @@ function MenuLib:Init(config)
         tb.ClearTextOnFocus = false
         tb.Parent = txtBg
 
+        local entry = { Type = "TextBox", Value = tb.Text, Element = tb, Container = row }
         table.insert(conns, tb.FocusLost:Connect(function()
             if callback then pcall(callback, tb.Text) end
         end))
-
-        local entry = { Type = "TextBox", Value = tb.Text, Element = tb, Container = row }
+        table.insert(conns, tb:GetPropertyChangedSignal("Text"):Connect(function()
+            entry.Value = tb.Text
+        end))
         if not _G._MenuTextBoxes then _G._MenuTextBoxes = {} end
         _G._MenuTextBoxes[tabName .. "_" .. label] = entry
 
