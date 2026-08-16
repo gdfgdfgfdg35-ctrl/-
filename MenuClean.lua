@@ -3207,11 +3207,13 @@ function MenuLib:Init(config)
         table.insert(conns, dropdownBtn.MouseButton1Click:Connect(openDropdown))
         table.insert(activeDropdownClosers, closeDropdown)
 
-        local dd = { 
-            Get = function() return options[selectedIndex], selectedIndex end, 
+        local dd = {
+            Element = dropdownBtn,
+            Get = function() return options[selectedIndex], selectedIndex end,
             Set = function(idx) selectedIndex = idx if options[idx] then dropdownBtn.Text = options[idx] end if callback then callback(options[idx], idx) end end,
             GetOptions = function() return options end,
-            SetOptions = function(newOpts) options = newOpts selectedIndex = 1 dropdownBtn.Text = options[1] or "Select" end
+            SetOptions = function(newOpts) options = newOpts selectedIndex = 1 dropdownBtn.Text = options[1] or "Select" end,
+            SetText = function(text) dropdownBtn.Text = tostring(text or "") end
         }
         if not _G._MenuDropdowns then _G._MenuDropdowns = {} end
         _G._MenuDropdowns[tabName .. "_" .. label] = dd
@@ -3339,9 +3341,9 @@ function MenuLib:Init(config)
     end
 
 
-    API.GetScreenGui = function() return nil end
-    API.GetWindow = function() return nil end
-    API.GetHUD = function() return nil end
+    API.GetScreenGui = function() return sg end
+    API.GetWindow = function() return win end
+    API.GetHUD = function() return hudBar end
 
     API.Show = function()
         openMenu()
