@@ -147,10 +147,7 @@ function MenuLib:Init(config)
             end)
         end
         isOpen = true
-        if inputBlocker then
-            inputBlocker.Visible = true
-            pcall(function() inputBlocker.Modal = true end)
-        end
+        if inputBlocker then inputBlocker.Visible = true end
         local ctrl = ensureControls()
         if ctrl then pcall(function() ctrl:Disable() end) end
         pcall(function() UserInputService.MouseBehavior = Enum.MouseBehavior.Default end)
@@ -159,17 +156,11 @@ function MenuLib:Init(config)
 
     local function unlockInput()
         isOpen = false
-        if inputBlocker then
-            pcall(function() inputBlocker.Modal = false end)
-            pcall(function() inputBlocker.Visible = false end)
-        end
+        if inputBlocker then pcall(function() inputBlocker.Visible = false end) end
         local ctrl = ensureControls()
         if ctrl then pcall(function() ctrl:Enable() end) end
         pcall(function()
             UserInputService.MouseIconEnabled = (prevMouseIconEnabled ~= false)
-        end)
-        pcall(function()
-            UserInputService.MouseBehavior = prevMouseBehavior or Enum.MouseBehavior.Default
         end)
         pcall(function()
             local ctrl2 = getControls()
@@ -2143,7 +2134,6 @@ function MenuLib:Init(config)
             end
             local ctrl = ensureControls()
             if ctrl then pcall(function() ctrl:Enable() end) end
-            pcall(function() UserInputService.MouseBehavior = prevMouseBehavior or Enum.MouseBehavior.Default end)
             pcall(function() UserInputService.MouseIconEnabled = (prevMouseIconEnabled ~= false) end)
             pcall(function()
                 local lp = game:GetService("Players").LocalPlayer
