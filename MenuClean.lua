@@ -2,33 +2,41 @@ local MenuLib = {}
 
 function MenuLib:Init(config)
     config = config or {}
-    
+
     local Players = game:GetService("Players")
-    while not Players do task.wait(); Players = game:GetService("Players") end
     local UserInputService = game:GetService("UserInputService")
     local TweenService = game:GetService("TweenService")
     local RunService = game:GetService("RunService")
     local Lighting = game:GetService("Lighting")
     local HttpService = game:GetService("HttpService")
-    
-    while not Players.LocalPlayer do task.wait() end
+
+    for _ = 1, 100 do if Players.LocalPlayer then break end task.wait(0.1) end
     local lp = Players.LocalPlayer
     local pg = lp:WaitForChild("PlayerGui")
-    local _guid = tostring(tick() * 100000 % 1e12)
-    pcall(function() _guid = HttpService:GenerateGUID(false) end)
+    local _guidCounter = 0
+    local _guid = nil
+    local okGuid, guidResult = pcall(function() return HttpService:GenerateGUID(false) end)
+    if okGuid and guidResult then
+        _guid = guidResult
+    else
+        _guidCounter = _guidCounter + 1
+        _guid = tostring(math.random(1, 999999)) .. "_" .. tostring(tick()) .. "_" .. tostring(_guidCounter)
+    end
     local RS_BIND_INP = "MenuGuiInp_" .. _guid
-    
-    _G._MenuAutoRefresh = true
-    _G._BlurEnabled = false
-    _G._LightingDimEnabled = false
-    _G._OriginalBrightness = nil
-    _G._OriginalClockTime = nil
-    _G._OriginalQualityLevel = nil
-    _G._MenuToggleKey = Enum.KeyCode.Insert
-    _G._UnloadKey = Enum.KeyCode.Delete
-    _G._SmoothAnimations = true
-    _G._ESPColour = Color3.fromRGB(120, 40, 240)
-    
+
+    _G._MenuLib = _G._MenuLib or {}
+    local M = _G._MenuLib
+    M.AutoRefresh = true
+    M.BlurEnabled = false
+    M.LightingDimEnabled = false
+    M.OriginalBrightness = nil
+    M.OriginalClockTime = nil
+    M.OriginalQualityLevel = nil
+    M.MenuToggleKey = Enum.KeyCode.Insert
+    M.UnloadKey = Enum.KeyCode.Delete
+    M.SmoothAnimations = true
+    M.ESPColour = Color3.fromRGB(120, 40, 240)
+
     local ICON = {
         home = "rbxassetid://130068439240504",
         settings = "rbxassetid://11932591062",
@@ -48,25 +56,44 @@ function MenuLib:Init(config)
         skin = "rbxassetid://81837937089566",
         playerTab = "rbxthumb://type=Asset&id=2795572803&w=150&h=150",
     }
-    
-    -- Configurable icon size for the Players tab (change this to resize)
+
     local PLAYERS_TAB_ICON_SIZE = 20
-    
+
+    local FONT = FONT
+    local FONT_BOLD = FONT_BOLD
+
+    local Z = {
+        BASE = 1, CONTENT = 2, SIDEBAR = 3, TAB = 5, HUD = 5,
+        DRAG = 30, SETTINGS_DRAG = 50, RESIZER = 50,
+        OVERLAY = 100, DROPDOWN = 1000, DROPDOWN_SHADOW = 998,
+        POPUP = 1000, POPUP_CONTENT = 101, INPUT_BLOCKER = -10,
+    }
+
+    local DROP_W = 130
+    local DROP_OPTION_H = 30
+    local DROP_PADDING = 12
+    local DROP_MAX_H = 150
+    local PICKER_W = 254
+    local PICKER_H = 324
+    local TAB_LABEL_CHAR_W = 7
+    local TAB_LABEL_MIN_W = 28
+    local FIELD_GAP = 6
+
     local function normalizeIconId(id)
         if type(id) ~= "string" and type(id) ~= "number" then return nil end
         local s = tostring(id):gsub("^%s+", ""):gsub("%s+$", "")
         if s == "" then return nil end
-        if s:match("^rbxassetid://") or s:match("^rbxasset://") then return s end
+        if s:match("^rbxassetid://") or s:match("^rbxasset://") or s:match("^rbxthumb://") or s:match("^http://") or s:match("^https://") then return s end
         if s:match("^%d+$") then return "rbxassetid://" .. s end
         return s
     end
-    
+
     local controls = nil
     local isOpen = false
+    local unloaded = false
     local prevMouseBehavior = Enum.MouseBehavior.Default
     local prevMouseIconEnabled = UserInputService.MouseIconEnabled
-    
-    -- Create sg first so inputBlocker can parent to it
+
     local sg = Instance.new("ScreenGui")
     sg.Name = "MenuGui_v4"
     sg.ResetOnSpawn = false
@@ -81,29 +108,15 @@ function MenuLib:Init(config)
     inputBlocker.Text = ""
     inputBlocker.Active = true
     inputBlocker.Visible = false
-    inputBlocker.ZIndex = -10
+    inputBlocker.ZIndex = Z.INPUT_BLOCKER
     inputBlocker.Parent = sg
-    
-    pcall(function()
-        local ps = lp:FindFirstChild("PlayerScripts")
-        if ps then
-            local pm = ps:FindFirstChild("PlayerModule")
-            if pm then
-                local okPM, PM = pcall(function() return require(pm) end)
-                if okPM and PM and PM.GetControls then
-                    local okCtrl, ctrl = pcall(PM.GetControls, PM)
-                    if okCtrl and ctrl then controls = ctrl end
-                end
-            end
-        end
-    end)
-    
-    local function ensureControls()
+
+    local function getControls()
         if controls then return controls end
         pcall(function()
-            local lp = game:GetService("Players").LocalPlayer
-            if lp then
-                local ps = lp:FindFirstChild("PlayerScripts")
+            local pl = game:GetService("Players").LocalPlayer
+            if pl then
+                local ps = pl:FindFirstChild("PlayerScripts")
                 if ps then
                     local pm = ps:FindFirstChild("PlayerModule")
                     if pm then
@@ -119,9 +132,13 @@ function MenuLib:Init(config)
         return controls
     end
 
+    getControls()
+
+    local function ensureControls()
+        return getControls()
+    end
+
     local function lockInput()
-        pcall(function() prevMouseBehavior = UserInputService.MouseBehavior end)
-        pcall(function() prevMouseIconEnabled = UserInputService.MouseIconEnabled end)
         isOpen = true
         if inputBlocker then inputBlocker.Visible = true end
         local ctrl = ensureControls()
@@ -138,24 +155,12 @@ function MenuLib:Init(config)
         pcall(function() UserInputService.MouseBehavior = Enum.MouseBehavior.Default end)
         pcall(function() UserInputService.MouseIconEnabled = false end)
         pcall(function()
-            local lp = game:GetService("Players").LocalPlayer
-            if lp then
-                local ps = lp:FindFirstChild("PlayerScripts")
-                if ps then
-                    local pm = ps:FindFirstChild("PlayerModule")
-                    if pm then
-                        local okPM, PM = pcall(function() return require(pm) end)
-                        if okPM and PM and PM.GetControls then
-                            local okCtrl, ctrl2 = pcall(PM.GetControls, PM)
-                            if okCtrl and ctrl2 then pcall(ctrl2.Enable, ctrl2) end
-                        end
-                    end
-                end
-            end
+            local ctrl2 = getControls()
+            if ctrl2 then pcall(ctrl2.Enable, ctrl2) end
         end)
     end
-    
-    RunService:BindToRenderStep(RS_BIND_INP, Enum.RenderPriority.Last.Value + 1, function()
+
+    RunService:BindToRenderStep(RS_BIND_INP, Enum.RenderPriority.Last.Value, function()
         if not isOpen then return end
         if not win or not settingsPanel then return end
         if not win.Visible and not settingsPanel.Visible then
@@ -165,7 +170,7 @@ function MenuLib:Init(config)
         pcall(function() UserInputService.MouseBehavior = Enum.MouseBehavior.Default end)
         pcall(function() UserInputService.MouseIconEnabled = true end)
     end)
-    
+
     local C = {
         BG = Color3.fromRGB(8, 4, 18),
         SIDEBAR = Color3.fromRGB(5, 2, 12),
@@ -185,18 +190,19 @@ function MenuLib:Init(config)
         SEL = Color3.fromRGB(26, 13, 48),
         DARK = Color3.fromRGB(4, 2, 9),
     }
-    
+
     local WIN_W = config.width or 650
     local WIN_H = config.height or 490
     local SIDE_W = config.sidebarWidth or 160
     local HUD_W = config.hudWidth or 520
-    
+
     local function fr(parent, size, pos, col, trans, rad)
+        if not parent then return nil end
         local f = Instance.new("Frame")
         f.Size = size
         f.Position = pos or UDim2.new(0, 0, 0, 0)
         f.BackgroundColor3 = col or C.BG
-        f.BackgroundTransparency = trans or 0
+        f.BackgroundTransparency = trans ~= nil and trans or 0
         f.BorderSizePixel = 0
         f.Parent = parent
         if rad ~= nil and rad ~= false then
@@ -210,57 +216,55 @@ function MenuLib:Init(config)
         end
         return f
     end
-    
+
     local function lbl(parent, txt, size, pos, ts, col, font)
+        if not parent then return nil end
         local l = Instance.new("TextLabel")
         l.Size = size
         l.Position = pos or UDim2.new(0, 0, 0, 0)
         l.BackgroundTransparency = 1
         l.Text = txt
         l.TextColor3 = col or C.TEXT
-        l.TextSize = ts or 11
-        l.Font = font or Enum.Font.Gotham
+        l.TextSize = ts ~= nil and ts or 11
+        l.Font = font or FONT
         l.TextXAlignment = Enum.TextXAlignment.Left
         l.TextWrapped = true
         l.Parent = parent
         return l
     end
-    
+
     local function gradV(parent, c1, c2)
+        if not parent then return nil end
         local g = Instance.new("UIGradient")
         g.Color = ColorSequence.new({ ColorSequenceKeypoint.new(0, c1), ColorSequenceKeypoint.new(1, c2) })
         g.Rotation = 90
         g.Parent = parent
         return g
     end
-    
+
     local function pad(parent, l, r, t, b)
+        if not parent then return nil end
         local p = Instance.new("UIPadding")
-        p.PaddingLeft = UDim.new(0, l or 0)
-        p.PaddingRight = UDim.new(0, r or 0)
-        p.PaddingTop = UDim.new(0, t or 0)
-        p.PaddingBottom = UDim.new(0, b or 0)
+        p.PaddingLeft = UDim.new(0, l ~= nil and l or 0)
+        p.PaddingRight = UDim.new(0, r ~= nil and r or 0)
+        p.PaddingTop = UDim.new(0, t ~= nil and t or 0)
+        p.PaddingBottom = UDim.new(0, b ~= nil and b or 0)
         p.Parent = parent
         return p
     end
-    
+
     local function tw(obj, props, t, style)
         if not obj then return end
-        TweenService:Create(obj, TweenInfo.new(t or 0.15, style or Enum.EasingStyle.Quint), props):Play()
+        TweenService:Create(obj, TweenInfo.new(t ~= nil and t or 0.15, style or Enum.EasingStyle.Quint), props):Play()
     end
-    
+
     local blurPart = nil
     local activeDropdownClosers = {}
-    
-    -- ============================================================
-    -- FIX 1: Toggle - use Size animation so fill and knob are
-    -- perfectly in sync (no more "fill beats knob" bug)
-    -- ============================================================
+    local conns = {}
+
     local function mkToggle(parent, posX, initState, onToggle)
         local track = fr(parent, UDim2.new(0, 44, 0, 24), UDim2.new(1, posX, 0.5, -12), Color3.fromRGB(18, 8, 36), 0, 12)
         track.ClipsDescendants = true
-        -- Fill starts at zero width (not full width + transparent)
-        -- This makes the size animation perfectly sync with knob position
         local fill = fr(track, UDim2.new(0, 0, 1, 0), nil, C.ACCENT, 0, 12)
         gradV(fill, C.ACCENT, C.ACCENT2)
         local knob = fr(track, UDim2.new(0, 18, 0, 18), UDim2.new(0, 3, 0.5, -9), C.TEXT, 0, 9)
@@ -271,7 +275,6 @@ function MenuLib:Init(config)
         togBtn.Parent = track
         local state = initState
         local function apply(anim, silent)
-            -- Animate SIZE instead of transparency â€” knob and fill move together at exactly the same speed
             local fillDest = state and UDim2.new(1, 0, 1, 0) or UDim2.new(0, 0, 1, 0)
             local dest = state and UDim2.new(0, 23, 0.5, -9) or UDim2.new(0, 3, 0.5, -9)
             if anim then
@@ -281,31 +284,27 @@ function MenuLib:Init(config)
                 fill.Size = fillDest
                 knob.Position = dest
             end
-            if onToggle and not silent then task.defer(function() onToggle(state) end) end
+            if onToggle and not silent then pcall(function() task.defer(function() pcall(onToggle, state) end) end) end
         end
         apply(false, true)
-        togBtn.MouseButton1Click:Connect(function()
+        table.insert(conns, togBtn.MouseButton1Click:Connect(function()
             state = not state
             apply(true, false)
-        end)
+        end))
         return { Get = function() return state end, Set = function(v) if v ~= state then state = v apply(true, false) end end }
     end
-    
-    -- Connection tracking for cleanup
-    local conns = {}
+
     table.insert(conns, UserInputService.WindowFocusReleased:Connect(function()
         if isOpen then
             pcall(toggleMenu)
         end
     end))
-    local unloaded = false
-    -- Cleaned up old global mouse var
+    local settingKeybind = false
 
-    -- UI (sg already created above)
-    
+
     local hudBar = fr(sg, UDim2.new(0, HUD_W, 0, 44), UDim2.new(0.5, -HUD_W / 2, 0, 10), C.DARK, 0, 18)
-    hudBar.ZIndex = 5
-    
+    hudBar.ZIndex = Z.HUD
+
     local av = fr(hudBar, UDim2.new(0, 32, 0, 32), UDim2.new(0, 10, 0.5, -16), Color3.fromRGB(36, 14, 68), 0, 16)
     local avImg = Instance.new("ImageLabel")
     avImg.Size = UDim2.new(1, -4, 1, -4)
@@ -314,23 +313,25 @@ function MenuLib:Init(config)
     avImg.Parent = av
     Instance.new("UICorner").Parent = avImg
     task.spawn(function()
-        local ok, url = pcall(function()
-            return Players:GetUserThumbnailAsync(lp.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size180x180)
+        pcall(function()
+            local ok, url = pcall(function()
+                return Players:GetUserThumbnailAsync(lp.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size180x180)
+            end)
+            if ok and url and not unloaded then avImg.Image = url end
         end)
-        if ok and url then avImg.Image = url end
     end)
-    
+
     lbl(hudBar, "Welcome back,", UDim2.new(0, 140, 0, 14), UDim2.new(0, 48, 0, 6), 9, C.DIM)
-    local nameLbl = lbl(hudBar, lp.Name, UDim2.new(0, 0, 0, 16), UDim2.new(0, 48, 0, 20), 12, C.TEXT, Enum.Font.GothamBold)
+    local nameLbl = lbl(hudBar, lp.Name, UDim2.new(0, 0, 0, 16), UDim2.new(0, 48, 0, 20), 12, C.TEXT, FONT_BOLD)
     nameLbl.AutomaticSize = Enum.AutomaticSize.X
-    
-    local fpsLbl = lbl(hudBar, "...", UDim2.new(0, 0, 0, 20), UDim2.new(0, 248, 0, 14), 14, C.ACCENT, Enum.Font.GothamBold)
+
+    local fpsLbl = lbl(hudBar, "...", UDim2.new(0, 0, 0, 20), UDim2.new(0, 248, 0, 14), 14, C.ACCENT, FONT_BOLD)
     fpsLbl.AutomaticSize = Enum.AutomaticSize.X
-    local pingLbl = lbl(hudBar, "...", UDim2.new(0, 0, 0, 20), UDim2.new(0, 340, 0, 14), 14, C.GREEN, Enum.Font.GothamBold)
+    local pingLbl = lbl(hudBar, "...", UDim2.new(0, 0, 0, 20), UDim2.new(0, 340, 0, 14), 14, C.GREEN, FONT_BOLD)
     pingLbl.AutomaticSize = Enum.AutomaticSize.X
-    local timeLbl = lbl(hudBar, "12:00 PM", UDim2.new(0, 0, 0, 16), UDim2.new(0, 556, 0, 12), 14, C.TEXT, Enum.Font.GothamBold)
+    local timeLbl = lbl(hudBar, "12:00 PM", UDim2.new(0, 0, 0, 16), UDim2.new(0, 556, 0, 12), 14, C.TEXT, FONT_BOLD)
     timeLbl.AutomaticSize = Enum.AutomaticSize.X
-    
+
     local function mkDivL(parent)
         local d = fr(parent, UDim2.new(0, 2, 0, 18), UDim2.new(0, 0, 0.5, -9), C.DIV, 0.2, 1)
         gradV(d, C.ACCENT, C.ACCENT2)
@@ -342,7 +343,7 @@ function MenuLib:Init(config)
     local div3 = mkDivL(hudBar)
     local div4 = mkDivL(hudBar)
     local div5 = mkDivL(hudBar)
-    
+
     local homeBtn = Instance.new("TextButton")
     homeBtn.Size = UDim2.new(0, 30, 0, 30)
     homeBtn.Position = UDim2.new(0, 420, 0.45, -15)
@@ -352,7 +353,7 @@ function MenuLib:Init(config)
     homeBtn.AutoButtonColor = false
     homeBtn.Parent = hudBar
     Instance.new("UICorner").Parent = homeBtn
-    
+
     local homeBtnIcon1 = Instance.new("ImageLabel")
     homeBtnIcon1.Size = UDim2.new(1, 0, 1, 0)
     homeBtnIcon1.BackgroundTransparency = 1
@@ -361,7 +362,7 @@ function MenuLib:Init(config)
     homeBtnIcon1.ImageColor3 = C.TEXT
     homeBtnIcon1.ImageTransparency = 0
     homeBtnIcon1.Parent = homeBtn
-    
+
     local homeBtnIcon2 = Instance.new("ImageLabel")
     homeBtnIcon2.Size = UDim2.new(1, 0, 1, 0)
     homeBtnIcon2.BackgroundTransparency = 1
@@ -370,7 +371,7 @@ function MenuLib:Init(config)
     homeBtnIcon2.ImageColor3 = C.TEXT
     homeBtnIcon2.ImageTransparency = 1
     homeBtnIcon2.Parent = homeBtn
-    
+
     local badge = fr(hudBar, UDim2.new(0, 32, 0, 28), UDim2.new(0, 670, 0.5, -14), C.ACCENT, 0, 8)
     gradV(badge, C.ACCENT, C.ACCENT2)
     local fireI = Instance.new("ImageLabel")
@@ -386,42 +387,41 @@ function MenuLib:Init(config)
     fireClick.Size = UDim2.new(1, 0, 1, 0)
     fireClick.BackgroundTransparency = 1
     fireClick.Text = ""
-    fireClick.ZIndex = 10
+    fireClick.ZIndex = Z.HUD + 5
     fireClick.Parent = badge
-    
+
     local win = fr(sg, UDim2.new(0, WIN_W, 0, WIN_H), UDim2.new(0.5, -WIN_W / 2, 0.5, -WIN_H / 2), C.BG, 0, 20)
     win.ClipsDescendants = true
-    win.ZIndex = 1
+    win.ZIndex = Z.BASE
     win.Visible = false
-    
+
     local mainLayer = fr(win, UDim2.new(1, 0, 1, 0), UDim2.new(0, 0, 0, 0), C.BG, 1, 0)
-    mainLayer.ZIndex = 2
-    
+    mainLayer.ZIndex = Z.CONTENT
+
     local dragHandle = Instance.new("TextButton")
     dragHandle.Size = UDim2.new(1, 0, 0, 36)
     dragHandle.Position = UDim2.new(0, 0, 0, 0)
     dragHandle.BackgroundTransparency = 1
     dragHandle.Text = ""
-    dragHandle.ZIndex = 30
+    dragHandle.ZIndex = Z.DRAG
     dragHandle.Active = true
     dragHandle.AutoButtonColor = false
     dragHandle.Parent = mainLayer
-    
+
     local bodyShell = fr(mainLayer, UDim2.new(1, 0, 1, -12), UDim2.new(0, 0, 0, 12), C.BG, 1, 0)
-    bodyShell.ZIndex = 2
+    bodyShell.ZIndex = Z.CONTENT
 
     local sidebar = fr(bodyShell, UDim2.new(0, SIDE_W, 1, -4), UDim2.new(0, 0, 0, 4), C.SIDEBAR, 0, 14)
-    sidebar.ZIndex = 2
+    sidebar.ZIndex = Z.CONTENT
     sidebar.ClipsDescendants = true
 
     local sidebarDivider = fr(bodyShell, UDim2.new(0, 1, 1, -4), UDim2.new(0, SIDE_W, 0, 4), C.DIV)
 
-    -- Horizontal tab bar (hidden by default, shown in horizontal mode)
     local TAB_BAR_H = 42
     local tabBarIsHorizontal = false
 
     local topTabBar = fr(bodyShell, UDim2.new(1, -4, 0, TAB_BAR_H), UDim2.new(0, 2, 0, 4), C.SIDEBAR, 0, 14)
-    topTabBar.ZIndex = 3
+    topTabBar.ZIndex = Z.SIDEBAR
     topTabBar.Visible = false
     topTabBar.ClipsDescendants = true
 
@@ -446,10 +446,10 @@ function MenuLib:Init(config)
     topTabDivider.Visible = false
 
     local contentArea = fr(bodyShell, UDim2.new(1, -SIDE_W - 2, 1, -32), UDim2.new(0, SIDE_W + 2, 0, 4), C.CONTENT, 0, 16)
-    contentArea.ZIndex = 2
+    contentArea.ZIndex = Z.CONTENT
 
     local statusBar = fr(bodyShell, UDim2.new(1, -SIDE_W - 2, 0, 28), UDim2.new(0, SIDE_W + 2, 1, -32), C.DARK, 0, 12)
-    
+
     local function mkSmallBtn(parent, txt, size, pos, fn)
         local b = Instance.new("TextButton")
         b.Size = size
@@ -458,20 +458,20 @@ function MenuLib:Init(config)
         b.Text = txt
         b.TextColor3 = C.TEXT
         b.TextSize = 11
-        b.Font = Enum.Font.GothamBold
+        b.Font = FONT_BOLD
         b.AutoButtonColor = false
         b.Parent = parent
         Instance.new("UICorner").Parent = b
-        b.MouseEnter:Connect(function() tw(b, { BackgroundColor3 = C.BTNHOV }, 0.12) end)
-        b.MouseLeave:Connect(function() tw(b, { BackgroundColor3 = C.BTN }, 0.12) end)
+        table.insert(conns, b.MouseEnter:Connect(function() tw(b, { BackgroundColor3 = C.BTNHOV }, 0.12) end))
+        table.insert(conns, b.MouseLeave:Connect(function() tw(b, { BackgroundColor3 = C.BTN }, 0.12) end))
         if fn then b.MouseButton1Click:Connect(fn) end
         return b
     end
-    
+
     local navHolder = fr(sidebar, UDim2.new(1, 0, 1, 0), nil, C.SIDEBAR, 1, 0)
     local navScroll = Instance.new("ScrollingFrame")
     navScroll.Size = UDim2.new(1, 0, 1, 0)
-    navScroll.ZIndex = 2
+    navScroll.ZIndex = Z.CONTENT
     navScroll.BackgroundTransparency = 1
     navScroll.BorderSizePixel = 0
     navScroll.ScrollBarThickness = 0
@@ -479,12 +479,12 @@ function MenuLib:Init(config)
     navScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
     navScroll.Parent = navHolder
     pad(navScroll, 8, 10, 12, 10)
-    
+
     local navList = Instance.new("UIListLayout")
     navList.SortOrder = Enum.SortOrder.LayoutOrder
     navList.Padding = UDim.new(0, 6)
     navList.Parent = navScroll
-    
+
     local activeTab = nil
     local allTabs = {}
     local tabContents = {}
@@ -499,7 +499,7 @@ function MenuLib:Init(config)
         topLayoutOrd = topLayoutOrd + 1
         return topLayoutOrd
     end
-    
+
     local sectionLabels = {}
     local navSectionCount = 0
     local function addSection(name)
@@ -509,34 +509,31 @@ function MenuLib:Init(config)
             rule.BackgroundTransparency = 0.35
             rule.LayoutOrder = nextNavOrd()
         end
-        local s = lbl(navScroll, name, UDim2.new(1, -4, 0, 22), nil, 11, C.SEC, Enum.Font.GothamBold)
+        local s = lbl(navScroll, name, UDim2.new(1, -4, 0, 22), nil, 11, C.SEC, FONT_BOLD)
         s.TextXAlignment = Enum.TextXAlignment.Left
         s.LayoutOrder = nextNavOrd()
         pad(s, 10, 0, 2, 0)
         table.insert(sectionLabels, s)
-        -- Horizontal tab bar: subtle separator + same group title
         if navSectionCount > 1 then
             local vdiv = fr(topTabScroll, UDim2.new(0, 1, 0, 22), nil, C.DIV, 1, 0)
             vdiv.BackgroundTransparency = 0.4
             vdiv.LayoutOrder = nextTopOrd()
         end
-        local hs = lbl(topTabScroll, name, UDim2.new(0, math.max(28, #name * 7), 0, 28), nil, 10, C.SEC, Enum.Font.GothamBold)
+        local hs = lbl(topTabScroll, name, UDim2.new(0, math.max(28, #name * 7), 0, 28), nil, 10, C.SEC, FONT_BOLD)
         hs.TextYAlignment = Enum.TextYAlignment.Center
         hs.LayoutOrder = nextTopOrd()
     end
-    
+
     local function selectTab(entry)
         local isCompact = (SIDE_W <= 100)
         local tf = entry.frame
         tf.Visible = true
         tf.Position = UDim2.new(0, 30, 0, 0)
         tw(tf, { Position = UDim2.new(0, 0, 0, 0), BackgroundTransparency = 0 }, 0.4)
-        -- Vertical sidebar highlight
         tw(entry.bg, { BackgroundTransparency = 0 }, 0.3)
         tw(entry.line, { BackgroundTransparency = isCompact and 1 or 0, Size = UDim2.new(0, 4, 0.5, 0) }, 0.35)
         tw(entry.lbl, { TextColor3 = C.TEXT }, 0.25)
         tw(entry.ico, { ImageColor3 = C.TEXT, Position = isCompact and UDim2.new(0.5, -entry.iconSize/2, 0.5, -entry.iconSize/2) or UDim2.new(0, entry.iconX + 4, 0.5, -entry.iconSize / 2) }, 0.3)
-        -- Horizontal bar highlight
         if entry.hBtn then
             tw(entry.hBg, { BackgroundTransparency = 0 }, 0.3)
             tw(entry.hLine, { BackgroundTransparency = 0, Size = UDim2.new(0.5, 0, 0, 3) }, 0.35)
@@ -549,13 +546,11 @@ function MenuLib:Init(config)
         local isCompact = (SIDE_W <= 100)
         local tf = entry.frame
         tw(tf, { Position = UDim2.new(0, -30, 0, 0), BackgroundTransparency = 1 }, 0.35)
-        -- Vertical sidebar deselect
         tw(entry.bg, { BackgroundTransparency = 1 }, 0.25)
         tw(entry.line, { BackgroundTransparency = 1, Size = UDim2.new(0, 4, 0, 0) }, 0.2)
         tw(entry.lbl, { TextColor3 = C.DIM }, 0.2)
         tw(entry.ico, { ImageColor3 = C.DIM, Position = isCompact and UDim2.new(0.5, -entry.iconSize/2, 0.5, -entry.iconSize/2) or UDim2.new(0, entry.iconX, 0.5, -entry.iconSize / 2) }, 0.25)
         task.delay(0.35, function() tf.Visible = false end)
-        -- Horizontal bar deselect
         if entry.hBtn then
             tw(entry.hBg, { BackgroundTransparency = 1 }, 0.25)
             tw(entry.hLine, { BackgroundTransparency = 1, Size = UDim2.new(0.5, 0, 0, 0) }, 0.2)
@@ -571,16 +566,25 @@ function MenuLib:Init(config)
         selectTab(entry)
     end
 
+    local ICON_SIZES = {
+        [ICON.aim] = { size = 29, x = 2 },
+        [ICON.players] = { size = 28, x = 2 },
+        [ICON.performance] = { size = 28, x = 2 },
+        [ICON.sfx] = { size = 22, x = 6.5 },
+        [ICON.world] = { size = 20, x = 6 },
+        [ICON.skin] = { size = 28, x = 4 },
+    }
+
     local function addTab(name, iconImage, buildFn)
+        if type(name) ~= "string" or name == "" then return nil, nil end
         local tf = fr(contentArea, UDim2.new(1, 0, 1, 0), nil, C.CONTENT, 1, 0)
         tf.Visible = false
-        tf.ZIndex = 5
-        if buildFn then buildFn(tf) end
+        tf.ZIndex = Z.TAB
+        if buildFn then pcall(buildFn, tf) end
 
         local navOrd = nextNavOrd()
         local topOrd = nextTopOrd()
 
-        -- Vertical sidebar button
         local btn = Instance.new("TextButton")
         btn.Size = UDim2.new(1, -8, 0, 38)
         btn.BackgroundTransparency = 1
@@ -593,26 +597,9 @@ function MenuLib:Init(config)
         local selLine = fr(btn, UDim2.new(0, 4, 0.5, 0), UDim2.new(1, -5, 0.25, 0), C.ACCENT, 1, 4)
         gradV(selLine, C.ACCENT, C.ACCENT2)
 
-        local iconSize = 24
-        local iconX = 6
-        if iconImage == ICON.aim then
-            iconSize = 29
-            iconX = 2
-        elseif iconImage == ICON.players then
-            iconSize = 28
-            iconX = 2
-        elseif iconImage == ICON.performance then
-            iconSize = 28
-            iconX = 2
-        elseif iconImage == ICON.sfx then
-            iconSize = 22
-            iconX = 6.5
-        elseif iconImage == ICON.world then
-            iconSize = 20
-        elseif iconImage == ICON.skin then
-            iconSize = 28
-            iconX = 4
-        end
+        local iconCfg = ICON_SIZES[iconImage] or { size = 24, x = 6 }
+        local iconSize = iconCfg.size
+        local iconX = iconCfg.x
 
         local icoL = Instance.new("ImageLabel")
         icoL.Size = UDim2.new(0, iconSize, 0, iconSize)
@@ -625,8 +612,7 @@ function MenuLib:Init(config)
 
         local namL = lbl(btn, name, UDim2.new(1, -52, 1, 0), UDim2.new(0, 44, 0, 0), 12, C.DIM)
 
-        -- Horizontal top bar button
-        local hBtnW = math.max(#name * 7 + 42, 70)
+        local hBtnW = math.max(#name * TAB_LABEL_CHAR_W + 42, 70)
         local hBtn = Instance.new("TextButton")
         hBtn.Size = UDim2.new(0, hBtnW, 1, -8)
         hBtn.BackgroundTransparency = 1
@@ -648,7 +634,7 @@ function MenuLib:Init(config)
         hIco.ImageColor3 = C.DIM
         hIco.Parent = hBtn
 
-        local hLbl = lbl(hBtn, name, UDim2.new(1, -34, 1, 0), UDim2.new(0, 30, 0, 0), 11, C.DIM, Enum.Font.GothamBold)
+        local hLbl = lbl(hBtn, name, UDim2.new(1, -34, 1, 0), UDim2.new(0, 30, 0, 0), 11, C.DIM, FONT_BOLD)
 
         local entry = {
             btn = btn, frame = tf, bg = selBg, line = selLine, ico = icoL, lbl = namL,
@@ -661,31 +647,26 @@ function MenuLib:Init(config)
         entry._des = function() deselectTab(entry) end
         entry._sel = function() selectTab(entry) end
 
-        -- Vertical button events
-        btn.MouseEnter:Connect(function() if activeTab ~= entry then tw(selBg, { BackgroundTransparency = 0.5 }) end end)
-        btn.MouseLeave:Connect(function() if activeTab ~= entry then tw(selBg, { BackgroundTransparency = 1 }) end end)
-        btn.MouseButton1Click:Connect(function() doTabSwitch(entry) end)
+        table.insert(conns, btn.MouseEnter:Connect(function() if activeTab ~= entry then tw(selBg, { BackgroundTransparency = 0.5 }) end end))
+        table.insert(conns, btn.MouseLeave:Connect(function() if activeTab ~= entry then tw(selBg, { BackgroundTransparency = 1 }) end end))
+        table.insert(conns, btn.MouseButton1Click:Connect(function() doTabSwitch(entry) end))
 
-        -- Horizontal button events
-        hBtn.MouseEnter:Connect(function() if activeTab ~= entry then tw(hBg, { BackgroundTransparency = 0.5 }) end end)
-        hBtn.MouseLeave:Connect(function() if activeTab ~= entry then tw(hBg, { BackgroundTransparency = 1 }) end end)
-        hBtn.MouseButton1Click:Connect(function() doTabSwitch(entry) end)
+        table.insert(conns, hBtn.MouseEnter:Connect(function() if activeTab ~= entry then tw(hBg, { BackgroundTransparency = 0.5 }) end end))
+        table.insert(conns, hBtn.MouseLeave:Connect(function() if activeTab ~= entry then tw(hBg, { BackgroundTransparency = 1 }) end end))
+        table.insert(conns, hBtn.MouseButton1Click:Connect(function() doTabSwitch(entry) end))
 
         return entry, tf
     end
 
-    -- Forward-declared so setTabLayout can call it once settings elements exist
     local applySettingsLayout = nil
     local compactEnabled = false
-    
-    -- Switch between vertical sidebar and horizontal top bar layout
+
     local function setTabLayout(horizontal, animate)
         tabBarIsHorizontal = horizontal
         local t = animate and 0.35 or 0
         local ease = Enum.EasingStyle.Quint
 
         if horizontal then
-            -- Hide sidebar, show top bar
             tw(sidebar, { Size = UDim2.new(0, 0, 1, -4) }, t, ease)
             tw(sidebarDivider, { BackgroundTransparency = 1, Position = UDim2.new(0, 0, 0, 4) }, t, ease)
             task.delay(t, function()
@@ -707,7 +688,6 @@ function MenuLib:Init(config)
                 Position = UDim2.new(0, 2, 1, -32)
             }, t, ease)
         else
-            -- Show sidebar, hide top bar (respect compact state)
             local targetW = compactEnabled and 52 or 160
             SIDE_W = targetW
             sidebar.Visible = true
@@ -729,43 +709,42 @@ function MenuLib:Init(config)
                 Position = UDim2.new(0, targetW + 2, 1, -32)
             }, t, ease)
         end
-        
+
         if applySettingsLayout then applySettingsLayout(horizontal, t, ease) end
     end
-    
-    -- Settings Panel (sibling of win, not child)
+
     local settingsPanel = fr(sg, UDim2.new(0, WIN_W, 0, WIN_H), UDim2.new(0.5, -WIN_W/2, 0.5, -WIN_H/2), C.BG, 0, 20)
     settingsPanel.ClipsDescendants = true
-    settingsPanel.ZIndex = 100
+    settingsPanel.ZIndex = Z.OVERLAY
     settingsPanel.Visible = false
-    
+
     local settingsMainLayer = fr(settingsPanel, UDim2.new(1, 0, 1, 0), UDim2.new(0, 0, 0, 0), C.BG, 1, 0)
-    settingsMainLayer.ZIndex = 2
-    
+    settingsmainLayer.ZIndex = Z.CONTENT
+
     local settingsDrag = Instance.new("TextButton")
     settingsDrag.Size = UDim2.new(1, 0, 0, 36)
     settingsDrag.Position = UDim2.new(0, 0, 0, 0)
     settingsDrag.BackgroundTransparency = 1
     settingsDrag.Text = ""
-    settingsDrag.ZIndex = 50
+    settingsDrag.ZIndex = Z.SETTINGS_DRAG
     settingsDrag.Active = true
     settingsDrag.AutoButtonColor = false
     settingsDrag.Parent = settingsMainLayer
-    
+
     local settingsBodyShell = fr(settingsMainLayer, UDim2.new(1, 0, 1, -12), UDim2.new(0, 0, 0, 12), C.BG, 1, 0)
-    settingsBodyShell.ZIndex = 2
-    
+    settingsbodyShell.ZIndex = Z.CONTENT
+
     local settingsLeft = fr(settingsBodyShell, UDim2.new(0, SIDE_W, 1, -4), UDim2.new(0, 0, 0, 4), C.SIDEBAR, 0, 14)
-    settingsLeft.ZIndex = 2
+    settingsLeft.ZIndex = Z.CONTENT
     settingsLeft.ClipsDescendants = true
-    
+
     local settingsDivider = fr(settingsBodyShell, UDim2.new(0, 1, 1, -4), UDim2.new(0, SIDE_W, 0, 4), C.DIV)
-    
+
     local catItems = { "General", "Appearance", "Performance", "Keybinds", "Players" }
     local catKeys = { ICON.general, ICON.appearance, ICON.performance, ICON.keyboard, ICON.playerTab }
     local catScroll = Instance.new("ScrollingFrame")
     catScroll.Size = UDim2.new(1, 0, 1, 0)
-    catScroll.ZIndex = 2
+    catScroll.ZIndex = Z.CONTENT
     catScroll.BackgroundTransparency = 1
     catScroll.BorderSizePixel = 0
     catScroll.ScrollBarThickness = 0
@@ -773,16 +752,33 @@ function MenuLib:Init(config)
     catScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
     catScroll.Parent = fr(settingsLeft, UDim2.new(1, 0, 1, 0), nil, C.SIDEBAR, 1, 0)
     pad(catScroll, 8, 10, 12, 8)
-    
+
     local catList = Instance.new("UIListLayout")
     catList.SortOrder = Enum.SortOrder.LayoutOrder
     catList.Padding = UDim.new(0, 4)
     catList.Parent = catScroll
-    
+
     local catBtns = {}
     local settingsTabContents = {}
     local activeSettingTab = 1
-    
+
+    local function updateSettingTabVisuals(idx, isActive)
+        local btn = catBtns[idx]
+        if not btn then return end
+        local isCompact = (SIDE_W <= 100)
+        if isActive then
+            tw(btn.bg, { BackgroundTransparency = 0 }, 0.25, Enum.EasingStyle.Quad)
+            tw(btn.line, { BackgroundTransparency = isCompact and 1 or 0, Size = UDim2.new(0, 4, 0.5, 0) }, 0.25, Enum.EasingStyle.Quad)
+            tw(btn.lbl, { TextColor3 = C.TEXT }, 0.2, Enum.EasingStyle.Quad)
+            tw(btn.icon, { ImageColor3 = C.TEXT, Position = isCompact and UDim2.new(0.5, -12, 0.5, -12) or UDim2.new(0, 14, 0.5, -12) }, 0.25, Enum.EasingStyle.Quad)
+        else
+            tw(btn.bg, { BackgroundTransparency = 1 }, 0.2, Enum.EasingStyle.Quad)
+            tw(btn.line, { BackgroundTransparency = 1, Size = UDim2.new(0, 4, 0, 0) }, 0.15, Enum.EasingStyle.Quad)
+            tw(btn.lbl, { TextColor3 = C.DIM }, 0.15, Enum.EasingStyle.Quad)
+            tw(btn.icon, { ImageColor3 = C.DIM, Position = isCompact and UDim2.new(0.5, -12, 0.5, -12) or UDim2.new(0, 10, 0.5, -12) }, 0.2, Enum.EasingStyle.Quad)
+        end
+    end
+
     for i, cat in ipairs(catItems) do
         local cb = Instance.new("TextButton")
         cb.Size = UDim2.new(1, -4, 0, 38)
@@ -793,104 +789,84 @@ function MenuLib:Init(config)
         cb.AutoButtonColor = false
         cb.Parent = catScroll
         Instance.new("UICorner").Parent = cb
-        
+
         local selBg = fr(cb, UDim2.new(1, 0, 1, 0), nil, C.SEL, 1, 12)
         local selLine = fr(cb, UDim2.new(0, 4, 0.5, 0), UDim2.new(1, -5, 0.25, 0), C.ACCENT, 1, 4)
         gradV(selLine, C.ACCENT, C.ACCENT2)
-        
+
         local ci = Instance.new("ImageLabel")
-        local ciSize = 24
-        local ciOffset = 10
-        if cat == "Players" then
-            ciSize = PLAYERS_TAB_ICON_SIZE
-            ciOffset = 10 + math.floor((24 - ciSize) / 2)
-        elseif cat == "Performance" then
-            ciSize = 27
-            ciOffset = 10 + math.floor((24 - ciSize) / 2)
-        end
+        local CAT_ICON_SIZES = {
+            ["Players"] = { size = PLAYERS_TAB_ICON_SIZE },
+            ["Performance"] = { size = 27 },
+        }
+        local ciCfg = CAT_ICON_SIZES[cat] or { size = 24 }
+        local ciSize = ciCfg.size
+        local ciOffset = 10 + math.floor((24 - ciSize) / 2)
         ci.Size = UDim2.new(0, ciSize, 0, ciSize)
         ci.Position = UDim2.new(0, ciOffset, 0.5, -math.floor(ciSize / 2))
         ci.BackgroundTransparency = 1
         ci.Image = normalizeIconId(catKeys[i]) or ""
         ci.ImageColor3 = C.DIM
         ci.Parent = cb
-        
+
         local namL = lbl(cb, cat, UDim2.new(1, -44, 1, 0), UDim2.new(0, 40, 0, 0), 12, C.DIM)
         catBtns[i] = { btn = cb, icon = ci, lbl = namL, bg = selBg, line = selLine }
-        
-        local function updateTabVisuals(idx, isActive)
-            local btn = catBtns[idx]
-            if not btn then return end
-            local isCompact = (SIDE_W <= 100)
-            if isActive then
-                tw(btn.bg, { BackgroundTransparency = 0 }, 0.25, Enum.EasingStyle.Quad)
-                tw(btn.line, { BackgroundTransparency = isCompact and 1 or 0, Size = UDim2.new(0, 4, 0.5, 0) }, 0.25, Enum.EasingStyle.Quad)
-                tw(btn.lbl, { TextColor3 = C.TEXT }, 0.2, Enum.EasingStyle.Quad)
-                tw(btn.icon, { ImageColor3 = C.TEXT, Position = isCompact and UDim2.new(0.5, -12, 0.5, -12) or UDim2.new(0, 14, 0.5, -12) }, 0.25, Enum.EasingStyle.Quad)
-            else
-                tw(btn.bg, { BackgroundTransparency = 1 }, 0.2, Enum.EasingStyle.Quad)
-                tw(btn.line, { BackgroundTransparency = 1, Size = UDim2.new(0, 4, 0, 0) }, 0.15, Enum.EasingStyle.Quad)
-                tw(btn.lbl, { TextColor3 = C.DIM }, 0.15, Enum.EasingStyle.Quad)
-                tw(btn.icon, { ImageColor3 = C.DIM, Position = isCompact and UDim2.new(0.5, -12, 0.5, -12) or UDim2.new(0, 10, 0.5, -12) }, 0.2, Enum.EasingStyle.Quad)
-            end
-        end
-        
-        cb.MouseEnter:Connect(function()
+
+        table.insert(conns, cb.MouseEnter:Connect(function()
             if activeSettingTab ~= i then
                 tw(selBg, { BackgroundTransparency = 0.5 }, 0.15)
             end
-        end)
-        
-        cb.MouseLeave:Connect(function()
+        end))
+
+        table.insert(conns, cb.MouseLeave:Connect(function()
             if activeSettingTab ~= i then
                 tw(selBg, { BackgroundTransparency = 1 }, 0.15)
             end
-        end)
-        
-        cb.MouseButton1Click:Connect(function()
+        end))
+
+        table.insert(conns, cb.MouseButton1Click:Connect(function()
             if activeSettingTab ~= i then
                 local oldIdx = activeSettingTab
                 local newContent = settingsTabContents[i]
                 local oldContent = settingsTabContents[oldIdx]
-                
-                updateTabVisuals(oldIdx, false)
-                updateTabVisuals(i, true)
-                
+
+                updateSettingTabVisuals(oldIdx, false)
+                updateSettingTabVisuals(i, true)
+
                 if oldContent then
                     tw(oldContent, { Position = UDim2.new(0, -15, 0, 0) }, 0.12, Enum.EasingStyle.Quad)
                     oldContent.Visible = false
                 end
-                
+
                 newContent.Visible = true
                 newContent.Position = UDim2.new(0, 15, 0, 0)
                 tw(newContent, { Position = UDim2.new(0, 0, 0, 0) }, 0.15, Enum.EasingStyle.Quad)
-                
+
                 activeSettingTab = i
             end
-        end)
+        end))
     end
-    
+
     local sRight = fr(settingsBodyShell, UDim2.new(1, -SIDE_W - 2, 1, -32), UDim2.new(0, SIDE_W + 2, 0, 4), C.CONTENT, 0, 16)
-    sRight.ZIndex = 2
-    
+    sRight.ZIndex = Z.CONTENT
+
     local function setSidebarWidth(w, animate)
         SIDE_W = w
         if tabBarIsHorizontal then return end
         local cw = UDim2.new(1, -SIDE_W - 2, 1, -32)
         local cp = UDim2.new(0, SIDE_W + 2, 0, 4)
         local sw = UDim2.new(0, SIDE_W, 1, -4)
-        
+
         local atn = animate and 0.25 or 0
         if sidebar then tw(sidebar, {Size = sw}, atn) end
         if contentArea then tw(contentArea, {Size = cw, Position = cp}, atn) end
         if statusBar then tw(statusBar, {Size = UDim2.new(1, -SIDE_W - 2, 0, 28), Position = UDim2.new(0, SIDE_W + 2, 1, -32)}, atn) end
         if settingsLeft then tw(settingsLeft, {Size = sw}, atn) end
         if sRight then tw(sRight, {Size = cw, Position = cp}, atn) end
-        
+
         local isCompact = (w <= 100)
         local tatn = animate and 0.2 or 0
 
-        -- Hide/show section labels in compact mode
         for _, s in ipairs(sectionLabels or {}) do
             if isCompact then
                 tw(s, {TextTransparency = 1}, tatn)
@@ -938,10 +914,10 @@ function MenuLib:Init(config)
             end
         end
     end
-    
+
     local titleRow = fr(sRight, UDim2.new(1, 0, 0, 40), nil, C.HEADER, 0, 0)
-    lbl(titleRow, "Settings", UDim2.new(1, -16, 1, 0), UDim2.new(0, 14, 0, 0), 16, C.TEXT, Enum.Font.GothamBold)
-    
+    lbl(titleRow, "Settings", UDim2.new(1, -16, 1, 0), UDim2.new(0, 14, 0, 0), 16, C.TEXT, FONT_BOLD)
+
     local SCAT_BAR_H = 36
     local settingsCatBar = fr(sRight, UDim2.new(1, 0, 0, SCAT_BAR_H), UDim2.new(0, 0, 0, 40), C.SIDEBAR, 0, 0)
     settingsCatBar.Visible = false
@@ -961,7 +937,7 @@ function MenuLib:Init(config)
     scatBarLayout.FillDirection = Enum.FillDirection.Horizontal
     scatBarLayout.Padding = UDim.new(0, 4)
     scatBarLayout.Parent = scatBarScroll
-    
+
     local hCatBtns = {}
     for i, cat in ipairs(catItems) do
         local hcBtn = Instance.new("TextButton")
@@ -975,8 +951,8 @@ function MenuLib:Init(config)
         local hcLine = fr(hcBtn, UDim2.new(0.5, 0, 0, 0), UDim2.new(0.25, 0, 1, -3), C.ACCENT, 1, 2)
         gradV(hcLine, C.ACCENT2, C.ACCENT)
         local hcIco = Instance.new("ImageLabel")
-        local hcSize = 16
-        if cat == "Performance" then hcSize = 19 end
+        local HC_ICON_SIZES = { ["Performance"] = 19 }
+        local hcSize = HC_ICON_SIZES[cat] or 16
         hcIco.Size = UDim2.new(0, hcSize, 0, hcSize)
         hcIco.Position = UDim2.new(0, 6, 0.5, -math.floor(hcSize / 2))
         hcIco.BackgroundTransparency = 1
@@ -984,10 +960,10 @@ function MenuLib:Init(config)
         hcIco.ScaleType = Enum.ScaleType.Fit
         hcIco.ImageColor3 = C.DIM
         hcIco.Parent = hcBtn
-        local hcLbl = lbl(hcBtn, cat, UDim2.new(1, -28, 1, 0), UDim2.new(0, 26, 0, 0), 11, C.DIM, Enum.Font.GothamBold)
+        local hcLbl = lbl(hcBtn, cat, UDim2.new(1, -28, 1, 0), UDim2.new(0, 26, 0, 0), 11, C.DIM, FONT_BOLD)
         hCatBtns[i] = { btn = hcBtn, bg = hcBg, line = hcLine, ico = hcIco, lbl = hcLbl }
     end
-    
+
     local function updateHCatVisuals()
         for j, hc in ipairs(hCatBtns) do
             if j == activeSettingTab then
@@ -1003,41 +979,25 @@ function MenuLib:Init(config)
             end
         end
     end
-    
+
     for i, hc in ipairs(hCatBtns) do
-        hc.btn.MouseEnter:Connect(function()
+        table.insert(conns, hc.btn.MouseEnter:Connect(function()
             if activeSettingTab ~= i then tw(hc.bg, { BackgroundTransparency = 0.5 }, 0.12) end
-        end)
-        hc.btn.MouseLeave:Connect(function()
+        end))
+        table.insert(conns, hc.btn.MouseLeave:Connect(function()
             if activeSettingTab ~= i then tw(hc.bg, { BackgroundTransparency = 1 }, 0.12) end
-        end)
-        hc.btn.MouseButton1Click:Connect(function()
+        end))
+        table.insert(conns, hc.btn.MouseButton1Click:Connect(function()
             if activeSettingTab ~= i then
                 local oldContent = settingsTabContents[activeSettingTab]
                 local newContent = settingsTabContents[i]
                 local oldIdx = activeSettingTab
                 activeSettingTab = i
-                
-                local function updateTabVisuals(idx, isActive)
-                    local btn = catBtns[idx]
-                    if not btn then return end
-                    local isCompact = (SIDE_W <= 100)
-                    if isActive then
-                        tw(btn.bg, { BackgroundTransparency = 0 }, 0.25)
-                        tw(btn.line, { BackgroundTransparency = isCompact and 1 or 0, Size = UDim2.new(0, 4, 0.5, 0) }, 0.25)
-                        tw(btn.lbl, { TextColor3 = C.TEXT }, 0.2)
-                        tw(btn.icon, { ImageColor3 = C.TEXT }, 0.2)
-                    else
-                        tw(btn.bg, { BackgroundTransparency = 1 }, 0.2)
-                        tw(btn.line, { BackgroundTransparency = 1, Size = UDim2.new(0, 4, 0, 0) }, 0.15)
-                        tw(btn.lbl, { TextColor3 = C.DIM }, 0.15)
-                        tw(btn.icon, { ImageColor3 = C.DIM }, 0.15)
-                    end
-                end
-                updateTabVisuals(oldIdx, false)
-                updateTabVisuals(i, true)
+
+                updateSettingTabVisuals(oldIdx, false)
+                updateSettingTabVisuals(i, true)
                 updateHCatVisuals()
-                
+
                 if oldContent then
                     tw(oldContent, { Position = UDim2.new(0, -15, 0, 0) }, 0.12)
                     oldContent.Visible = false
@@ -1046,15 +1006,15 @@ function MenuLib:Init(config)
                 newContent.Position = UDim2.new(0, 15, 0, 0)
                 tw(newContent, { Position = UDim2.new(0, 0, 0, 0) }, 0.15)
             end
-        end)
+        end))
     end
-    
+
     local sHolder = fr(sRight, UDim2.new(1, 0, 1, -46), UDim2.new(0, 0, 0, 40), C.CONTENT, 1, 0)
-    
+
     for i = 1, 5 do
         local sScroll = Instance.new("ScrollingFrame")
         sScroll.Size = UDim2.new(1, 0, 1, 0)
-        sScroll.ZIndex = 2
+        sScroll.ZIndex = Z.CONTENT
         sScroll.BackgroundTransparency = 1
         sScroll.BorderSizePixel = 0
         sScroll.ScrollBarThickness = 0
@@ -1070,7 +1030,7 @@ function MenuLib:Init(config)
         table.insert(settingsTabContents, sScroll)
         settingsTabs[catItems[i]] = sScroll
     end
-    
+
     applySettingsLayout = function(horizontal, t, ease)
         if horizontal then
             tw(settingsLeft, { Size = UDim2.new(0, 0, 1, -4) }, t, ease)
@@ -1103,7 +1063,7 @@ function MenuLib:Init(config)
             tw(sHolder, { Size = UDim2.new(1, 0, 1, -46), Position = UDim2.new(0, 0, 0, 40) }, t, ease)
         end
     end
-    
+
     local function addSettingOption(tabName, labelText, hasToggle, callback, initValue)
         local scrollFrame = settingsTabs[tabName]
         if not scrollFrame then return nil end
@@ -1124,20 +1084,18 @@ function MenuLib:Init(config)
         lbl(row, labelText, UDim2.new(1, -70, 1, 0), UDim2.new(0, 14, 0, 0), 12, C.TEXT)
         if hasToggle then 
             local toggle = mkToggle(row, -56, initValue or false, callback)
-            -- Store reference for config loading
             if not _G._MenuToggles then _G._MenuToggles = {} end
-            _G._MenuToggles[labelText] = toggle
+            _G._MenuToggles[tabName .. "_" .. labelText] = toggle
             return toggle
         end
         return row
     end
-    
-    -- Default settings options
+
     addSettingOption("General", "Show FPS counter", true, function(on) fpsLbl.Visible = on end, true)
     addSettingOption("General", "Show ping counter", true, function(on) pingLbl.Visible = on end, true)
     addSettingOption("General", "Show clock", true, function(on) timeLbl.Visible = on end, true)
     addSettingOption("General", "Show watermark", true, function(on) hudBar.Visible = on end, true)
-    
+
     addSettingOption("Appearance", "Compact sidebar", true, function(on)
         compactEnabled = on
         if not tabBarIsHorizontal then
@@ -1145,7 +1103,6 @@ function MenuLib:Init(config)
         end
     end, false)
 
-    -- Tab layout dropdown in settings
     do
         local scrollFrame = settingsTabs["Appearance"]
         if scrollFrame then
@@ -1158,16 +1115,16 @@ function MenuLib:Init(config)
             local layoutOptions = {"Vertical", "Horizontal"}
             local selectedIdx = 1
             local ddOpen = false
-            local DROP_W = 110
+            local LAYOUT_DROP_W = 110
 
             local layoutDropBtn = Instance.new("TextButton")
-            layoutDropBtn.Size = UDim2.new(0, DROP_W, 0, 26)
-            layoutDropBtn.Position = UDim2.new(1, -(DROP_W + 10), 0.5, -13)
+            layoutDropBtn.Size = UDim2.new(0, LAYOUT_DROP_W, 0, 26)
+            layoutDropBtn.Position = UDim2.new(1, -(LAYOUT_DROP_W + 10), 0.5, -13)
             layoutDropBtn.BackgroundColor3 = C.DARK
             layoutDropBtn.Text = "Vertical"
             layoutDropBtn.TextColor3 = C.TEXT
             layoutDropBtn.TextSize = 11
-            layoutDropBtn.Font = Enum.Font.GothamBold
+            layoutDropBtn.Font = FONT_BOLD
             layoutDropBtn.Parent = row
             Instance.new("UICorner", layoutDropBtn).CornerRadius = UDim.new(0, 6)
             local ddStroke = Instance.new("UIStroke")
@@ -1189,14 +1146,14 @@ function MenuLib:Init(config)
             ddPad.PaddingLeft = UDim.new(0, 4)
             ddPad.Parent = layoutDropBtn
 
-            layoutDropBtn.MouseEnter:Connect(function()
+            table.insert(conns, layoutDropBtn.MouseEnter:Connect(function()
                 tw(layoutDropBtn, { BackgroundColor3 = C.BTN }, 0.12)
                 tw(ddStroke, { Color = C.ACCENT, Transparency = 0.3 }, 0.12)
-            end)
-            layoutDropBtn.MouseLeave:Connect(function()
+            end))
+            table.insert(conns, layoutDropBtn.MouseLeave:Connect(function()
                 tw(layoutDropBtn, { BackgroundColor3 = C.DARK }, 0.12)
                 tw(ddStroke, { Color = C.DIV, Transparency = 0.5 }, 0.12)
-            end)
+            end))
 
             local dropFrame = nil
             local dropShadow = nil
@@ -1207,7 +1164,7 @@ function MenuLib:Init(config)
                 if closeConn then closeConn:Disconnect() closeConn = nil end
                 tw(chevron, { Rotation = 0 }, 0.2)
                 if dropFrame then
-                    tw(dropFrame, { Size = UDim2.new(0, DROP_W, 0, 0), BackgroundTransparency = 1 }, 0.2)
+                    tw(dropFrame, { Size = UDim2.new(0, LAYOUT_DROP_W, 0, 0), BackgroundTransparency = 1 }, 0.2)
                     local cf = dropFrame
                     local cs = dropShadow
                     dropFrame = nil
@@ -1230,11 +1187,11 @@ function MenuLib:Init(config)
                 local dropX = btnPos.X
                 local targetH = #layoutOptions * 30 + 8
 
-                dropShadow = fr(sg, UDim2.new(0, DROP_W, 0, 0), UDim2.new(0, dropX + 2, 0, dropY + 2), Color3.new(0, 0, 0), 0.7, 8)
-                dropShadow.ZIndex = 998
+                dropShadow = fr(sg, UDim2.new(0, LAYOUT_DROP_W, 0, 0), UDim2.new(0, dropX + 2, 0, dropY + 2), Color3.new(0, 0, 0), 0.7, 8)
+                dropShadow.ZIndex = Z.DROPDOWN_SHADOW
 
-                dropFrame = fr(sg, UDim2.new(0, DROP_W, 0, 0), UDim2.new(0, dropX, 0, dropY), C.DARK, 0, 8)
-                dropFrame.ZIndex = 1000
+                dropFrame = fr(sg, UDim2.new(0, LAYOUT_DROP_W, 0, 0), UDim2.new(0, dropX, 0, dropY), C.DARK, 0, 8)
+                dropFrame.ZIndex = Z.DROPDOWN
                 dropFrame.ClipsDescendants = true
                 local dStroke = Instance.new("UIStroke")
                 dStroke.Color = C.ACCENT
@@ -1262,7 +1219,7 @@ function MenuLib:Init(config)
                     optBtn.Text = opt
                     optBtn.TextColor3 = (i == selectedIdx) and C.TEXT or C.DIM
                     optBtn.TextSize = 11
-                    optBtn.Font = Enum.Font.GothamBold
+                    optBtn.Font = FONT_BOLD
                     optBtn.TextXAlignment = Enum.TextXAlignment.Center
                     optBtn.Parent = dScroll
                     optBtn.LayoutOrder = i
@@ -1277,51 +1234,49 @@ function MenuLib:Init(config)
                         selS.Parent = optBtn
                     end
 
-                    optBtn.MouseEnter:Connect(function()
+                    table.insert(conns, optBtn.MouseEnter:Connect(function()
                         if i ~= selectedIdx then tw(optBtn, { BackgroundColor3 = C.BTN, TextColor3 = C.TEXT }, 0.12) end
-                    end)
-                    optBtn.MouseLeave:Connect(function()
+                    end))
+                    table.insert(conns, optBtn.MouseLeave:Connect(function()
                         if i ~= selectedIdx then tw(optBtn, { BackgroundColor3 = C.DARK, TextColor3 = C.DIM }, 0.12) end
-                    end)
-                    optBtn.MouseButton1Click:Connect(function()
+                    end))
+                    table.insert(conns, optBtn.MouseButton1Click:Connect(function()
                         tw(optBtn, { BackgroundColor3 = C.ACCENT }, 0.08)
-                        task.delay(0.14, function()
+                        pcall(function() task.delay(0.14, function() pcall(function()
                             selectedIdx = i
                             layoutDropBtn.Text = opt
                             setTabLayout(opt == "Horizontal", true)
                             closeDrop()
-                        end)
-                    end)
+                        end) end) end)
+                    end))
                 end
 
-                tw(dropShadow, { Size = UDim2.new(0, DROP_W, 0, targetH) }, 0.25, Enum.EasingStyle.Quint)
-                tw(dropFrame, { Size = UDim2.new(0, DROP_W, 0, targetH) }, 0.25, Enum.EasingStyle.Quint)
+                tw(dropShadow, { Size = UDim2.new(0, LAYOUT_DROP_W, 0, targetH) }, 0.25, Enum.EasingStyle.Quint)
+                tw(dropFrame, { Size = UDim2.new(0, LAYOUT_DROP_W, 0, targetH) }, 0.25, Enum.EasingStyle.Quint)
 
-                task.delay(0.1, function()
-                    if not ddOpen then return end
-                    closeConn = UserInputService.InputBegan:Connect(function(input)
-                        if not ddOpen then if closeConn then closeConn:Disconnect() end return end
-                        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                            local pos = Vector2.new(input.Position.X, input.Position.Y)
-                            local df = dropFrame
-                            local bb = layoutDropBtn
-                            if not df or not bb then return end
-                            local inDrop = pos.X >= df.AbsolutePosition.X and pos.X <= df.AbsolutePosition.X + df.AbsoluteSize.X and
-                                           pos.Y >= df.AbsolutePosition.Y and pos.Y <= df.AbsolutePosition.Y + df.AbsoluteSize.Y
-                            local inBtn = pos.X >= bb.AbsolutePosition.X and pos.X <= bb.AbsolutePosition.X + bb.AbsoluteSize.X and
-                                          pos.Y >= bb.AbsolutePosition.Y and pos.Y <= bb.AbsolutePosition.Y + bb.AbsoluteSize.Y
-                            if not inDrop and not inBtn then closeDrop() end
-                        end
-                    end)
+                if closeConn then closeConn:Disconnect() closeConn = nil end
+                closeConn = UserInputService.InputBegan:Connect(function(input)
+                    if not ddOpen then if closeConn then closeConn:Disconnect() closeConn = nil end return end
+                    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                        local pos = Vector2.new(input.Position.X, input.Position.Y)
+                        local df = dropFrame
+                        local bb = layoutDropBtn
+                        if not df or not bb then return end
+                        local inDrop = pos.X >= df.AbsolutePosition.X and pos.X <= df.AbsolutePosition.X + df.AbsoluteSize.X and
+                                       pos.Y >= df.AbsolutePosition.Y and pos.Y <= df.AbsolutePosition.Y + df.AbsoluteSize.Y
+                        local inBtn = pos.X >= bb.AbsolutePosition.X and pos.X <= bb.AbsolutePosition.X + bb.AbsoluteSize.X and
+                                      pos.Y >= bb.AbsolutePosition.Y and pos.Y <= bb.AbsolutePosition.Y + bb.AbsoluteSize.Y
+                        if not inDrop and not inBtn then closeDrop() end
+                    end
                 end)
             end
 
-            layoutDropBtn.MouseButton1Click:Connect(openDrop)
+            table.insert(conns, layoutDropBtn.MouseButton1Click:Connect(openDrop))
         end
     end
 
     addSettingOption("Appearance", "Blur background", true, function(on)
-        _G._BlurEnabled = on
+        M.BlurEnabled = on
         if on and isOpen then
             if not blurPart then
                 blurPart = Instance.new("BlurEffect")
@@ -1332,48 +1287,43 @@ function MenuLib:Init(config)
         elseif blurPart then
             tw(blurPart, {Size = 0}, 0.25)
             local currentBlur = blurPart
-            task.delay(0.25, function() if currentBlur and not _G._BlurEnabled then currentBlur:Destroy() if blurPart == currentBlur then blurPart = nil end end end)
+            pcall(function() task.delay(0.25, function() pcall(function() if currentBlur and not M.BlurEnabled then currentBlur:Destroy() if blurPart == currentBlur then blurPart = nil end end end) end) end)
         end
     end, false)
-    
+
     addSettingOption("Performance", "Lighting preset dim", true, function(on)
-        _G._LightingDimEnabled = on
+        M.LightingDimEnabled = on
         if on then
-            if not _G._OriginalBrightness then
-                _G._OriginalBrightness = Lighting.Brightness
-                _G._OriginalClockTime = Lighting.ClockTime
+            if not M.OriginalBrightness then
+                M.OriginalBrightness = Lighting.Brightness
+                M.OriginalClockTime = Lighting.ClockTime
             end
             Lighting.Brightness = 0.3
             Lighting.ClockTime = 0
-        elseif _G._OriginalBrightness then
-            Lighting.Brightness = _G._OriginalBrightness
-            Lighting.ClockTime = _G._OriginalClockTime
+        elseif M.OriginalBrightness then
+            Lighting.Brightness = M.OriginalBrightness
+            Lighting.ClockTime = M.OriginalClockTime
         end
     end, false)
     addSettingOption("Performance", "Low quality mode", true, function(on)
         if on then
-            if not _G._OriginalQualityLevel then _G._OriginalQualityLevel = settings().Rendering.QualityLevel end
+            if not M.OriginalQualityLevel then M.OriginalQualityLevel = settings().Rendering.QualityLevel end
             settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
-        elseif _G._OriginalQualityLevel then
-            settings().Rendering.QualityLevel = _G._OriginalQualityLevel
+        elseif M.OriginalQualityLevel then
+            settings().Rendering.QualityLevel = M.OriginalQualityLevel
         end
     end, false)
-    
-    -- ============================================================
-    -- PLAYERS TAB (Settings tab #5)
-    -- ============================================================
+
     do
         local playersScroll = settingsTabs["Players"]
         if playersScroll then
-            -- Initialize friends list in _G
             if not _G._FriendsList then _G._FriendsList = {} end
-            
-            -- Friends persistence file
+
             local friendsFolder = "MenuLibConfigs"
-            local friendsFile = friendsFolder .. "/" .. tostring(lp.UserId) .. "_friends.json"
-            
+            local friendsFile = friendsFolder .. "/" .. tostring(lp.UserId):gsub("[^%w]", "_") .. "_friends.json"
+
             local function SaveFriendsToFile()
-                if makefolder and not isfolder(friendsFolder) then
+                if makefolder and isfolder and not isfolder(friendsFolder) then
                     pcall(function() makefolder(friendsFolder) end)
                 end
                 local success, encoded = pcall(function()
@@ -1383,7 +1333,7 @@ function MenuLib:Init(config)
                     pcall(function() writefile(friendsFile, encoded) end)
                 end
             end
-            
+
             local function LoadFriendsFromFile()
                 if isfile and isfile(friendsFile) then
                     local success, content = pcall(function() return readfile(friendsFile) end)
@@ -1398,24 +1348,20 @@ function MenuLib:Init(config)
                 return false
             end
             LoadFriendsFromFile()
-            
-            -- Two-column layout container
+
             local columnsRow = fr(playersScroll, UDim2.new(1, -10, 1, -10), nil, C.CONTENT, 1, 0)
             columnsRow.LayoutOrder = 1
-            
-            -- ===== LEFT COLUMN: Player List =====
+
             local leftCol = fr(columnsRow, UDim2.new(0.5, -4, 1, 0), UDim2.new(0, 0, 0, 0), C.HEADER, 0, 12)
-            
-            -- Header
+
             local leftHeader = fr(leftCol, UDim2.new(1, 0, 0, 36), nil, C.DARK, 0, UDim.new(0, 12))
-            lbl(leftHeader, "Players", UDim2.new(0, 80, 1, 0), UDim2.new(0, 12, 0, 0), 14, C.TEXT, Enum.Font.GothamBold)
-            local playerCountLbl = lbl(leftHeader, "0", UDim2.new(0, 30, 0, 18), UDim2.new(0, 80, 0.5, -9), 10, C.ACCENT, Enum.Font.GothamBold)
+            lbl(leftHeader, "Players", UDim2.new(0, 80, 1, 0), UDim2.new(0, 12, 0, 0), 14, C.TEXT, FONT_BOLD)
+            local playerCountLbl = lbl(leftHeader, "0", UDim2.new(0, 30, 0, 18), UDim2.new(0, 80, 0.5, -9), 10, C.ACCENT, FONT_BOLD)
             playerCountLbl.BackgroundColor3 = C.SEL
             playerCountLbl.BackgroundTransparency = 0
             playerCountLbl.TextXAlignment = Enum.TextXAlignment.Center
             Instance.new("UICorner", playerCountLbl).CornerRadius = UDim.new(0, 6)
-            
-            -- Search bar (players)
+
             local playerSearchBar = fr(leftCol, UDim2.new(1, -16, 0, 28), UDim2.new(0, 8, 0, 42), C.SEL, 0, 8)
             local playerSearchIcon = Instance.new("ImageLabel")
             playerSearchIcon.Size = UDim2.new(0, 14, 0, 14)
@@ -1424,7 +1370,7 @@ function MenuLib:Init(config)
             playerSearchIcon.Image = "rbxassetid://6031154871"
             playerSearchIcon.ImageColor3 = C.DIM
             playerSearchIcon.Parent = playerSearchBar
-            
+
             local playerSearchBox = Instance.new("TextBox")
             playerSearchBox.Size = UDim2.new(1, -30, 1, 0)
             playerSearchBox.Position = UDim2.new(0, 26, 0, 0)
@@ -1434,12 +1380,11 @@ function MenuLib:Init(config)
             playerSearchBox.PlaceholderText = "Search players..."
             playerSearchBox.PlaceholderColor3 = C.DIM
             playerSearchBox.TextSize = 11
-            playerSearchBox.Font = Enum.Font.Gotham
+            playerSearchBox.Font = FONT
             playerSearchBox.ClearTextOnFocus = false
             playerSearchBox.TextXAlignment = Enum.TextXAlignment.Left
             playerSearchBox.Parent = playerSearchBar
-            
-            -- Player list scroll
+
             local playerListScroll = Instance.new("ScrollingFrame")
             playerListScroll.Size = UDim2.new(1, -16, 1, -80)
             playerListScroll.Position = UDim2.new(0, 8, 0, 76)
@@ -1450,25 +1395,22 @@ function MenuLib:Init(config)
             playerListScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
             playerListScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
             playerListScroll.Parent = leftCol
-            
+
             local playerListLayout = Instance.new("UIListLayout")
             playerListLayout.SortOrder = Enum.SortOrder.LayoutOrder
             playerListLayout.Padding = UDim.new(0, 3)
             playerListLayout.Parent = playerListScroll
-            
-            -- ===== RIGHT COLUMN: Friends List =====
+
             local rightCol = fr(columnsRow, UDim2.new(0.5, -4, 1, 0), UDim2.new(0.5, 4, 0, 0), C.HEADER, 0, 12)
-            
-            -- Header
+
             local rightHeader = fr(rightCol, UDim2.new(1, 0, 0, 36), nil, C.DARK, 0, UDim.new(0, 12))
-            lbl(rightHeader, "Friends", UDim2.new(0, 80, 1, 0), UDim2.new(0, 12, 0, 0), 14, C.TEXT, Enum.Font.GothamBold)
-            local friendCountLbl = lbl(rightHeader, "0", UDim2.new(0, 30, 0, 18), UDim2.new(0, 80, 0.5, -9), 10, C.GREEN, Enum.Font.GothamBold)
+            lbl(rightHeader, "Friends", UDim2.new(0, 80, 1, 0), UDim2.new(0, 12, 0, 0), 14, C.TEXT, FONT_BOLD)
+            local friendCountLbl = lbl(rightHeader, "0", UDim2.new(0, 30, 0, 18), UDim2.new(0, 80, 0.5, -9), 10, C.GREEN, FONT_BOLD)
             friendCountLbl.BackgroundColor3 = C.SEL
             friendCountLbl.BackgroundTransparency = 0
             friendCountLbl.TextXAlignment = Enum.TextXAlignment.Center
             Instance.new("UICorner", friendCountLbl).CornerRadius = UDim.new(0, 6)
-            
-            -- Search bar (friends)
+
             local friendSearchBar = fr(rightCol, UDim2.new(1, -16, 0, 28), UDim2.new(0, 8, 0, 42), C.SEL, 0, 8)
             local friendSearchIcon = Instance.new("ImageLabel")
             friendSearchIcon.Size = UDim2.new(0, 14, 0, 14)
@@ -1477,7 +1419,7 @@ function MenuLib:Init(config)
             friendSearchIcon.Image = "rbxassetid://6031154871"
             friendSearchIcon.ImageColor3 = C.DIM
             friendSearchIcon.Parent = friendSearchBar
-            
+
             local friendSearchBox = Instance.new("TextBox")
             friendSearchBox.Size = UDim2.new(1, -30, 1, 0)
             friendSearchBox.Position = UDim2.new(0, 26, 0, 0)
@@ -1487,12 +1429,11 @@ function MenuLib:Init(config)
             friendSearchBox.PlaceholderText = "Search friends..."
             friendSearchBox.PlaceholderColor3 = C.DIM
             friendSearchBox.TextSize = 11
-            friendSearchBox.Font = Enum.Font.Gotham
+            friendSearchBox.Font = FONT
             friendSearchBox.ClearTextOnFocus = false
             friendSearchBox.TextXAlignment = Enum.TextXAlignment.Left
             friendSearchBox.Parent = friendSearchBar
-            
-            -- Friends list scroll
+
             local friendListScroll = Instance.new("ScrollingFrame")
             friendListScroll.Size = UDim2.new(1, -16, 1, -80)
             friendListScroll.Position = UDim2.new(0, 8, 0, 76)
@@ -1503,16 +1444,14 @@ function MenuLib:Init(config)
             friendListScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
             friendListScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
             friendListScroll.Parent = rightCol
-            
+
             local friendListLayout = Instance.new("UIListLayout")
             friendListLayout.SortOrder = Enum.SortOrder.LayoutOrder
             friendListLayout.Padding = UDim.new(0, 3)
             friendListLayout.Parent = friendListScroll
-            
-            -- Forward-declare refresh functions
+
             local refreshPlayerList, refreshFriendList
-            
-            -- ===== REFRESH FRIENDS LIST =====
+
             refreshFriendList = function(filter)
                 for _, child in ipairs(friendListScroll:GetChildren()) do
                     if not child:IsA("UIListLayout") and not child:IsA("UIPadding") then
@@ -1521,14 +1460,13 @@ function MenuLib:Init(config)
                 end
                 local count = 0
                 local filterLower = filter and filter:lower() or ""
-                
+
                 for _, friendName in ipairs(_G._FriendsList or {}) do
                     if filterLower == "" or friendName:lower():find(filterLower, 1, true) then
                         count = count + 1
                         local row = fr(friendListScroll, UDim2.new(1, 0, 0, 36), nil, C.SEL, 0, 8)
                         row.LayoutOrder = count
-                        
-                        -- Friend avatar
+
                         local avFrame = fr(row, UDim2.new(0, 26, 0, 26), UDim2.new(0, 6, 0.5, -13), C.DARK, 0, 13)
                         local avFImg = Instance.new("ImageLabel")
                         avFImg.Size = UDim2.new(1, -4, 1, -4)
@@ -1536,8 +1474,7 @@ function MenuLib:Init(config)
                         avFImg.BackgroundTransparency = 1
                         avFImg.Parent = avFrame
                         Instance.new("UICorner", avFImg).CornerRadius = UDim.new(1, 0)
-                        
-                        -- Try to get avatar
+
                         task.spawn(function()
                             for _, p in ipairs(Players:GetPlayers()) do
                                 if p.Name == friendName then
@@ -1549,19 +1486,16 @@ function MenuLib:Init(config)
                                 end
                             end
                         end)
-                        
-                        -- Name label
-                        local fNameLbl = lbl(row, friendName, UDim2.new(1, -100, 1, 0), UDim2.new(0, 38, 0, 0), 11, C.TEXT, Enum.Font.GothamBold)
+
+                        local fNameLbl = lbl(row, friendName, UDim2.new(1, -100, 1, 0), UDim2.new(0, 38, 0, 0), 11, C.TEXT, FONT_BOLD)
                         fNameLbl.TextTruncate = Enum.TextTruncate.AtEnd
-                        
-                        -- Online indicator
+
                         local isOnline = false
                         for _, p in ipairs(Players:GetPlayers()) do
                             if p.Name == friendName then isOnline = true break end
                         end
                         local onlineDot = fr(row, UDim2.new(0, 8, 0, 8), UDim2.new(0, 38, 0, 4), isOnline and C.GREEN or C.RED, 0, 4)
-                        
-                        -- Remove button
+
                         local removeBtn = Instance.new("TextButton")
                         removeBtn.Size = UDim2.new(0, 60, 0, 24)
                         removeBtn.Position = UDim2.new(1, -66, 0.5, -12)
@@ -1569,19 +1503,18 @@ function MenuLib:Init(config)
                         removeBtn.Text = "Remove"
                         removeBtn.TextColor3 = C.TEXT
                         removeBtn.TextSize = 10
-                        removeBtn.Font = Enum.Font.GothamBold
+                        removeBtn.Font = FONT_BOLD
                         removeBtn.AutoButtonColor = false
                         removeBtn.Parent = row
                         Instance.new("UICorner", removeBtn).CornerRadius = UDim.new(0, 6)
                         local remGrad = Instance.new("UIGradient", removeBtn)
                         remGrad.Color = ColorSequence.new({ColorSequenceKeypoint.new(0, C.RED), ColorSequenceKeypoint.new(1, Color3.fromRGB(190, 45, 45))})
                         remGrad.Rotation = 90
-                        
-                        removeBtn.MouseEnter:Connect(function() tw(removeBtn, {BackgroundColor3 = Color3.fromRGB(255, 70, 70)}, 0.12) end)
-                        removeBtn.MouseLeave:Connect(function() tw(removeBtn, {BackgroundColor3 = C.RED}, 0.12) end)
-                        
-                        removeBtn.MouseButton1Click:Connect(function()
-                            -- Remove from friends list
+
+                        table.insert(conns, removeBtn.MouseEnter:Connect(function() tw(removeBtn, {BackgroundColor3 = Color3.fromRGB(255, 70, 70)}, 0.12) end))
+                        table.insert(conns, removeBtn.MouseLeave:Connect(function() tw(removeBtn, {BackgroundColor3 = C.RED}, 0.12) end))
+
+                        table.insert(conns, removeBtn.MouseButton1Click:Connect(function()
                             for idx, fn in ipairs(_G._FriendsList) do
                                 if fn == friendName then
                                     table.remove(_G._FriendsList, idx)
@@ -1589,29 +1522,26 @@ function MenuLib:Init(config)
                                 end
                             end
                             SaveFriendsToFile()
-                            -- Animate removal
                             tw(row, {Size = UDim2.new(1, 0, 0, 0), BackgroundTransparency = 1}, 0.15)
-                            task.delay(0.15, function()
+                            pcall(function() task.delay(0.15, function() pcall(function()
                                 row:Destroy()
                                 refreshFriendList(friendSearchBox.Text)
                                 refreshPlayerList(playerSearchBox.Text)
-                            end)
-                        end)
-                        
-                        -- Hover
+                            end) end) end)
+                        end))
+
                         local rowBtn = Instance.new("TextButton")
                         rowBtn.Size = UDim2.new(1, -70, 1, 0)
                         rowBtn.BackgroundTransparency = 1
                         rowBtn.Text = ""
                         rowBtn.Parent = row
-                        rowBtn.MouseEnter:Connect(function() tw(row, {BackgroundColor3 = C.BTNHOV}, 0.1) end)
-                        rowBtn.MouseLeave:Connect(function() tw(row, {BackgroundColor3 = C.SEL}, 0.1) end)
+                        table.insert(conns, table.insert(conns, rowBtn.MouseEnter:Connect(function() tw(row, {BackgroundColor3 = C.BTNHOV}, 0.1) end)))
+                        table.insert(conns, table.insert(conns, rowBtn.MouseLeave:Connect(function() tw(row, {BackgroundColor3 = C.SEL}, 0.1) end)))
                     end
                 end
                 friendCountLbl.Text = tostring(count)
             end
-            
-            -- ===== REFRESH PLAYER LIST =====
+
             refreshPlayerList = function(filter)
                 for _, child in ipairs(playerListScroll and playerListScroll:GetChildren() or {}) do
                     if not child:IsA("UIListLayout") and not child:IsA("UIPadding") then
@@ -1620,7 +1550,7 @@ function MenuLib:Init(config)
                 end
                 local count = 0
                 local filterLower = filter and filter:lower() or ""
-                
+
                 local allPlayers = Players:GetPlayers()
                 for _, player in ipairs(allPlayers) do
                     local pName = player.Name
@@ -1628,8 +1558,7 @@ function MenuLib:Init(config)
                         count = count + 1
                         local row = fr(playerListScroll, UDim2.new(1, 0, 0, 36), nil, C.SEL, 0, 8)
                         row.LayoutOrder = count
-                        
-                        -- Player avatar
+
                         local avFrame = fr(row, UDim2.new(0, 26, 0, 26), UDim2.new(0, 6, 0.5, -13), C.DARK, 0, 13)
                         local avPImg = Instance.new("ImageLabel")
                         avPImg.Size = UDim2.new(1, -4, 1, -4)
@@ -1637,37 +1566,33 @@ function MenuLib:Init(config)
                         avPImg.BackgroundTransparency = 1
                         avPImg.Parent = avFrame
                         Instance.new("UICorner", avPImg).CornerRadius = UDim.new(1, 0)
-                        
+
                         task.spawn(function()
                             local ok2, url2 = pcall(function()
                                 return Players:GetUserThumbnailAsync(player.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size100x100)
                             end)
                             if ok2 and url2 then avPImg.Image = url2 end
                         end)
-                        
-                        -- Name
-                        local pNameLbl = lbl(row, pName, UDim2.new(1, -100, 1, 0), UDim2.new(0, 38, 0, 0), 11, C.TEXT, Enum.Font.GothamBold)
+
+                        local pNameLbl = lbl(row, pName, UDim2.new(1, -100, 1, 0), UDim2.new(0, 38, 0, 0), 11, C.TEXT, FONT_BOLD)
                         pNameLbl.TextTruncate = Enum.TextTruncate.AtEnd
-                        
-                        -- "You" badge for local player
+
                         if player == lp then
-                            local youBadge = lbl(row, "YOU", UDim2.new(0, 28, 0, 14), UDim2.new(1, -96, 0.5, -7), 9, C.ACCENT, Enum.Font.GothamBold)
+                            local youBadge = lbl(row, "YOU", UDim2.new(0, 28, 0, 14), UDim2.new(1, -96, 0.5, -7), 9, C.ACCENT, FONT_BOLD)
                             youBadge.BackgroundColor3 = C.SEL
                             youBadge.BackgroundTransparency = 0
                             youBadge.TextXAlignment = Enum.TextXAlignment.Center
                             Instance.new("UICorner", youBadge).CornerRadius = UDim.new(0, 4)
                         end
-                        
-                        -- Check if already a friend
+
                         local isFriend = false
                         for _, fn in ipairs(_G._FriendsList or {}) do
                             if fn == pName then isFriend = true break end
                         end
-                        
-                        -- Add Friend button (only if not self and not already friend)
+
                         if player ~= lp then
                             if isFriend then
-                                local addedLbl = lbl(row, "âœ“ Friend", UDim2.new(0, 56, 0, 24), UDim2.new(1, -62, 0.5, -12), 10, C.GREEN, Enum.Font.GothamBold)
+                                local addedLbl = lbl(row, "Ã¢Å“â€œ Friend", UDim2.new(0, 56, 0, 24), UDim2.new(1, -62, 0.5, -12), 10, C.GREEN, FONT_BOLD)
                                 addedLbl.TextXAlignment = Enum.TextXAlignment.Center
                             else
                                 local addBtn = Instance.new("TextButton")
@@ -1677,24 +1602,22 @@ function MenuLib:Init(config)
                                 addBtn.Text = "Add"
                                 addBtn.TextColor3 = C.TEXT
                                 addBtn.TextSize = 10
-                                addBtn.Font = Enum.Font.GothamBold
+                                addBtn.Font = FONT_BOLD
                                 addBtn.AutoButtonColor = false
                                 addBtn.Parent = row
                                 Instance.new("UICorner", addBtn).CornerRadius = UDim.new(0, 6)
                                 local addGrad = Instance.new("UIGradient", addBtn)
                                 addGrad.Color = ColorSequence.new({ColorSequenceKeypoint.new(0, C.ACCENT), ColorSequenceKeypoint.new(1, C.ACCENT2)})
                                 addGrad.Rotation = 90
-                                
-                                addBtn.MouseEnter:Connect(function() tw(addBtn, {BackgroundColor3 = Color3.fromRGB(140, 50, 255)}, 0.12) end)
-                                addBtn.MouseLeave:Connect(function() tw(addBtn, {BackgroundColor3 = C.ACCENT}, 0.12) end)
-                                
-                                addBtn.MouseButton1Click:Connect(function()
-                                    -- Add to friends
+
+                                table.insert(conns, addBtn.MouseEnter:Connect(function() tw(addBtn, {BackgroundColor3 = Color3.fromRGB(140, 50, 255)}, 0.12) end))
+                                table.insert(conns, addBtn.MouseLeave:Connect(function() tw(addBtn, {BackgroundColor3 = C.ACCENT}, 0.12) end))
+
+                                table.insert(conns, addBtn.MouseButton1Click:Connect(function()
                                     table.insert(_G._FriendsList, pName)
                                     SaveFriendsToFile()
-                                    -- Flash confirmation
                                     tw(addBtn, {BackgroundColor3 = C.GREEN}, 0.1)
-                                    addBtn.Text = "âœ“"
+                                    addBtn.Text = "Ã¢Å“â€œ"
                                     task.delay(0.3, function()
                                         refreshPlayerList(playerSearchBox.Text)
                                         refreshFriendList(friendSearchBox.Text)
@@ -1702,43 +1625,38 @@ function MenuLib:Init(config)
                                 end)
                             end
                         end
-                        
-                        -- Hover
+
                         local rowBtn = Instance.new("TextButton")
                         rowBtn.Size = UDim2.new(1, -56, 1, 0)
                         rowBtn.BackgroundTransparency = 1
                         rowBtn.Text = ""
                         rowBtn.Parent = row
-                        rowBtn.MouseEnter:Connect(function() tw(row, {BackgroundColor3 = C.BTNHOV}, 0.1) end)
-                        rowBtn.MouseLeave:Connect(function() tw(row, {BackgroundColor3 = C.SEL}, 0.1) end)
+                        table.insert(conns, rowBtn.MouseEnter:Connect(function() tw(row, {BackgroundColor3 = C.BTNHOV}, 0.1) end))
+                        table.insert(conns, rowBtn.MouseLeave:Connect(function() tw(row, {BackgroundColor3 = C.SEL}, 0.1) end))
                     end
                 end
                 playerCountLbl.Text = tostring(count)
             end
-            
-            -- Search bar filtering
-            playerSearchBox:GetPropertyChangedSignal("Text"):Connect(function()
+
+            table.insert(conns, playerSearchBox:GetPropertyChangedSignal("Text"):Connect(function()
                 refreshPlayerList(playerSearchBox.Text)
-            end)
-            friendSearchBox:GetPropertyChangedSignal("Text"):Connect(function()
+            end))
+            table.insert(conns, friendSearchBox:GetPropertyChangedSignal("Text"):Connect(function()
                 refreshFriendList(friendSearchBox.Text)
-            end)
-            
-            -- Auto-refresh when players join/leave
+            end))
+
             table.insert(conns, Players.PlayerAdded:Connect(function()
-                task.delay(0.5, function() refreshPlayerList(playerSearchBox.Text) end)
+                pcall(function() task.delay(0.5, function() pcall(refreshPlayerList, playerSearchBox.Text) end) end)
             end))
             table.insert(conns, Players.PlayerRemoving:Connect(function()
-                task.delay(0.1, function() refreshPlayerList(playerSearchBox.Text) refreshFriendList(friendSearchBox.Text) end)
+                pcall(function() task.delay(0.1, function() pcall(refreshPlayerList, playerSearchBox.Text) pcall(refreshFriendList, friendSearchBox.Text) end) end)
             end))
-            
-            -- Initial population
+
             refreshPlayerList("")
             refreshFriendList("")
         end
     end
-    
-    -- Keybinds
+
     local function addKeybindOption(tabName, label, key, onChange)
         local scrollFrame = settingsTabs[tabName]
         local row = fr(scrollFrame, UDim2.new(1, -10, 0, 40), nil, C.HEADER, 0, 10)
@@ -1764,19 +1682,19 @@ function MenuLib:Init(config)
         keyBtn.TextColor3 = C.TEXT
         keyBtn.TextSize = 11
         keyBtn.TextTruncate = Enum.TextTruncate.AtEnd
-        keyBtn.Font = Enum.Font.GothamBold
+        keyBtn.Font = FONT_BOLD
         keyBtn.Parent = row
         Instance.new("UICorner").Parent = keyBtn
-        keyBtn.MouseButton1Click:Connect(function()
+        table.insert(conns, keyBtn.MouseButton1Click:Connect(function()
             keyBtn.Text = "..."
             keyBtn.BackgroundColor3 = C.ACCENT
-            _G._SettingKeybind = true
+            settingKeybind = true
             local conn
-            local timeoutConn
+            local timeoutToken
             local function cleanup()
-                if conn then pcall(function() conn:Disconnect() end) end
-                if timeoutConn then pcall(function() timeoutConn:Disconnect() end) end
-                _G._SettingKeybind = false
+                pcall(function() if conn then conn:Disconnect() end end)
+                if timeoutToken then pcall(function() task.cancel(timeoutToken) end) end
+                settingKeybind = false
             end
             conn = UserInputService.InputBegan:Connect(function(inp, gpe)
                 if gpe then return end
@@ -1799,38 +1717,34 @@ function MenuLib:Init(config)
                     cleanup()
                     keyBtn.Text = displayText
                     keyBtn.BackgroundColor3 = C.SEL
-                    onChange(selectedKey)
+                    pcall(onChange, selectedKey)
                 end
             end)
-            timeoutConn = task.delay(5, function()
-                cleanup()
+            timeoutToken = task.delay(5, function()
+                pcall(cleanup)
                 keyBtn.Text = keyText
                 keyBtn.BackgroundColor3 = C.SEL
             end)
-        end)
+        end))
     end
-    
-    addKeybindOption("Keybinds", "Toggle menu key", _G._MenuToggleKey, function(k) _G._MenuToggleKey = k end)
-    addKeybindOption("Keybinds", "Unload script key", _G._UnloadKey, function(k) _G._UnloadKey = k end)
-    
-    -- Menu Functions
+
+    addKeybindOption("Keybinds", "Toggle menu key", M.MenuToggleKey, function(k) M.MenuToggleKey = k end)
+    addKeybindOption("Keybinds", "Unload script key", M.UnloadKey, function(k) M.UnloadKey = k end)
+
     local inSettings = false
     local isTransitioning = false
-    
+
     local function openSettings()
         if inSettings or isTransitioning then return end
         inSettings = true
         isTransitioning = true
-        _G._MenuOpen = true
         tw(homeBtn, { Rotation = homeBtn.Rotation + 360 }, 0.5)
         tw(homeBtnIcon1, { ImageTransparency = 1 }, 0.25)
         tw(homeBtnIcon2, { ImageTransparency = 0 }, 0.25)
-        
+
         tw(win, { Size = UDim2.new(0, 0, 0, 0), Position = UDim2.new(0.5, 0, 0.5, 0) }, 0.2)
-        task.delay(0.2, function() 
-            win.Visible = false 
-        end)
-        
+        pcall(function() task.delay(0.2, function() pcall(function() win.Visible = false end) end) end)
+
         settingsPanel.Size = UDim2.new(0, 0, 0, 0)
         settingsPanel.Position = UDim2.new(0.5, 0, 0.5, 0)
         settingsPanel.Visible = true
@@ -1855,66 +1769,61 @@ function MenuLib:Init(config)
             catBtns[i].icon.Position = UDim2.new(0, 10, 0.5, -12)
             catBtns[i].lbl.TextColor3 = C.DIM
         end
-        task.delay(0.25, function() isTransitioning = false end)
+        pcall(function() task.delay(0.25, function() isTransitioning = false end) end)
     end
-    
+
     local function closeSettings()
         if not inSettings or isTransitioning then return end
         inSettings = false
         isTransitioning = true
-        _G._MenuOpen = true
         tw(homeBtn, { Rotation = homeBtn.Rotation - 360 }, 0.5)
         tw(homeBtnIcon1, { ImageTransparency = 0 }, 0.25)
         tw(homeBtnIcon2, { ImageTransparency = 1 }, 0.25)
-        
+
         tw(settingsPanel, { Size = UDim2.new(0, 0, 0, 0), Position = UDim2.new(0.5, 0, 0.5, 0) }, 0.2)
-        task.delay(0.2, function() 
-            settingsPanel.Visible = false 
-        end)
-        
+        pcall(function() task.delay(0.2, function() pcall(function()
+            settingsPanel.Visible = false
+        end) end) end)
+
         win.Size = UDim2.new(0, 0, 0, 0)
         win.Position = UDim2.new(0.5, 0, 0.5, 0)
         win.Visible = true
         tw(win, { Size = UDim2.new(0, WIN_W, 0, WIN_H), Position = UDim2.new(0.5, -WIN_W / 2, 0.5, -WIN_H / 2) }, 0.25)
-        task.delay(0.25, function() isTransitioning = false end)
+        pcall(function() task.delay(0.25, function() isTransitioning = false end) end)
     end
-    
+
     local function closeMenu()
         if not win.Visible and not settingsPanel.Visible then return end
         isOpen = false
-        _G._MenuOpen = false
-        -- Close any open dropdowns
         for _, closer in ipairs(activeDropdownClosers) do
             pcall(closer)
         end
-        if blurPart and _G._BlurEnabled then
+        table.clear(activeDropdownClosers)
+        if blurPart and M.BlurEnabled then
             tw(blurPart, {Size = 0}, 0.15)
             local currentBlur = blurPart
-            task.delay(0.15, function() if currentBlur then currentBlur:Destroy() if blurPart == currentBlur then blurPart = nil end end end)
+            pcall(function() task.delay(0.15, function() pcall(function() if currentBlur then currentBlur:Destroy() if blurPart == currentBlur then blurPart = nil end end end) end) end)
         end
         if inSettings then
             unlockInput()
             tw(settingsPanel, { Size = UDim2.new(0, 0, 0, 0), Position = UDim2.new(0.5, 0, 0.5, 0) }, 0.15)
-            task.delay(0.15, function()
-                settingsPanel.Visible = false
-            end)
+            pcall(function() task.delay(0.15, function() pcall(function() settingsPanel.Visible = false end) end) end)
         else
             unlockInput()
             tw(win, { Size = UDim2.new(0, 0, 0, 0), Position = UDim2.new(0.5, 0, 0.5, 0) }, 0.15)
-            task.delay(0.15, function()
-                win.Visible = false
-            end)
+            pcall(function() task.delay(0.15, function() pcall(function() win.Visible = false end) end) end)
         end
     end
-    
+
     local function openMenu()
         if not win or not settingsPanel then return end
         if win.Visible or settingsPanel.Visible then return end
         isOpen = true
-        _G._MenuOpen = true
+        fpsT = 0
+        fpsN = 0
         lockInput()
         if hudBar then hudBar.Visible = true end
-        if _G._BlurEnabled then
+        if M.BlurEnabled then
             if not blurPart then
                 blurPart = Instance.new("BlurEffect")
                 blurPart.Size = 0
@@ -1934,7 +1843,7 @@ function MenuLib:Init(config)
             tw(win, { Size = UDim2.new(0, WIN_W, 0, WIN_H), Position = UDim2.new(0.5, -WIN_W/2, 0.5, -WIN_H/2) }, 0.22)
         end
     end
-    
+
     local function toggleMenu()
         if isOpen then
             closeMenu()
@@ -1942,21 +1851,20 @@ function MenuLib:Init(config)
             openMenu()
         end
     end
-    
-    fireClick.MouseButton1Click:Connect(toggleMenu)
-    
-    homeBtn.MouseButton1Click:Connect(function()
+
+    table.insert(conns, fireClick.MouseButton1Click:Connect(toggleMenu))
+
+    table.insert(conns, homeBtn.MouseButton1Click:Connect(function()
         if inSettings then
             closeSettings()
         else
             openSettings()
         end
-    end)
-    
-    homeBtn.MouseEnter:Connect(function() tw(homeBtn, { BackgroundTransparency = 0.05 }, 0.12) end)
-    homeBtn.MouseLeave:Connect(function() tw(homeBtn, { BackgroundTransparency = 0.2 }, 0.12) end)
-    
-    -- Dragging
+    end))
+
+    table.insert(conns, homeBtn.MouseEnter:Connect(function() tw(homeBtn, { BackgroundTransparency = 0.05 }, 0.12) end))
+    table.insert(conns, homeBtn.MouseLeave:Connect(function() tw(homeBtn, { BackgroundTransparency = 0.2 }, 0.12) end))
+
     local dragging = false
     local dragOrig = Vector2.zero
     local winOrig = UDim2.new()
@@ -1967,8 +1875,8 @@ function MenuLib:Init(config)
         local gi = game:GetService("GuiService"):GetGuiInset()
         guiInset = Vector2.new(gi.X, gi.Y)
     end)
-    
-    dragHandle.InputBegan:Connect(function(inp)
+
+    table.insert(conns, dragHandle.InputBegan:Connect(function(inp)
         if inp.UserInputType == Enum.UserInputType.MouseButton1 then
             dragging = true
             dragTarget = "main"
@@ -1979,16 +1887,16 @@ function MenuLib:Init(config)
                 winOrig = win.Position
             end
         end
-    end)
-    
-    dragHandle.InputEnded:Connect(function(inp)
+    end))
+
+    table.insert(conns, dragHandle.InputEnded:Connect(function(inp)
         if inp.UserInputType == Enum.UserInputType.MouseButton1 then
             dragging = false
             dragTarget = nil
         end
-    end)
-    
-    settingsDrag.InputBegan:Connect(function(inp)
+    end))
+
+    table.insert(conns, settingsDrag.InputBegan:Connect(function(inp)
         if inp.UserInputType == Enum.UserInputType.MouseButton1 then
             dragging = true
             dragTarget = "settings"
@@ -1999,15 +1907,15 @@ function MenuLib:Init(config)
                 settingsOrig = settingsPanel.Position
             end
         end
-    end)
-    
-    settingsDrag.InputEnded:Connect(function(inp)
+    end))
+
+    table.insert(conns, settingsDrag.InputEnded:Connect(function(inp)
         if inp.UserInputType == Enum.UserInputType.MouseButton1 then
             dragging = false
             dragTarget = nil
         end
-    end)
-    
+    end))
+
     table.insert(conns, UserInputService.InputChanged:Connect(function(inp)
         if inp.UserInputType == Enum.UserInputType.MouseMovement and dragging and dragTarget then
             local mp = UserInputService:GetMouseLocation()
@@ -2022,20 +1930,19 @@ function MenuLib:Init(config)
             end
         end
     end))
-    
-    -- HUD Layout
+
     local function updateHudLayout(animate)
         local baseX = 48
         local nameWidth = nameLbl and typeof(nameLbl.AbsoluteSize) == "Vector2" and nameLbl.AbsoluteSize.X or 0
         local spacing = 16
         local currentX = baseX
-        
+
         if nameWidth > 0 then 
             currentX = currentX + math.max(70, nameWidth + 8) + spacing 
         else
             currentX = currentX + 70 + spacing
         end
-        
+
         local function applyLayout(obj, isVisible, targetX, yOffset)
             if not obj then return currentX end
             if isVisible then
@@ -2100,7 +2007,7 @@ function MenuLib:Init(config)
             hudBar.Position = UDim2.new(0.5, -targetWidth / 2, 0, 10)
         end
     end
-    
+
     task.defer(function() updateHudLayout(false) end)
     table.insert(conns, nameLbl:GetPropertyChangedSignal("AbsoluteSize"):Connect(function() updateHudLayout(true) end))
     table.insert(conns, fpsLbl:GetPropertyChangedSignal("Text"):Connect(function() updateHudLayout(true) end))
@@ -2110,10 +2017,9 @@ function MenuLib:Init(config)
     table.insert(conns, timeLbl:GetPropertyChangedSignal("Visible"):Connect(function() updateHudLayout(true) end))
     table.insert(conns, pingLbl:GetPropertyChangedSignal("AbsoluteSize"):Connect(function() updateHudLayout(true) end))
     table.insert(conns, timeLbl:GetPropertyChangedSignal("AbsoluteSize"):Connect(function() updateHudLayout(true) end))
-    
-    -- RenderStepped
+
     local fpsT, fpsN = 0, 0
-    
+
     table.insert(conns, RunService.RenderStepped:Connect(function(dt)
         if unloaded then return end
         fpsT = fpsT + dt
@@ -2127,36 +2033,32 @@ function MenuLib:Init(config)
             fpsN = 0
             fpsT = 0
         end
-        pcall(function() pingLbl.Text = tostring(math.round(lp:GetNetworkPing() * 1000)) .. " ms" end)
+        pcall(function() local ping = (lp.GetPing and lp:GetPing()) or (lp.GetNetworkPing and lp:GetNetworkPing()) or 0 pingLbl.Text = tostring(math.round(ping * 1000)) .. " ms" end)
         pcall(function() timeLbl.Text = os.date("%I:%M %p") end)
 
-        if _G._LightingDimEnabled then
-            Lighting.Brightness = 0.3
-            Lighting.ClockTime = 0
+        if M.LightingDimEnabled then
+            pcall(function()
+                if Lighting.Brightness ~= 0.3 then Lighting.Brightness = 0.3 end
+                if Lighting.ClockTime ~= 0 then Lighting.ClockTime = 0 end
+            end)
         end
 
     end))
-    
-    -- Input Handler
+
     table.insert(conns, UserInputService.InputBegan:Connect(function(inp, gpe)
         if gpe then return end
-        local toggleKey = _G._MenuToggleKey or Enum.KeyCode.Insert
-        local unloadKey = _G._UnloadKey or Enum.KeyCode.Delete
-        
+        local toggleKey = M.MenuToggleKey or Enum.KeyCode.Insert
+        local unloadKey = M.UnloadKey or Enum.KeyCode.Delete
+
         if inp.KeyCode == unloadKey then
-            -- Unload always works, even during keybind setting
-            _G._SettingKeybind = false
+            settingKeybind = false
             unloaded = true
-            _G._UnloadTriggered = true
 
-            -- Disconnect ALL tracked connections first
             for _, c in ipairs(conns) do pcall(function() c:Disconnect() end) end
-            conns = {}
+            table.clear(conns)
 
-            -- Unbind RenderStep
             pcall(function() RunService:UnbindFromRenderStep(RS_BIND_INP) end)
 
-            -- Restore input state
             isOpen = false
             if inputBlocker then pcall(function() inputBlocker.Visible = false end) end
             local ctrl = ensureControls()
@@ -2180,55 +2082,51 @@ function MenuLib:Init(config)
                 end
             end)
 
-            -- Restore lighting
-            if _G._OriginalBrightness then
-                Lighting.Brightness = _G._OriginalBrightness
-                Lighting.ClockTime = _G._OriginalClockTime
+            if M.OriginalBrightness then
+                Lighting.Brightness = M.OriginalBrightness
+                Lighting.ClockTime = M.OriginalClockTime
             end
 
-            -- Restore quality
-            if _G._OriginalQualityLevel then
-                settings().Rendering.QualityLevel = _G._OriginalQualityLevel
+            if M.OriginalQualityLevel then
+                settings().Rendering.QualityLevel = M.OriginalQualityLevel
             end
 
-            -- Destroy blur
             if blurPart then pcall(function() blurPart:Destroy() end) blurPart = nil end
 
-            -- Destroy the entire GUI
             pcall(function() sg:Destroy() end)
 
-            -- Clean up _G variables
-            _G._MenuAutoRefresh = nil
-            _G._BlurEnabled = nil
-            _G._LightingDimEnabled = nil
-            _G._OriginalBrightness = nil
-            _G._OriginalClockTime = nil
-            _G._OriginalQualityLevel = nil
-            _G._MenuToggleKey = nil
-            _G._UnloadKey = nil
-            _G._SmoothAnimations = nil
-            _G._ESPColour = nil
-            _G._MenuOpen = nil
-            _G._SettingKeybind = nil
+            M.AutoRefresh = nil
+            M.BlurEnabled = nil
+            M.LightingDimEnabled = nil
+            M.OriginalBrightness = nil
+            M.OriginalClockTime = nil
+            M.OriginalQualityLevel = nil
+            M.MenuToggleKey = nil
+            M.UnloadKey = nil
+            M.SmoothAnimations = nil
+            M.ESPColour = nil
+            _G._MenuLib = nil
             _G._MenuToggles = nil
             _G._MenuSliders = nil
             _G._MenuDropdowns = nil
+            _G._MenuColorPickers = nil
+            _G._MenuTextBoxes = nil
             _G._ConfigList = nil
             _G._CurrentConfig = nil
             _G._ConfigLoaded = nil
             _G._FriendsList = nil
             _G.GetConfigData = nil
             _G.LoadConfigData = nil
-        elseif inp.KeyCode == toggleKey and not _G._SettingKeybind then
+            settingKeybind = false
+        elseif inp.KeyCode == toggleKey and not settingKeybind then
             toggleMenu()
         end
     end))
-    
-    -- Return API
+
     local API = {}
-    
+
     API.AddSection = addSection
-    
+
     API.AddTab = function(name, icon, buildFn)
         local tabEntry, contentFrame = addTab(name, icon, buildFn)
         return {
@@ -2241,28 +2139,23 @@ function MenuLib:Init(config)
             end
         }
     end
-    
-    -- Store panel references for tabs that use two-panel layout
+
     local tabPanels = {}
 
-    -- Helper: find proper container for API element placement
     local function getContainer(tabName, side)
         local tf = tabContents[tabName]
         if not tf then return nil, false end
         local panels = tabPanels[tabName]
         if panels then
-            -- Two-panel layout: add directly to the panel (it already has UIListLayout + padding)
             local panel = (side == "right") and panels.rightPanel or panels.leftPanel
             return panel, true
         end
-        -- Non-panel tab: find ScrollingFrame, then find/create card inside it
         local scroll = tf:FindFirstChildWhichIsA("ScrollingFrame") or tf
         for _, child in ipairs(scroll:GetChildren()) do
             if child:IsA("Frame") and child:FindFirstChildWhichIsA("UIListLayout") then
                 return child, false
             end
         end
-        -- No card found, create one
         local card = fr(scroll, UDim2.new(1, -4, 0, 0), nil, C.HEADER, 0, 16)
         card.AutomaticSize = Enum.AutomaticSize.Y
         local v = Instance.new("UIListLayout")
@@ -2274,6 +2167,7 @@ function MenuLib:Init(config)
     end
 
     API.AddToggle = function(tabName, label, callback, default, side, reserveColorSlots)
+        if type(tabName) ~= "string" or type(label) ~= "string" then return nil end
         local container, isPanel = getContainer(tabName, side)
         if not container then return nil end
 
@@ -2285,13 +2179,14 @@ function MenuLib:Init(config)
         lbl(row, label, UDim2.new(1, reserveColorSlots and -118 or -70, 1, 0), UDim2.new(0, 14, 0, 0), 12, C.TEXT)
         local toggle = mkToggle(row, -56, default or false, callback)
         toggle.Row = row
-        -- Store reference for config loading
         if not _G._MenuToggles then _G._MenuToggles = {} end
-        _G._MenuToggles[label] = toggle
+        _G._MenuToggles[tabName .. "_" .. label] = toggle
         return toggle
     end
-    
+
     API.AddSlider = function(tabName, label, min, max, callback, default, side)
+        if type(tabName) ~= "string" or type(label) ~= "string" then return nil end
+        if type(min) ~= "number" or type(max) ~= "number" or min >= max then return nil end
         local container, isPanel = getContainer(tabName, side)
         if not container then return nil end
 
@@ -2300,20 +2195,20 @@ function MenuLib:Init(config)
         row.LayoutOrder = #container:GetChildren()
         local stripe = fr(row, UDim2.new(0, 3, 1, -8), UDim2.new(0, 0, 0, 4), C.ACCENT, 0, 0)
         gradV(stripe, C.ACCENT, C.ACCENT2)
-        
+
         lbl(row, label, UDim2.new(1, -20, 0, 20), UDim2.new(0, 14, 0, 4), 12, C.TEXT)
-        local valueLbl = lbl(row, tostring(default or min), UDim2.new(0, 40, 0, 20), UDim2.new(1, -50, 0, 4), 12, C.ACCENT, Enum.Font.GothamBold)
+        local valueLbl = lbl(row, tostring(default or min), UDim2.new(0, 40, 0, 20), UDim2.new(1, -50, 0, 4), 12, C.ACCENT, FONT_BOLD)
         valueLbl.TextXAlignment = Enum.TextXAlignment.Right
-        
+
         local track = fr(row, UDim2.new(1, -28, 0, 6), UDim2.new(0, 14, 0, 28), Color3.fromRGB(40, 20, 70), 0, 3)
         local fill = fr(track, UDim2.new(0, 0, 1, 0), nil, C.ACCENT, 0, 3)
         gradV(fill, C.ACCENT, C.ACCENT2)
-        
+
         local knob = fr(track, UDim2.new(0, 12, 0, 12), nil, C.TEXT, 0, 6)
-        
+
         local value = default or min
         local range = max - min
-        
+
         local function updateVisuals(animate)
             local percent = math.clamp((value - min) / range, 0, 1)
             local targetWidth = UDim2.new(percent, 0, 1, 0)
@@ -2327,20 +2222,20 @@ function MenuLib:Init(config)
             end
             valueLbl.Text = tostring(math.round(value))
         end
-        
+
         updateVisuals(false)
-        
+
         local dragging = false
-        track.InputBegan:Connect(function(inp)
+        table.insert(conns, track.InputBegan:Connect(function(inp)
             if inp.UserInputType == Enum.UserInputType.MouseButton1 then
                 dragging = true
                 local absX = inp.Position.X - track.AbsolutePosition.X
                 local percent = math.clamp(absX / track.AbsoluteSize.X, 0, 1)
                 value = min + (percent * range)
                 updateVisuals(true)
-                if callback then callback(value) end
+                if callback then pcall(callback, value) end
             end
-        end)
+        end))
 
         table.insert(conns, UserInputService.InputChanged:Connect(function(inp)
             if dragging and inp.UserInputType == Enum.UserInputType.MouseMovement then
@@ -2348,7 +2243,7 @@ function MenuLib:Init(config)
                 local percent = math.clamp(absX / track.AbsoluteSize.X, 0, 1)
                 value = min + (percent * range)
                 updateVisuals(true)
-                if callback then callback(value) end
+                if callback then pcall(callback, value) end
             end
         end))
 
@@ -2357,15 +2252,16 @@ function MenuLib:Init(config)
                 dragging = false
             end
         end))
-        
-        local sl = { Get = function() return value end, Set = function(v) value = math.clamp(v, min, max) updateVisuals(true) if callback then callback(value) end end }
+
+        local sl = { Get = function() return value end, Set = function(v) value = math.clamp(v, min, max) updateVisuals(true) if callback then pcall(callback, value) end end }
         if not _G._MenuSliders then _G._MenuSliders = {} end
-        _G._MenuSliders[label] = sl
+        _G._MenuSliders[tabName .. "_" .. label] = sl
         return sl
     end
-    
+
     API.AddColorPicker = function(tabName, label, callback, defaultColor, side, compact)
         local compactMode = type(compact) == "table" and compact.Row ~= nil
+        if not compactMode and (type(tabName) ~= "string" or type(label) ~= "string") then return nil end
         local row
         if compactMode then
             row = compact.Row
@@ -2401,7 +2297,7 @@ function MenuLib:Init(config)
         end
         btn.TextColor3 = C.TEXT
         btn.TextSize = 11
-        btn.Font = Enum.Font.GothamBold
+        btn.Font = FONT_BOLD
         btn.Parent = row
 
         local compactCorner = Instance.new("UICorner")
@@ -2415,8 +2311,8 @@ function MenuLib:Init(config)
             dotStroke.Transparency = 0.18
             dotStroke.Parent = btn
         else
-            btn.MouseEnter:Connect(function() tw(btn, { BackgroundColor3 = C.BTNHOV }, 0.12) end)
-            btn.MouseLeave:Connect(function() tw(btn, { BackgroundColor3 = C.BTN }, 0.12) end)
+            table.insert(conns, btn.MouseEnter:Connect(function() tw(btn, { BackgroundColor3 = C.BTNHOV }, 0.12) end))
+            table.insert(conns, btn.MouseLeave:Connect(function() tw(btn, { BackgroundColor3 = C.BTN }, 0.12) end))
         end
 
         local PICKER_W, PICKER_H = 254, 324
@@ -2443,14 +2339,12 @@ function MenuLib:Init(config)
                     Size = UDim2.fromOffset(PICKER_W, 0),
                     BackgroundTransparency = 0.15,
                 }, 0.14, Enum.EasingStyle.Quint)
-                task.delay(0.16, function()
-                    if closingFrame then closingFrame:Destroy() end
-                end)
+                pcall(function() task.delay(0.16, function() pcall(function() if closingFrame then closingFrame:Destroy() end end) end) end)
             end
         end
         table.insert(activeDropdownClosers, closePicker)
 
-        btn.MouseButton1Click:Connect(function()
+        table.insert(conns, btn.MouseButton1Click:Connect(function()
             if pickerFrame then
                 closePicker()
                 return
@@ -2475,7 +2369,7 @@ function MenuLib:Init(config)
                 14
             )
             pickerFrame.Name = "ColorPickerV2"
-            pickerFrame.ZIndex = 1000
+            pickerFrame.ZIndex = Z.DROPDOWN
             pickerFrame.ClipsDescendants = true
 
             local pStroke = Instance.new("UIStroke")
@@ -2505,18 +2399,14 @@ function MenuLib:Init(config)
             end
 
             local function getPointerPosition(input)
-                -- Use the same raw screen coordinate space as AbsolutePosition.
-                -- Subtracting GuiInset here caused the selector to feel stuck or
-                -- offset in several executors and fullscreen configurations.
                 if input and input.Position then
                     return Vector2.new(input.Position.X, input.Position.Y)
                 end
                 return UserInputService:GetMouseLocation()
             end
 
-            -- Draggable title bar so the picker never gets stuck in the middle.
             local header = z(fr(pickerFrame, UDim2.new(1, 0, 0, 34), nil, C.DARK, 0.05, 12), 1001)
-            local title = lbl(header, label, UDim2.new(1, -92, 1, 0), UDim2.fromOffset(14, 0), 12, C.TEXT, Enum.Font.GothamBold)
+            local title = lbl(header, label, UDim2.new(1, -92, 1, 0), UDim2.fromOffset(14, 0), 12, C.TEXT, FONT_BOLD)
             title.ZIndex = 1002
             title.TextTruncate = Enum.TextTruncate.AtEnd
 
@@ -2528,21 +2418,21 @@ function MenuLib:Init(config)
             closeButton.Position = UDim2.new(1, -30, 0.5, -12)
             closeButton.BackgroundColor3 = C.BTN
             closeButton.BackgroundTransparency = 0.15
-            closeButton.Text = "Ã—"
+            closeButton.Text = "Ãƒâ€”"
             closeButton.TextColor3 = C.SEC
             closeButton.TextSize = 18
-            closeButton.Font = Enum.Font.GothamBold
+            closeButton.Font = FONT_BOLD
             closeButton.AutoButtonColor = false
             closeButton.ZIndex = 1004
             closeButton.Parent = header
             roundedStroke(closeButton, 7, Color3.fromRGB(255, 255, 255), 0.88, 1)
-            closeButton.MouseEnter:Connect(function()
+            table.insert(pickerConnections, closeButton.MouseEnter:Connect(function()
                 tw(closeButton, { BackgroundColor3 = C.BTNHOV, TextColor3 = C.TEXT }, 0.1)
-            end)
-            closeButton.MouseLeave:Connect(function()
+            end))
+            table.insert(pickerConnections, closeButton.MouseLeave:Connect(function()
                 tw(closeButton, { BackgroundColor3 = C.BTN, TextColor3 = C.SEC }, 0.1)
-            end)
-            closeButton.MouseButton1Click:Connect(closePicker)
+            end))
+            table.insert(pickerConnections, closeButton.MouseButton1Click:Connect(closePicker))
 
             local headerDrag = Instance.new("TextButton")
             headerDrag.Size = UDim2.new(1, -88, 1, 0)
@@ -2599,7 +2489,6 @@ function MenuLib:Init(config)
             svButton.ZIndex = 1004
             svButton.Parent = svCanvas
 
-            -- One continuous horizontal hue strip instead of six blocky pieces.
             local hueY = 166
             local hueTrack = z(fr(
                 pickerFrame,
@@ -2644,9 +2533,9 @@ function MenuLib:Init(config)
             hueButton.ZIndex = 1003
             hueButton.Parent = hueTrack
 
-            local alphaLabel = lbl(pickerFrame, "Opacity", UDim2.fromOffset(54, 16), UDim2.fromOffset(CANVAS_X, 188), 10, C.DIM, Enum.Font.GothamBold)
+            local alphaLabel = lbl(pickerFrame, "Opacity", UDim2.fromOffset(54, 16), UDim2.fromOffset(CANVAS_X, 188), 10, C.DIM, FONT_BOLD)
             alphaLabel.ZIndex = 1001
-            local alphaValue = lbl(pickerFrame, "100%", UDim2.fromOffset(45, 16), UDim2.new(1, -57, 0, 188), 10, C.SEC, Enum.Font.GothamBold)
+            local alphaValue = lbl(pickerFrame, "100%", UDim2.fromOffset(45, 16), UDim2.new(1, -57, 0, 188), 10, C.SEC, FONT_BOLD)
             alphaValue.TextXAlignment = Enum.TextXAlignment.Right
             alphaValue.ZIndex = 1001
 
@@ -2691,7 +2580,7 @@ function MenuLib:Init(config)
             local alphaKnob = z(fr(
                 alphaTrack,
                 UDim2.fromOffset(12, 18),
-                UDim2.new(alpha, -6, 0.5, -9),
+                UDim2.new(0, alpha * CANVAS_W - 6, 0.5, -9),
                 Color3.new(1, 1, 1),
                 1,
                 6
@@ -2725,7 +2614,7 @@ function MenuLib:Init(config)
                 ), 1001)
                 roundedStroke(field, 6, Color3.fromRGB(255, 255, 255), 0.88, 1)
 
-                local channelLabel = lbl(field, channel, UDim2.fromOffset(14, 26), UDim2.fromOffset(8, 0), 10, C.DIM, Enum.Font.GothamBold)
+                local channelLabel = lbl(field, channel, UDim2.fromOffset(14, 26), UDim2.fromOffset(8, 0), 10, C.DIM, FONT_BOLD)
                 channelLabel.ZIndex = 1002
 
                 local box = Instance.new("TextBox")
@@ -2735,7 +2624,7 @@ function MenuLib:Init(config)
                 box.TextColor3 = C.TEXT
                 box.PlaceholderColor3 = C.DIM
                 box.TextSize = 11
-                box.Font = Enum.Font.GothamBold
+                box.Font = FONT_BOLD
                 box.TextXAlignment = Enum.TextXAlignment.Center
                 box.ClearTextOnFocus = true
                 box.ZIndex = 1003
@@ -2773,17 +2662,17 @@ function MenuLib:Init(config)
                 swatch.ZIndex = 1002
                 swatch.Parent = pickerFrame
                 roundedStroke(swatch, 4, Color3.fromRGB(255, 255, 255), 0.72, 1)
-                swatch.MouseEnter:Connect(function()
+                table.insert(pickerConnections, swatch.MouseEnter:Connect(function()
                     tw(swatch, { Size = UDim2.fromOffset(16, 16), Position = UDim2.fromOffset(swatchX - 1, swatchY - 1) }, 0.1)
-                end)
-                swatch.MouseLeave:Connect(function()
+                end))
+                table.insert(pickerConnections, swatch.MouseLeave:Connect(function()
                     tw(swatch, { Size = UDim2.fromOffset(14, 14), Position = swatchPosition }, 0.1)
-                end)
-                swatch.MouseButton1Click:Connect(function()
+                end))
+                table.insert(pickerConnections, swatch.MouseButton1Click:Connect(function()
                     color = presetColor
                     h, s, v = color:ToHSV()
                     if openRefresh then openRefresh(true) end
-                end)
+                end))
             end
 
             local doneButton = Instance.new("TextButton")
@@ -2793,7 +2682,7 @@ function MenuLib:Init(config)
             doneButton.Text = "Done"
             doneButton.TextColor3 = C.TEXT
             doneButton.TextSize = 11
-            doneButton.Font = Enum.Font.GothamBold
+            doneButton.Font = FONT_BOLD
             doneButton.AutoButtonColor = false
             doneButton.ZIndex = 1002
             doneButton.Parent = pickerFrame
@@ -2804,9 +2693,9 @@ function MenuLib:Init(config)
                 ColorSequenceKeypoint.new(1, C.ACCENT2),
             })
             doneGradient.Parent = doneButton
-            doneButton.MouseEnter:Connect(function() tw(doneButton, { BackgroundTransparency = 0.08 }, 0.1) end)
-            doneButton.MouseLeave:Connect(function() tw(doneButton, { BackgroundTransparency = 0 }, 0.1) end)
-            doneButton.MouseButton1Click:Connect(closePicker)
+            table.insert(pickerConnections, doneButton.MouseEnter:Connect(function() tw(doneButton, { BackgroundTransparency = 0.08 }, 0.1) end))
+            table.insert(pickerConnections, doneButton.MouseLeave:Connect(function() tw(doneButton, { BackgroundTransparency = 0 }, 0.1) end))
+            table.insert(pickerConnections, doneButton.MouseButton1Click:Connect(closePicker))
 
             local function refreshInputs()
                 boxes[1].Text = tostring(math.round(color.R * 255))
@@ -2831,7 +2720,7 @@ function MenuLib:Init(config)
                 svKnob.Position = UDim2.fromOffset(s * CANVAS_W - 6, (1 - v) * CANVAS_H - 6)
                 hueKnob.Position = UDim2.new(h, -6, 0.5, -10)
                 hueKnobInner.BackgroundColor3 = Color3.fromHSV(h, 1, 1)
-                alphaKnob.Position = UDim2.new(alpha, -6, 0.5, -9)
+                alphaKnob.Position = UDim2.new(0, alpha * CANVAS_W - 6, 0.5, -9)
                 alphaValue.Text = tostring(math.round(alpha * 100)) .. "%"
                 if emit then emitColor() end
                 refreshInputs()
@@ -2876,29 +2765,29 @@ function MenuLib:Init(config)
                 end
             end
 
-            svButton.InputBegan:Connect(function(input)
+            table.insert(pickerConnections, svButton.InputBegan:Connect(function(input)
                 if input.UserInputType == Enum.UserInputType.MouseButton1 then
                     beginControlDrag("sv", input)
                 end
-            end)
-            hueButton.InputBegan:Connect(function(input)
+            end))
+            table.insert(pickerConnections, hueButton.InputBegan:Connect(function(input)
                 if input.UserInputType == Enum.UserInputType.MouseButton1 then
                     beginControlDrag("hue", input)
                 end
-            end)
-            alphaButton.InputBegan:Connect(function(input)
+            end))
+            table.insert(pickerConnections, alphaButton.InputBegan:Connect(function(input)
                 if input.UserInputType == Enum.UserInputType.MouseButton1 then
                     beginControlDrag("alpha", input)
                 end
-            end)
+            end))
 
-            headerDrag.InputBegan:Connect(function(input)
+            table.insert(pickerConnections, headerDrag.InputBegan:Connect(function(input)
                 if input.UserInputType == Enum.UserInputType.MouseButton1 then
                     popupDragging = true
                     popupDragStart = getPointerPosition(input)
                     popupStartPosition = Vector2.new(pickerFrame.AbsolutePosition.X, pickerFrame.AbsolutePosition.Y)
                 end
-            end)
+            end))
 
             table.insert(pickerConnections, UserInputService.InputChanged:Connect(function(input)
                 if input.UserInputType ~= Enum.UserInputType.MouseMovement then return end
@@ -2930,7 +2819,7 @@ function MenuLib:Init(config)
             end))
 
             for i, box in ipairs(boxes) do
-                box.FocusLost:Connect(function()
+                table.insert(pickerConnections, box.FocusLost:Connect(function()
                     local value = tonumber(box.Text)
                     if not value then
                         refreshInputs()
@@ -2952,9 +2841,9 @@ function MenuLib:Init(config)
                     color = Color3.fromRGB(r, g, b)
                     h, s, v = color:ToHSV()
                     refreshVisuals(true)
-                end)
+                end))
             end
-        end)
+        end))
 
         local cp = {
             Get = function()
@@ -2975,13 +2864,11 @@ function MenuLib:Init(config)
             end,
         }
         if not _G._MenuColorPickers then _G._MenuColorPickers = {} end
-        _G._MenuColorPickers[label] = cp
+        _G._MenuColorPickers[tabName .. "_" .. label] = cp
         return cp
     end
 
 
-    -- Toggle row with two compact live color swatches. The left swatch is the
-    -- visible color and the right swatch is the occluded/hidden color.
     API.AddColorToggle = function(tabName, label, toggleCallback, defaultState,
         visibleCallback, visibleColor, hiddenCallback, hiddenColor, side)
         local toggle = API.AddToggle(
@@ -3019,11 +2906,10 @@ function MenuLib:Init(config)
             Hidden = hiddenPicker,
         }
     end
-    
-    -- ============================================================
-    -- FIX 2+3+4: Dropdown â€” rolls DOWN, text centered, smooth anim
-    -- ============================================================
+
     API.AddDropdown = function(tabName, label, options, callback, defaultIndex, side)
+        if type(tabName) ~= "string" or type(label) ~= "string" then return nil end
+        if type(options) ~= "table" or #options == 0 then return nil end
         local container, isPanel = getContainer(tabName, side)
         if not container then return nil end
 
@@ -3032,15 +2918,13 @@ function MenuLib:Init(config)
         row.LayoutOrder = #container:GetChildren()
         local stripe = fr(row, UDim2.new(0, 3, 1, -8), UDim2.new(0, 0, 0, 4), C.ACCENT, 0, 0)
         gradV(stripe, C.ACCENT, C.ACCENT2)
-        
-        -- FIX: Wider label gap to accommodate 130px button instead of 110px
+
         lbl(row, label, UDim2.new(1, -155, 1, 0), UDim2.new(0, 14, 0, 0), 12, C.TEXT)
-        
+
         local selectedIndex = defaultIndex or 1
         local ddIsOpen = false
-        local DROP_W = 130  -- wider button for less wasted space
+        local DROP_W = 130
 
-        -- FIX: Wider button (130px), centered text, right padding to not overlap chevron
         local dropdownBtn = Instance.new("TextButton")
         dropdownBtn.Size = UDim2.new(0, DROP_W, 0, 28)
         dropdownBtn.Position = UDim2.new(1, -(DROP_W + 8), 0.5, -14)
@@ -3048,7 +2932,7 @@ function MenuLib:Init(config)
         dropdownBtn.Text = options[selectedIndex] or "Select"
         dropdownBtn.TextColor3 = C.TEXT
         dropdownBtn.TextSize = 11
-        dropdownBtn.Font = Enum.Font.GothamBold
+        dropdownBtn.Font = FONT_BOLD
         dropdownBtn.TextXAlignment = Enum.TextXAlignment.Center
         dropdownBtn.TextTruncate = Enum.TextTruncate.AtEnd
         dropdownBtn.Parent = row
@@ -3056,19 +2940,17 @@ function MenuLib:Init(config)
         btnCorner.CornerRadius = UDim.new(0, 6)
         btnCorner.Parent = dropdownBtn
 
-        -- FIX: Right padding so centered text doesn't sit under the chevron
         local btnPad = Instance.new("UIPadding")
         btnPad.PaddingRight = UDim.new(0, 18)
         btnPad.PaddingLeft = UDim.new(0, 4)
         btnPad.Parent = dropdownBtn
-        
+
         local btnStroke = Instance.new("UIStroke")
         btnStroke.Color = C.DIV
         btnStroke.Thickness = 1
         btnStroke.Transparency = 0.5
         btnStroke.Parent = dropdownBtn
-        
-        -- Chevron at far right of button
+
         local chevron = Instance.new("ImageLabel")
         chevron.Size = UDim2.new(0, 10, 0, 10)
         chevron.Position = UDim2.new(1, -16, 0.5, -5)
@@ -3076,24 +2958,24 @@ function MenuLib:Init(config)
         chevron.Image = "rbxassetid://6031091004"
         chevron.ImageColor3 = C.ACCENT
         chevron.Parent = dropdownBtn
-        
-        dropdownBtn.MouseEnter:Connect(function() 
+
+        table.insert(conns, dropdownBtn.MouseEnter:Connect(function()
             tw(dropdownBtn, { BackgroundColor3 = C.BTN }, 0.15)
             tw(btnStroke, { Color = C.ACCENT, Transparency = 0.3 }, 0.15)
-        end)
-        dropdownBtn.MouseLeave:Connect(function() 
+        end))
+        table.insert(conns, dropdownBtn.MouseLeave:Connect(function()
             tw(dropdownBtn, { BackgroundColor3 = C.DARK }, 0.15)
             tw(btnStroke, { Color = C.DIV, Transparency = 0.5 }, 0.15)
-        end)
-        
+        end))
+
         local dropdownFrame = nil
         local shadow = nil
         local closeConn = nil
         local optionButtons = {}
-        
+
         local function closeDropdown()
             ddIsOpen = false
-            if closeConn then closeConn:Disconnect() closeConn = nil end
+            if closeConn then pcall(function() closeConn:Disconnect() end) closeConn = nil end
             tw(chevron, { Rotation = 0 }, 0.2, Enum.EasingStyle.Quint)
             if shadow then
                 tw(shadow, { Size = UDim2.new(0, DROP_W, 0, 0), BackgroundTransparency = 1 }, 0.22, Enum.EasingStyle.Quint)
@@ -3104,42 +2986,33 @@ function MenuLib:Init(config)
                 local capturedShadow = shadow
                 dropdownFrame = nil
                 shadow = nil
-                task.delay(0.25, function()
-                    if capturedFrame then capturedFrame:Destroy() end
-                    if capturedShadow then capturedShadow:Destroy() end
-                end)
+                pcall(function() task.delay(0.25, function() pcall(function() if capturedFrame then capturedFrame:Destroy() end if capturedShadow then capturedShadow:Destroy() end end) end) end)
             end
             optionButtons = {}
         end
-        
+
         local function openDropdown()
             if ddIsOpen then closeDropdown() return end
             ddIsOpen = true
-            
+
             tw(chevron, { Rotation = 180 }, 0.2)
-            
-            -- Get button screen position
+
             local btnAbsPos = dropdownBtn.AbsolutePosition
             local btnAbsSize = dropdownBtn.AbsoluteSize
 
-            -- FIX: Always open BELOW the button
-            -- dropY = bottom edge of button + small gap
             local dropY = btnAbsPos.Y + btnAbsSize.Y + 4
             local dropX = btnAbsPos.X
 
             local targetHeight = math.min(#options * 30 + 12, 150)
-            
-            -- Shadow (slight offset for depth)
+
             shadow = fr(sg, UDim2.new(0, DROP_W, 0, 0),
                 UDim2.new(0, dropX + 2, 0, dropY + 2), Color3.fromRGB(0, 0, 0), 0.7, 8)
-            shadow.ZIndex = 998
-            
-            -- Main dropdown frame â€” starts at height 0, grows DOWNWARD
-            -- FIX: ClipsDescendants = true so contents are hidden until frame reveals them
+            shadow.ZIndex = Z.DROPDOWN_SHADOW
+
             dropdownFrame = fr(sg, UDim2.new(0, DROP_W, 0, 0),
                 UDim2.new(0, dropX, 0, dropY), C.DARK, 0, 8)
-            dropdownFrame.ZIndex = 1000
-            dropdownFrame.ClipsDescendants = true  -- KEY FIX: clips children as frame expands down
+            dropdownFrame.ZIndex = Z.DROPDOWN
+            dropdownFrame.ClipsDescendants = true
 
             local dropStroke = Instance.new("UIStroke")
             dropStroke.Color = C.ACCENT
@@ -3147,7 +3020,6 @@ function MenuLib:Init(config)
             dropStroke.Transparency = 0.4
             dropStroke.Parent = dropdownFrame
 
-            -- Scroll inside
             local scroll = Instance.new("ScrollingFrame")
             scroll.Size = UDim2.new(1, -4, 1, -8)
             scroll.Position = UDim2.new(0, 2, 0, 4)
@@ -3157,22 +3029,20 @@ function MenuLib:Init(config)
             scroll.ScrollBarImageColor3 = C.ACCENT
             scroll.CanvasSize = UDim2.new(0, 0, 0, #options * 30)
             scroll.Parent = dropdownFrame
-            
+
             local list = Instance.new("UIListLayout")
             list.SortOrder = Enum.SortOrder.LayoutOrder
             list.Padding = UDim.new(0, 2)
             list.Parent = scroll
-            
+
             for i, opt in ipairs(options) do
                 local optBtn = Instance.new("TextButton")
                 optBtn.Size = UDim2.new(1, -4, 0, 28)
-                -- FIX: selected item highlighted, others dark
                 optBtn.BackgroundColor3 = (i == selectedIndex) and Color3.fromRGB(40, 20, 70) or C.DARK
                 optBtn.Text = opt
                 optBtn.TextColor3 = (i == selectedIndex) and C.TEXT or C.DIM
                 optBtn.TextSize = 11
-                optBtn.Font = Enum.Font.GothamBold
-                -- FIX: Center the text in the option buttons
+                optBtn.Font = FONT_BOLD
                 optBtn.TextXAlignment = Enum.TextXAlignment.Center
                 optBtn.TextTruncate = Enum.TextTruncate.AtEnd
                 optBtn.Parent = scroll
@@ -3189,43 +3059,39 @@ function MenuLib:Init(config)
                     selStroke.Transparency = 0.5
                     selStroke.Parent = optBtn
                 end
-                
-                optBtn.MouseEnter:Connect(function()
+
+                table.insert(conns, optBtn.MouseEnter:Connect(function()
                     if i ~= selectedIndex then
                         tw(optBtn, { BackgroundColor3 = C.BTN, TextColor3 = C.TEXT }, 0.12)
                     end
-                end)
-                optBtn.MouseLeave:Connect(function()
+                end))
+                table.insert(conns, optBtn.MouseLeave:Connect(function()
                     if i ~= selectedIndex then
                         tw(optBtn, { BackgroundColor3 = C.DARK, TextColor3 = C.DIM }, 0.12)
                     end
-                end)
-                
-                -- FIX: Smooth selection flash animation then close
-                optBtn.InputEnded:Connect(function(input)
+                end))
+
+                table.insert(conns, optBtn.InputEnded:Connect(function(input)
                     if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                        -- Flash accent colour on select for tactile feel
                         tw(optBtn, { BackgroundColor3 = C.ACCENT }, 0.08)
-                        task.delay(0.14, function()
+                        pcall(function() task.delay(0.14, function() pcall(function()
                             selectedIndex = i
                             dropdownBtn.Text = opt
-                            if callback then callback(opt, i) end
+                            if callback then pcall(callback, opt, i) end
                             closeDropdown()
-                        end)
+                        end) end) end)
                     end
                 end)
-                
+
                 table.insert(optionButtons, optBtn)
             end
-            
-            -- FIX: Animate DOWNWARD â€” top stays fixed, height grows to targetHeight
+
             tw(shadow, { Size = UDim2.new(0, DROP_W, 0, targetHeight) }, 0.25, Enum.EasingStyle.Quint)
             tw(dropdownFrame, { Size = UDim2.new(0, DROP_W, 0, targetHeight) }, 0.25, Enum.EasingStyle.Quint)
-            
-            -- Click-outside closes dropdown
-            task.delay(0.1, function()
-                if not ddIsOpen then return end
-                closeConn = UserInputService.InputBegan:Connect(function(input, gpe)
+
+            if not ddIsOpen then return end
+            if closeConn then pcall(function() closeConn:Disconnect() end) closeConn = nil end
+            closeConn = UserInputService.InputBegan:Connect(function(input, gpe)
                     if not ddIsOpen then
                         if closeConn then closeConn:Disconnect() closeConn = nil end
                         return
@@ -3239,23 +3105,22 @@ function MenuLib:Init(config)
                         local dropSz  = df.AbsoluteSize
                         local btnPos  = bb.AbsolutePosition
                         local btnSz   = bb.AbsoluteSize
-                        
+
                         local inDropdown = pos.X >= dropPos.X and pos.X <= dropPos.X + dropSz.X and
                                           pos.Y >= dropPos.Y and pos.Y <= dropPos.Y + dropSz.Y
                         local inButton   = pos.X >= btnPos.X  and pos.X <= btnPos.X  + btnSz.X  and
                                           pos.Y >= btnPos.Y  and pos.Y <= btnPos.Y  + btnSz.Y
-                        
+
                         if not inDropdown and not inButton then
                             closeDropdown()
                         end
                     end
                 end)
-            end)
         end
-        
-        dropdownBtn.MouseButton1Click:Connect(openDropdown)
+
+        table.insert(conns, dropdownBtn.MouseButton1Click:Connect(openDropdown))
         table.insert(activeDropdownClosers, closeDropdown)
-        
+
         local dd = { 
             Get = function() return options[selectedIndex], selectedIndex end, 
             Set = function(idx) selectedIndex = idx if options[idx] then dropdownBtn.Text = options[idx] end if callback then callback(options[idx], idx) end end,
@@ -3263,19 +3128,20 @@ function MenuLib:Init(config)
             SetOptions = function(newOpts) options = newOpts selectedIndex = 1 dropdownBtn.Text = options[1] or "Select" end
         }
         if not _G._MenuDropdowns then _G._MenuDropdowns = {} end
-        _G._MenuDropdowns[label] = dd
+        _G._MenuDropdowns[tabName .. "_" .. label] = dd
         return dd
     end
-    
+
     API.AddSetting = function(tabName, label, toggleCallback, default)
         return addSettingOption(tabName, label, true, toggleCallback, default)
     end
-    
+
     API.AddKeybindOption = function(tabName, label, key, onChange)
         return addKeybindOption(tabName, label, key, onChange)
     end
-    
+
     API.AddButton = function(tabName, label, callback)
+        if type(tabName) ~= "string" or type(label) ~= "string" then return nil end
         local container, isPanel = getContainer(tabName)
         if not container then return nil end
 
@@ -3284,9 +3150,9 @@ function MenuLib:Init(config)
         row.LayoutOrder = #container:GetChildren()
         local stripe = fr(row, UDim2.new(0, 3, 1, -8), UDim2.new(0, 0, 0, 4), C.ACCENT, 0, 0)
         gradV(stripe, C.ACCENT, C.ACCENT2)
-        
+
         lbl(row, label, UDim2.new(1, -130, 1, 0), UDim2.new(0, 14, 0, 0), 12, C.TEXT)
-        
+
         local btn = Instance.new("TextButton")
         btn.Size = UDim2.new(0, 110, 0, 28)
         btn.Position = UDim2.new(1, -118, 0.5, -14)
@@ -3294,7 +3160,7 @@ function MenuLib:Init(config)
         btn.Text = "Execute"
         btn.TextColor3 = C.TEXT
         btn.TextSize = 11
-        btn.Font = Enum.Font.GothamBold
+        btn.Font = FONT_BOLD
         btn.Parent = row
         btn.AutoButtonColor = false
         local btnCorner = Instance.new("UICorner")
@@ -3304,24 +3170,25 @@ function MenuLib:Init(config)
         btnGrad.Color = ColorSequence.new({ ColorSequenceKeypoint.new(0, C.ACCENT), ColorSequenceKeypoint.new(1, C.ACCENT2) })
         btnGrad.Rotation = 90
         btnGrad.Parent = btn
-        
-        btn.MouseEnter:Connect(function()
+
+        table.insert(conns, btn.MouseEnter:Connect(function()
             tw(btn, { BackgroundColor3 = Color3.fromRGB(140, 50, 255) }, 0.12)
-        end)
-        btn.MouseLeave:Connect(function()
+        end))
+        table.insert(conns, btn.MouseLeave:Connect(function()
             tw(btn, { BackgroundColor3 = C.ACCENT }, 0.12)
-        end)
-        
-        btn.MouseButton1Click:Connect(function()
+        end))
+
+        table.insert(conns, btn.MouseButton1Click:Connect(function()
             if callback then
                 pcall(callback)
             end
-        end)
-        
+        end))
+
         return { Click = function() pcall(callback) end }
     end
 
     API.AddTextBox = function(tabName, label, callback, defaultText, side)
+        if type(tabName) ~= "string" or type(label) ~= "string" then return nil end
         local container, isPanel = getContainer(tabName, side)
         if not container then return nil end
 
@@ -3330,15 +3197,15 @@ function MenuLib:Init(config)
         row.LayoutOrder = #container:GetChildren()
         local stripe = fr(row, UDim2.new(0, 3, 1, -8), UDim2.new(0, 0, 0, 4), C.ACCENT, 0, 0)
         gradV(stripe, C.ACCENT, C.ACCENT2)
-        
+
         lbl(row, label, UDim2.new(1, -145, 1, 0), UDim2.new(0, 14, 0, 0), 12, C.TEXT)
-        
+
         local txtBg = fr(row, UDim2.new(0, 120, 0, 28), UDim2.new(1, -128, 0.5, -14), C.BG, 0, 6)
         local stroke = Instance.new("UIStroke")
         stroke.Color = C.HEADER
         stroke.Thickness = 1
         stroke.Parent = txtBg
-        
+
         local tb = Instance.new("TextBox")
         tb.Size = UDim2.new(1, -10, 1, 0)
         tb.Position = UDim2.new(0, 5, 0, 0)
@@ -3346,95 +3213,37 @@ function MenuLib:Init(config)
         tb.Text = tostring(defaultText or "")
         tb.TextColor3 = C.TEXT
         tb.TextSize = 11
-        tb.Font = Enum.Font.Gotham
+        tb.Font = FONT
         tb.TextXAlignment = Enum.TextXAlignment.Left
         tb.ClearTextOnFocus = false
         tb.Parent = txtBg
-        
-        tb.FocusLost:Connect(function()
+
+        table.insert(conns, tb.FocusLost:Connect(function()
             if callback then pcall(callback, tb.Text) end
-        end)
-        
+        end))
+
         local entry = { Type = "TextBox", Value = tb.Text, Element = tb, Container = row }
         if not _G._MenuTextBoxes then _G._MenuTextBoxes = {} end
-        _G._MenuTextBoxes[label] = entry
-        
+        _G._MenuTextBoxes[tabName .. "_" .. label] = entry
+
         return entry
     end
-    
-    
-    API.GetScreenGui = function() return sg end
-    API.GetWindow = function() return win end
-    API.GetHUD = function() return hudBar end
-    
+
+
+    API.GetScreenGui = function() return nil end
+    API.GetWindow = function() return nil end
+    API.GetHUD = function() return nil end
+
     API.Show = function()
         openMenu()
     end
-    
+
     API.Hide = function()
         closeMenu()
     end
-    
-    -- Add default tabs (sidebar groups: AIM / VISUALS / MISC)
-    addSection("AIM")
-    local firstTab = API.AddTab("Aimbot", ICON.aim, function(f)
-        local scroll = Instance.new("ScrollingFrame")
-        scroll.Size = UDim2.new(1, 0, 1, 0)
-        scroll.BackgroundTransparency = 1
-        scroll.BorderSizePixel = 0
-        scroll.ScrollBarThickness = 0
-        scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-        scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
-        scroll.Parent = f
-        pad(scroll, 8, 10, 8, 8)
-        
-        -- Main card container like Configuration tab
-        local card = fr(scroll, UDim2.new(1, -4, 0, 0), nil, C.HEADER, 0, 16)
-        card.AutomaticSize = Enum.AutomaticSize.Y
-        local v = Instance.new("UIListLayout")
-        v.SortOrder = Enum.SortOrder.LayoutOrder
-        v.Padding = UDim.new(0, 8)
-        v.Parent = card
-        pad(card, 16, 16, 16, 16)
-        lbl(card, "Aimbot", UDim2.new(1, 0, 0, 0), nil, 18, C.TEXT, Enum.Font.GothamBold)
-        
-        -- Two panel layout (left: main, right: Silent Aim)
-        local mainRow = fr(card, UDim2.new(1, 0, 0, 0), nil, C.HEADER, 1, 0)
-        mainRow.LayoutOrder = 1
-        mainRow.AutomaticSize = Enum.AutomaticSize.Y
-        local rowLayout = Instance.new("UIListLayout")
-        rowLayout.SortOrder = Enum.SortOrder.LayoutOrder
-        rowLayout.Padding = UDim.new(0, 8)
-        rowLayout.FillDirection = Enum.FillDirection.Horizontal
-        rowLayout.Parent = mainRow
-        
-        local leftPanel = fr(mainRow, UDim2.new(0.5, -4, 0, 0), UDim2.new(0, 0, 0, 0), C.SEL, 0, 10)
-        leftPanel.AutomaticSize = Enum.AutomaticSize.Y
-        leftPanel.LayoutOrder = 1
-        local leftV = Instance.new("UIListLayout")
-        leftV.SortOrder = Enum.SortOrder.LayoutOrder
-        leftV.Padding = UDim.new(0, 8)
-        leftV.Parent = leftPanel
-        pad(leftPanel, 12, 12, 12, 12)
-        lbl(leftPanel, "Main", UDim2.new(1, 0, 0, 0), nil, 14, C.TEXT, Enum.Font.GothamBold)
-        
-        local rightPanel = fr(mainRow, UDim2.new(0.5, -4, 0, 0), UDim2.new(0.5, 4, 0, 0), C.SEL, 0, 10)
-        rightPanel.AutomaticSize = Enum.AutomaticSize.Y
-        rightPanel.LayoutOrder = 2
-        local rightV = Instance.new("UIListLayout")
-        rightV.SortOrder = Enum.SortOrder.LayoutOrder
-        rightV.Padding = UDim.new(0, 8)
-        rightV.Parent = rightPanel
-        pad(rightPanel, 12, 12, 12, 12)
-        lbl(rightPanel, "Silent Aim", UDim2.new(1, 0, 0, 0), nil, 14, C.TEXT, Enum.Font.GothamBold)
-        
-        -- Store panels for API use
-        tabPanels["Aimbot"] = { leftPanel = leftPanel, rightPanel = rightPanel }
-    end)
-    RunService.Heartbeat:Wait()
-    
+
     addSection("VISUALS")
-    API.AddTab("Visuals", ICON.players, function(f)
+    local firstTab = API.AddTab("World", ICON.world, function(f)
         local scroll = Instance.new("ScrollingFrame")
         scroll.Size = UDim2.new(1, 0, 1, 0)
         scroll.BackgroundTransparency = 1
@@ -3444,128 +3253,7 @@ function MenuLib:Init(config)
         scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
         scroll.Parent = f
         pad(scroll, 8, 10, 8, 8)
-        
-        -- Main card container like Configuration tab
-        local card = fr(scroll, UDim2.new(1, -4, 0, 0), nil, C.HEADER, 0, 16)
-        card.AutomaticSize = Enum.AutomaticSize.Y
-        local v = Instance.new("UIListLayout")
-        v.SortOrder = Enum.SortOrder.LayoutOrder
-        v.Padding = UDim.new(0, 8)
-        v.Parent = card
-        pad(card, 16, 16, 16, 16)
-        lbl(card, "Visuals", UDim2.new(1, 0, 0, 0), nil, 18, C.TEXT, Enum.Font.GothamBold)
-        
-        -- Two panel layout (left: ESP, right: Crosshair)
-        local mainRow = fr(card, UDim2.new(1, 0, 0, 0), nil, C.HEADER, 1, 0)
-        mainRow.LayoutOrder = 1
-        mainRow.AutomaticSize = Enum.AutomaticSize.Y
-        local rowLayout = Instance.new("UIListLayout")
-        rowLayout.SortOrder = Enum.SortOrder.LayoutOrder
-        rowLayout.Padding = UDim.new(0, 8)
-        rowLayout.FillDirection = Enum.FillDirection.Horizontal
-        rowLayout.Parent = mainRow
-        
-        local leftPanel = fr(mainRow, UDim2.new(0.5, -4, 0, 0), UDim2.new(0, 0, 0, 0), C.SEL, 0, 10)
-        leftPanel.AutomaticSize = Enum.AutomaticSize.Y
-        leftPanel.LayoutOrder = 1
-        local leftV = Instance.new("UIListLayout")
-        leftV.SortOrder = Enum.SortOrder.LayoutOrder
-        leftV.Padding = UDim.new(0, 8)
-        leftV.Parent = leftPanel
-        pad(leftPanel, 12, 12, 12, 12)
-        
-        local rightPanel = fr(mainRow, UDim2.new(0.5, -4, 0, 0), UDim2.new(0.5, 4, 0, 0), C.SEL, 0, 10)
-        rightPanel.AutomaticSize = Enum.AutomaticSize.Y
-        rightPanel.LayoutOrder = 2
-        local rightV = Instance.new("UIListLayout")
-        rightV.SortOrder = Enum.SortOrder.LayoutOrder
-        rightV.Padding = UDim.new(0, 8)
-        rightV.Parent = rightPanel
-        pad(rightPanel, 12, 12, 12, 12)
-        
-        -- Store panels for API use
-        tabPanels["Visuals"] = { leftPanel = leftPanel, rightPanel = rightPanel }
-    end)
-    RunService.Heartbeat:Wait()
-    
-    API.AddTab("World", ICON.world, function(f)
-        local scroll = Instance.new("ScrollingFrame")
-        scroll.Size = UDim2.new(1, 0, 1, 0)
-        scroll.BackgroundTransparency = 1
-        scroll.BorderSizePixel = 0
-        scroll.ScrollBarThickness = 0
-        scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-        scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
-        scroll.Parent = f
-        pad(scroll, 8, 10, 8, 8)
-        
-        local card = fr(scroll, UDim2.new(1, -4, 0, 0), nil, C.HEADER, 0, 16)
-        card.AutomaticSize = Enum.AutomaticSize.Y
-        local v = Instance.new("UIListLayout")
-        v.SortOrder = Enum.SortOrder.LayoutOrder
-        v.Padding = UDim.new(0, 8)
-        v.Parent = card
-        pad(card, 16, 16, 16, 16)
-        lbl(card, "World", UDim2.new(1, 0, 0, 0), nil, 18, C.TEXT, Enum.Font.GothamBold)
-    end)
-    RunService.Heartbeat:Wait()
-    
-    API.AddTab("Skin Changer", ICON.skin, function(f)
-        local scroll = Instance.new("ScrollingFrame")
-        scroll.Size = UDim2.new(1, 0, 1, 0)
-        scroll.BackgroundTransparency = 1
-        scroll.BorderSizePixel = 0
-        scroll.ScrollBarThickness = 3
-        scroll.ScrollBarImageColor3 = C.ACCENT
-        scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-        scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
-        scroll.Parent = f
-        pad(scroll, 8, 10, 8, 8)
-        
-        local card = fr(scroll, UDim2.new(1, -4, 0, 0), nil, C.HEADER, 0, 16)
-        card.AutomaticSize = Enum.AutomaticSize.Y
-        local v = Instance.new("UIListLayout")
-        v.SortOrder = Enum.SortOrder.LayoutOrder
-        v.Padding = UDim.new(0, 8)
-        v.Parent = card
-        pad(card, 16, 16, 16, 16)
-    end)
-    RunService.Heartbeat:Wait()
-    
-    addSection("MISC")
-    API.AddTab("Misc", ICON.misc, function(f)
-        local scroll = Instance.new("ScrollingFrame")
-        scroll.Size = UDim2.new(1, 0, 1, 0)
-        scroll.BackgroundTransparency = 1
-        scroll.BorderSizePixel = 0
-        scroll.ScrollBarThickness = 0
-        scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-        scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
-        scroll.Parent = f
-        pad(scroll, 8, 10, 8, 8)
-        
-        local card = fr(scroll, UDim2.new(1, -4, 0, 0), nil, C.HEADER, 0, 16)
-        card.AutomaticSize = Enum.AutomaticSize.Y
-        local v = Instance.new("UIListLayout")
-        v.SortOrder = Enum.SortOrder.LayoutOrder
-        v.Padding = UDim.new(0, 8)
-        v.Parent = card
-        pad(card, 16, 16, 16, 16)
-        lbl(card, "Misc", UDim2.new(1, 0, 0, 0), nil, 18, C.TEXT, Enum.Font.GothamBold)
-    end)
-    RunService.Heartbeat:Wait()
 
-API.AddTab("Protections", ICON.protection, function(f)
-        local scroll = Instance.new("ScrollingFrame")
-        scroll.Size = UDim2.new(1, 0, 1, 0)
-        scroll.BackgroundTransparency = 1
-        scroll.BorderSizePixel = 0
-        scroll.ScrollBarThickness = 0
-        scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-        scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
-        scroll.Parent = f
-        pad(scroll, 8, 10, 8, 8)
-        
         local card = fr(scroll, UDim2.new(1, -4, 0, 0), nil, C.HEADER, 0, 16)
         card.AutomaticSize = Enum.AutomaticSize.Y
         local v = Instance.new("UIListLayout")
@@ -3573,55 +3261,9 @@ API.AddTab("Protections", ICON.protection, function(f)
         v.Padding = UDim.new(0, 8)
         v.Parent = card
         pad(card, 16, 16, 16, 16)
-        lbl(card, "Protections", UDim2.new(1, 0, 0, 0), nil, 18, C.TEXT, Enum.Font.GothamBold)
+        lbl(card, "World", UDim2.new(1, 0, 0, 0), nil, 18, C.TEXT, FONT_BOLD)
     end)
-    RunService.Heartbeat:Wait()
-    
-    API.AddTab("Exploits", ICON.exploits, function(f)
-        local scroll = Instance.new("ScrollingFrame")
-        scroll.Size = UDim2.new(1, 0, 1, 0)
-        scroll.BackgroundTransparency = 1
-        scroll.BorderSizePixel = 0
-        scroll.ScrollBarThickness = 0
-        scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-        scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
-        scroll.Parent = f
-        pad(scroll, 8, 10, 8, 8)
-        
-        local card = fr(scroll, UDim2.new(1, -4, 0, 0), nil, C.HEADER, 0, 16)
-        card.AutomaticSize = Enum.AutomaticSize.Y
-        local v = Instance.new("UIListLayout")
-        v.SortOrder = Enum.SortOrder.LayoutOrder
-        v.Padding = UDim.new(0, 8)
-        v.Parent = card
-        pad(card, 16, 16, 16, 16)
-        lbl(card, "Exploits", UDim2.new(1, 0, 0, 0), nil, 18, C.TEXT, Enum.Font.GothamBold)
-    end)
-    RunService.Heartbeat:Wait()
 
-    API.AddTab("SFX", ICON.sfx, function(f)
-        local scroll = Instance.new("ScrollingFrame")
-        scroll.Size = UDim2.new(1, 0, 1, 0)
-        scroll.BackgroundTransparency = 1
-        scroll.BorderSizePixel = 0
-        scroll.ScrollBarThickness = 0
-        scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-        scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
-        scroll.Parent = f
-        pad(scroll, 8, 10, 8, 8)
-        
-        local card = fr(scroll, UDim2.new(1, -4, 0, 0), nil, C.HEADER, 0, 16)
-        card.Name = "Card"
-        card.AutomaticSize = Enum.AutomaticSize.Y
-        local v = Instance.new("UIListLayout")
-        v.SortOrder = Enum.SortOrder.LayoutOrder
-        v.Padding = UDim.new(0, 8)
-        v.Parent = card
-        pad(card, 16, 16, 16, 16)
-        lbl(card, "Sound Effects", UDim2.new(1, 0, 0, 0), nil, 18, C.TEXT, Enum.Font.GothamBold)
-    end)
-    RunService.Heartbeat:Wait()
-    
     API.AddTab("Configuration", ICON.config, function(f)
         local scroll = Instance.new("ScrollingFrame")
         scroll.Size = UDim2.new(1, 0, 1, 0)
@@ -3642,7 +3284,7 @@ API.AddTab("Protections", ICON.protection, function(f)
 
         local titleRow = fr(card, UDim2.new(1, 0, 0, 28), nil, C.HEADER, 1, 0)
         titleRow.LayoutOrder = 0
-        lbl(titleRow, "Configurations", UDim2.new(1, -20, 1, 0), UDim2.new(0, 14, 0, 0), 14, C.TEXT, Enum.Font.GothamBold)
+        lbl(titleRow, "Configurations", UDim2.new(1, -20, 1, 0), UDim2.new(0, 14, 0, 0), 14, C.TEXT, FONT_BOLD)
 
         local mainRow = fr(card, UDim2.new(1, 0, 0, 340), nil, C.HEADER, 1, 0)
         mainRow.LayoutOrder = 1
@@ -3658,7 +3300,7 @@ API.AddTab("Protections", ICON.protection, function(f)
             btn.Text = text
             btn.TextColor3 = C.TEXT
             btn.TextSize = 12
-            btn.Font = Enum.Font.GothamBold
+            btn.Font = FONT_BOLD
             btn.AutoButtonColor = false
             btn.Parent = parent
             Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
@@ -3675,7 +3317,7 @@ API.AddTab("Protections", ICON.protection, function(f)
         local importBtn = makeBtn(leftPanel, "Import from Clipboard", 162, Color3.fromRGB(40, 100, 200), Color3.fromRGB(30, 70, 160))
         local exportBtn = makeBtn(leftPanel, "Export to Clipboard", 200, Color3.fromRGB(180, 60, 200), Color3.fromRGB(140, 40, 170))
 
-        local listTitle = lbl(rightPanel, "Saved Configs", UDim2.new(1, -16, 0, 20), UDim2.new(0, 10, 0, 8), 12, C.TEXT, Enum.Font.GothamBold)
+        local listTitle = lbl(rightPanel, "Saved Configs", UDim2.new(1, -16, 0, 20), UDim2.new(0, 10, 0, 8), 12, C.TEXT, FONT_BOLD)
 
         local configScroll = Instance.new("ScrollingFrame")
         configScroll.Size = UDim2.new(1, -16, 1, -32)
@@ -3689,8 +3331,8 @@ API.AddTab("Protections", ICON.protection, function(f)
         configScroll.Parent = rightPanel
 
         local configFolder = "MenuLibConfigs"
-        local configFile = configFolder .. "/" .. tostring(lp.UserId) .. "_configs.json"
-        local autoLoadFile = configFolder .. "/" .. tostring(lp.UserId) .. "_autoload.json"
+        local configFile = configFolder .. "/" .. tostring(lp.UserId):gsub("[^%w]", "_") .. "_configs.json"
+        local autoLoadFile = configFolder .. "/" .. tostring(lp.UserId):gsub("[^%w]", "_") .. "_autoload.json"
 
         local selectedConfig = nil
         local selectedRow = nil
@@ -3711,14 +3353,16 @@ API.AddTab("Protections", ICON.protection, function(f)
         end
 
         local function SaveConfigsToFile()
-            if not _G._ConfigList then return end
-            if makefolder and not isfolder(configFolder) then
+            if not _G._ConfigList then return false end
+            if makefolder and isfolder and not isfolder(configFolder) then
                 pcall(function() makefolder(configFolder) end)
             end
             local ok, encoded = pcall(function() return HttpService:JSONEncode(_G._ConfigList) end)
             if ok and encoded and writefile then
-                pcall(function() writefile(configFile, encoded) end)
+                local wok = pcall(function() writefile(configFile, encoded) end)
+                return wok
             end
+            return false
         end
 
         local function GetAutoLoadConfig()
@@ -3733,7 +3377,7 @@ API.AddTab("Protections", ICON.protection, function(f)
         end
 
         local function SetAutoLoadConfig(name)
-            if makefolder and not isfolder(configFolder) then
+            if makefolder and isfolder and not isfolder(configFolder) then
                 pcall(function() makefolder(configFolder) end)
             end
             if writefile then
@@ -3745,12 +3389,12 @@ API.AddTab("Protections", ICON.protection, function(f)
 
         local popupOverlay = fr(sg, UDim2.new(1, 0, 1, 0), UDim2.new(0, 0, 0, 0), Color3.fromRGB(0, 0, 0), 0.6, 0)
         popupOverlay.Visible = false
-        popupOverlay.ZIndex = 1000
+        popupOverlay.ZIndex = Z.POPUP
 
         local popupFrame = fr(popupOverlay, UDim2.new(0, 280, 0, 120), UDim2.new(0.5, -140, 0.5, -60), C.HEADER, 0, 16)
-        popupFrame.ZIndex = 101
+        popupFrame.ZIndex = Z.POPUP_CONTENT
 
-        local popupTitle = lbl(popupFrame, "Enter Config Name", UDim2.new(1, -20, 0, 24), UDim2.new(0, 10, 0, 12), 14, C.TEXT, Enum.Font.GothamBold)
+        local popupTitle = lbl(popupFrame, "Enter Config Name", UDim2.new(1, -20, 0, 24), UDim2.new(0, 10, 0, 12), 14, C.TEXT, FONT_BOLD)
         popupTitle.TextXAlignment = Enum.TextXAlignment.Center
 
         local popupBox = Instance.new("TextBox")
@@ -3759,7 +3403,7 @@ API.AddTab("Protections", ICON.protection, function(f)
         popupBox.BackgroundColor3 = C.SEL
         popupBox.TextColor3 = C.TEXT
         popupBox.TextSize = 12
-        popupBox.Font = Enum.Font.Gotham
+        popupBox.Font = FONT
         popupBox.PlaceholderText = "Config name..."
         popupBox.ClearTextOnFocus = false
         popupBox.Parent = popupFrame
@@ -3775,7 +3419,7 @@ API.AddTab("Protections", ICON.protection, function(f)
         popupConfirm.Text = "OK"
         popupConfirm.TextColor3 = C.TEXT
         popupConfirm.TextSize = 12
-        popupConfirm.Font = Enum.Font.GothamBold
+        popupConfirm.Font = FONT_BOLD
         popupConfirm.Parent = popupBtnRow
         popupConfirm.ZIndex = 103
         Instance.new("UICorner", popupConfirm).CornerRadius = UDim.new(0, 6)
@@ -3787,7 +3431,7 @@ API.AddTab("Protections", ICON.protection, function(f)
         popupCancel.Text = "Cancel"
         popupCancel.TextColor3 = C.DIM
         popupCancel.TextSize = 12
-        popupCancel.Font = Enum.Font.GothamBold
+        popupCancel.Font = FONT_BOLD
         popupCancel.Parent = popupBtnRow
         popupCancel.ZIndex = 103
         Instance.new("UICorner", popupCancel).CornerRadius = UDim.new(0, 6)
@@ -3802,6 +3446,7 @@ API.AddTab("Protections", ICON.protection, function(f)
         local deleteTargetName = nil
 
         local function showPopup(mode, title, defaultText)
+            if mode ~= "create" and mode ~= "rename" and mode ~= "delete" then return end
             popupMode = mode
             popupTitle.Text = title
             if mode == "delete" then
@@ -3828,14 +3473,14 @@ API.AddTab("Protections", ICON.protection, function(f)
             tw(popupOverlay, {BackgroundTransparency = 0.6}, 0.2)
             tw(popupFrame, {Size = UDim2.new(0, 280, 0, 120), Position = UDim2.new(0.5, -140, 0.5, -60)}, 0.25, Enum.EasingStyle.Back)
             if mode ~= "delete" then
-                task.delay(0.15, function() popupBox:CaptureFocus() end)
+                pcall(function() task.delay(0.15, function() pcall(function() popupBox:CaptureFocus() end) end) end)
             end
         end
 
         local function hidePopup()
             tw(popupFrame, {Size = UDim2.new(0, 200, 0, 100), Position = UDim2.new(0.5, -100, 0.5, -50)}, 0.2)
             tw(popupOverlay, {BackgroundTransparency = 1}, 0.2)
-            task.delay(0.2, function() popupOverlay.Visible = false end)
+            pcall(function() task.delay(0.2, function() pcall(function() popupOverlay.Visible = false end) end) end)
         end
 
         local RefreshConfigList
@@ -3853,12 +3498,12 @@ API.AddTab("Protections", ICON.protection, function(f)
             for _, name in ipairs(sortedNames) do
                 local row = fr(configScroll, UDim2.new(1, 0, 0, 36), nil, C.SEL, 0.8, 6)
                 row.LayoutOrder = #configScroll:GetChildren()
-                local nameLbl = lbl(row, name, UDim2.new(1, -50, 1, 0), UDim2.new(0, 12, 0, 0), 12, C.TEXT, Enum.Font.GothamBold)
+                local nameLbl = lbl(row, name, UDim2.new(1, -50, 1, 0), UDim2.new(0, 12, 0, 0), 12, C.TEXT, FONT_BOLD)
                 nameLbl.TextTruncate = Enum.TextTruncate.AtEnd
                 local stripe = fr(row, UDim2.new(0, 4, 0.6, 0), UDim2.new(0, 0, 0.2, 0), C.ACCENT, 1, 2)
                 gradV(stripe, C.ACCENT, C.ACCENT2)
                 local isAutoLoad = (autoLoadName == name)
-                local autoLbl = lbl(row, "Auto-Load", UDim2.new(0, 60, 0, 16), UDim2.new(1, -88, 0.5, -8), 10, isAutoLoad and C.GREEN or C.DIM, Enum.Font.GothamBold)
+                local autoLbl = lbl(row, "Auto-Load", UDim2.new(0, 60, 0, 16), UDim2.new(1, -88, 0.5, -8), 10, isAutoLoad and C.GREEN or C.DIM, FONT_BOLD)
                 autoLbl.TextXAlignment = Enum.TextXAlignment.Right
                 local autoBox = Instance.new("TextButton")
                 autoBox.Size = UDim2.new(0, 20, 0, 20)
@@ -3867,7 +3512,7 @@ API.AddTab("Protections", ICON.protection, function(f)
                 autoBox.Text = isAutoLoad and "X" or ""
                 autoBox.TextColor3 = C.TEXT
                 autoBox.TextSize = 14
-                autoBox.Font = Enum.Font.GothamBold
+                autoBox.Font = FONT_BOLD
                 autoBox.AutoButtonColor = false
                 autoBox.Parent = row
                 Instance.new("UICorner", autoBox).CornerRadius = UDim.new(0, 4)
@@ -3891,13 +3536,12 @@ API.AddTab("Protections", ICON.protection, function(f)
                             if sInd then tw(sInd, {BackgroundTransparency = 1}, 0.15) end
                         end
                     end
-                    row.Size = UDim2.new(1, 0, 0, 42)
                     tw(row, {Size = UDim2.new(1, 0, 0, 36)}, 0.2, Enum.EasingStyle.Back)
                     tw(row, {BackgroundColor3 = C.ACCENT, BackgroundTransparency = 0.3}, 0.2)
                     tw(stripe, {BackgroundTransparency = 0}, 0.25)
                 end
-                clickBtn.MouseButton1Click:Connect(selectThis)
-                autoBox.MouseButton1Click:Connect(function()
+                table.insert(conns, clickBtn.MouseButton1Click:Connect(selectThis))
+                table.insert(conns, autoBox.MouseButton1Click:Connect(function()
                     local current = GetAutoLoadConfig()
                     local turningOn = (current ~= name)
                     if turningOn then
@@ -3909,18 +3553,18 @@ API.AddTab("Protections", ICON.protection, function(f)
                     tw(autoBox, {BackgroundColor3 = turningOn and C.GREEN or C.BTN}, 0.15)
                     tw(autoStroke, {Color = turningOn and C.GREEN or C.DIM}, 0.15)
                     tw(autoLbl, {TextColor3 = turningOn and C.GREEN or C.DIM}, 0.15)
-                    task.delay(0.2, function() RefreshConfigList() end)
-                end)
-                clickBtn.MouseEnter:Connect(function()
+                    pcall(function() task.delay(0.2, function() pcall(RefreshConfigList) end) end)
+                end))
+                table.insert(conns, clickBtn.MouseEnter:Connect(function()
                     if selectedConfig ~= name then
                         tw(row, {BackgroundColor3 = Color3.fromRGB(35, 20, 60)}, 0.1)
                     end
-                end)
-                clickBtn.MouseLeave:Connect(function()
+                end))
+                table.insert(conns, clickBtn.MouseLeave:Connect(function()
                     if selectedConfig ~= name then
                         tw(row, {BackgroundTransparency = 1}, 0.1)
                     end
-                end)
+                end))
             end
         end
 
@@ -3961,48 +3605,55 @@ API.AddTab("Protections", ICON.protection, function(f)
             hidePopup()
         end
 
-        saveBtn.MouseButton1Click:Connect(function()
+        table.insert(conns, saveBtn.MouseButton1Click:Connect(function()
             if selectedConfig and _G._ConfigList[selectedConfig] then
                 if _G.GetConfigData then
-                    _G._ConfigList[selectedConfig] = _G.GetConfigData()
-                    SaveConfigsToFile()
+                    local configData = _G.GetConfigData()
+                    if configData and type(configData) == "table" then
+                        _G._ConfigList[selectedConfig] = configData
+                        SaveConfigsToFile()
+                    end
                 end
             else
                 showPopup("create", "Create New Config", "")
             end
-        end)
+        end))
 
-        loadBtn.MouseButton1Click:Connect(function()
+        table.insert(conns, loadBtn.MouseButton1Click:Connect(function()
             if selectedConfig and _G._ConfigList[selectedConfig] then
                 if _G.LoadConfigData then
-                    _G.LoadConfigData(_G._ConfigList[selectedConfig])
+                    pcall(_G.LoadConfigData, _G._ConfigList[selectedConfig])
                     _G._CurrentConfig = selectedConfig
                 end
             end
-        end)
+        end))
 
-        renameBtn.MouseButton1Click:Connect(function()
+        table.insert(conns, renameBtn.MouseButton1Click:Connect(function()
             if selectedConfig then
                 renameOldName = selectedConfig
                 showPopup("rename", "Rename Config", selectedConfig)
             end
-        end)
+        end))
 
-        deleteBtn.MouseButton1Click:Connect(function()
+        table.insert(conns, deleteBtn.MouseButton1Click:Connect(function()
             if selectedConfig and _G._ConfigList then
                 deleteTargetName = selectedConfig
                 showPopup("delete", "Delete Config", selectedConfig)
             end
-        end)
+        end))
 
-        popupConfirm.MouseButton1Click:Connect(confirmPopup)
-        popupCancel.MouseButton1Click:Connect(hidePopup)
-        popupBox.FocusLost:Connect(function(enter)
+        table.insert(conns, popupConfirm.MouseButton1Click:Connect(confirmPopup))
+        table.insert(conns, popupCancel.MouseButton1Click:Connect(hidePopup))
+        table.insert(conns, popupBox.FocusLost:Connect(function(enter)
             if enter then confirmPopup() end
-        end)
+        end))
 
         local b64chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
         local function b64encode(data)
+            if HttpService.Base64Encode then
+                local ok, result = pcall(function() return HttpService:Base64Encode(data) end)
+                if ok and result then return result end
+            end
             local result = {}
             local len = #data
             local i = 1
@@ -4026,7 +3677,12 @@ API.AddTab("Protections", ICON.protection, function(f)
         end
 
         local function b64decode(data)
+            if HttpService.Base64Decode then
+                local ok, result = pcall(function() return HttpService:Base64Decode(data) end)
+                if ok and result then return result end
+            end
             data = data:gsub("[^A-Za-z0-9%+%/]", "")
+            if #data % 4 ~= 0 then return nil end
             local result = {}
             local len = #data
             local i = 1
@@ -4052,16 +3708,21 @@ API.AddTab("Protections", ICON.protection, function(f)
             return table.concat(result)
         end
 
-        importBtn.MouseButton1Click:Connect(function()
+        local function notifyImport(msg)
+            if _G._MenuLib and _G._MenuLib.Notify then
+                pcall(_G._MenuLib.Notify, msg)
+            end
+        end
+        table.insert(conns, importBtn.MouseButton1Click:Connect(function()
             local clipText = nil
             if getclipboard then clipText = getclipboard()
             elseif cb then clipText = cb()
             end
-            if not clipText or clipText == "" then return end
+            if not clipText or clipText == "" then notifyImport("Clipboard is empty") return end
             local ok, jsonStr = pcall(function() return b64decode(clipText) end)
-            if not ok or not jsonStr then return end
+            if not ok or not jsonStr then notifyImport("Invalid base64 data") return end
             local ok2, configData = pcall(function() return HttpService:JSONDecode(jsonStr) end)
-            if not ok2 or type(configData) ~= "table" then return end
+            if not ok2 or type(configData) ~= "table" then notifyImport("Invalid config format") return end
             if not _G._ConfigList then _G._ConfigList = {} end
             local name = "Imported_" .. os.date("%H%M%S")
             local baseName = name
@@ -4073,9 +3734,9 @@ API.AddTab("Protections", ICON.protection, function(f)
             _G._ConfigList[name] = configData
             SaveConfigsToFile()
             RefreshConfigList()
-        end)
+        end))
 
-        exportBtn.MouseButton1Click:Connect(function()
+        table.insert(conns, exportBtn.MouseButton1Click:Connect(function()
             if not selectedConfig or not _G._ConfigList[selectedConfig] then return end
             local ok, jsonStr = pcall(function() return HttpService:JSONEncode(_G._ConfigList[selectedConfig]) end)
             if not ok or not jsonStr then return end
@@ -4085,7 +3746,7 @@ API.AddTab("Protections", ICON.protection, function(f)
             elseif toclipboard then
                 pcall(function() toclipboard(encoded) end)
             end
-        end)
+        end))
 
         _G._MenuToggles = {}
         _G._MenuSliders = {}
@@ -4122,9 +3783,9 @@ API.AddTab("Protections", ICON.protection, function(f)
                     end
                 end
                 data._MenuSettings = {
-                    MenuToggleKey = tostring(_G._MenuToggleKey),
-                    UnloadKey = tostring(_G._UnloadKey),
-                    SmoothAnimations = _G._SmoothAnimations,
+                    MenuToggleKey = tostring(M.MenuToggleKey),
+                    UnloadKey = tostring(M.UnloadKey),
+                    SmoothAnimations = M.SmoothAnimations,
                 }
                 return data
             end
@@ -4157,9 +3818,9 @@ API.AddTab("Protections", ICON.protection, function(f)
                 end
                 if data._MenuSettings then
                     local s = data._MenuSettings
-                    _G._SmoothAnimations = s.SmoothAnimations
-                    if s.MenuToggleKey then pcall(function() _G._MenuToggleKey = Enum.KeyCode[s.MenuToggleKey] end) end
-                    if s.UnloadKey then pcall(function() _G._UnloadKey = Enum.KeyCode[s.UnloadKey] end) end
+                    M.SmoothAnimations = s.SmoothAnimations
+                    if s.MenuToggleKey then pcall(function() M.MenuToggleKey = Enum.KeyCode[s.MenuToggleKey] end) end
+                    if s.UnloadKey then pcall(function() M.UnloadKey = Enum.KeyCode[s.UnloadKey] end) end
                 end
                 _G._ConfigLoaded = tick()
             end
@@ -4177,8 +3838,7 @@ API.AddTab("Protections", ICON.protection, function(f)
             end)
         end
     end)
-    
-    -- Select first tab
+
     if firstTab and firstTab.Select then
         local success, err = pcall(function()
             firstTab:Select()
@@ -4187,35 +3847,34 @@ API.AddTab("Protections", ICON.protection, function(f)
             warn("Menu init error: " .. tostring(err))
         end
     end
-    
-    -- Window Resizer Grip
+
     local resizer = Instance.new("TextButton")
     resizer.Size = UDim2.new(0, 24, 0, 24)
     resizer.Position = UDim2.new(1, -24, 1, -24)
     resizer.BackgroundTransparency = 1
     resizer.Text = ""
-    resizer.ZIndex = 50
+    resizer.ZIndex = Z.RESIZER
     resizer.Active = true
     resizer.AutoButtonColor = false
     resizer.Parent = win
-    
+
     local settingsResizer = Instance.new("TextButton")
     settingsResizer.Size = UDim2.new(0, 24, 0, 24)
     settingsResizer.Position = UDim2.new(1, -24, 1, -24)
     settingsResizer.BackgroundTransparency = 1
     settingsResizer.Text = ""
-    settingsResizer.ZIndex = 50
+    settingsresizer.ZIndex = Z.RESIZER
     settingsResizer.Active = true
     settingsResizer.AutoButtonColor = false
     settingsResizer.Parent = settingsPanel
-    
+
     local isResizing = false
     local resizeTarget = nil
     local resizeStartMouse = nil
     local resizeStartW = 0
     local resizeStartH = 0
     local resizeStartPos = UDim2.new()
-    
+
     local function beginResize(target)
         return function(input)
             if input.UserInputType == Enum.UserInputType.MouseButton1 then
@@ -4232,8 +3891,8 @@ API.AddTab("Protections", ICON.protection, function(f)
             end
         end
     end
-    resizer.InputBegan:Connect(beginResize("main"))
-    settingsResizer.InputBegan:Connect(beginResize("settings"))
+    table.insert(conns, resizer.InputBegan:Connect(beginResize("main")))
+    table.insert(conns, settingsResizer.InputBegan:Connect(beginResize("settings")))
 
     table.insert(conns, UserInputService.InputEnded:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 then
