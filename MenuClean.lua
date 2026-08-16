@@ -3081,7 +3081,7 @@ function MenuLib:Init(config)
                             closeDropdown()
                         end) end) end)
                     end
-                end)
+                end))
 
                 table.insert(optionButtons, optBtn)
             end
