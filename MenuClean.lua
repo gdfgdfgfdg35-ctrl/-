@@ -2322,6 +2322,7 @@ function MenuLib:Init(config)
         lbl(row, label, UDim2.new(1, reserveColorSlots and -118 or -70, 1, 0), UDim2.new(0, 14, 0, 0), 12, C.TEXT)
         local toggle = mkToggle(row, -56, default or false, callback)
         toggle.Row = row
+        toggle.SetVisible = function(visible) pcall(function() row.Visible = visible and true or false end) end
         if not _G._MenuToggles then _G._MenuToggles = {} end
         _G._MenuToggles[tabName .. "_" .. label] = toggle
         return toggle
@@ -2397,6 +2398,8 @@ function MenuLib:Init(config)
         end))
 
         local sl = { Get = function() return value end, Set = function(v) value = math.clamp(v, min, max) updateVisuals(true) if callback then pcall(callback, value) end end }
+        sl.Row = row
+        sl.SetVisible = function(visible) pcall(function() row.Visible = visible and true or false end) end
         if not _G._MenuSliders then _G._MenuSliders = {} end
         _G._MenuSliders[tabName .. "_" .. label] = sl
         return sl
@@ -3270,7 +3273,9 @@ function MenuLib:Init(config)
             Set = function(idx) selectedIndex = idx if options[idx] then dropdownBtn.Text = options[idx] end if callback then callback(options[idx], idx) end end,
             GetOptions = function() return options end,
             SetOptions = function(newOpts) options = newOpts selectedIndex = 1 dropdownBtn.Text = options[1] or "Select" end,
-            SetText = function(text) dropdownBtn.Text = tostring(text or "") end
+            SetText = function(text) dropdownBtn.Text = tostring(text or "") end,
+            Row = row,
+            SetVisible = function(visible) pcall(function() row.Visible = visible and true or false end) end
         }
         if not _G._MenuDropdowns then _G._MenuDropdowns = {} end
         _G._MenuDropdowns[tabName .. "_" .. label] = dd
