@@ -2034,7 +2034,7 @@ function MenuLib:Init(config)
             fpsN = 0
             fpsT = 0
         end
-        pcall(function() local ping = (lp.GetPing and lp:GetPing()) or (lp.GetNetworkPing and lp:GetNetworkPing()) or 0 pingLbl.Text = tostring(math.round(ping * 1000)) .. " ms" end)
+        pcall(function() pingLbl.Text = tostring(math.round(lp:GetNetworkPing() * 1000)) .. " ms" end)
         pcall(function() timeLbl.Text = os.date("%I:%M %p") end)
 
         if M.LightingDimEnabled then
