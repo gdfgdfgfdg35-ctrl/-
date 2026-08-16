@@ -98,17 +98,6 @@ function MenuLib:Init(config)
         end
     end)
     
-    local function lockInput()
-        pcall(function() prevMouseBehavior = UserInputService.MouseBehavior end)
-        pcall(function() prevMouseIconEnabled = UserInputService.MouseIconEnabled end)
-        isOpen = true
-        if inputBlocker then inputBlocker.Visible = true end
-        local ctrl = ensureControls()
-        if ctrl then pcall(function() ctrl:Disable() end) end
-        pcall(function() UserInputService.MouseBehavior = Enum.MouseBehavior.Default end)
-        pcall(function() UserInputService.MouseIconEnabled = true end)
-    end
-    
     local function ensureControls()
         if controls then return controls end
         pcall(function()
@@ -128,6 +117,17 @@ function MenuLib:Init(config)
             end
         end)
         return controls
+    end
+
+    local function lockInput()
+        pcall(function() prevMouseBehavior = UserInputService.MouseBehavior end)
+        pcall(function() prevMouseIconEnabled = UserInputService.MouseIconEnabled end)
+        isOpen = true
+        if inputBlocker then inputBlocker.Visible = true end
+        local ctrl = ensureControls()
+        if ctrl then pcall(function() ctrl:Disable() end) end
+        pcall(function() UserInputService.MouseBehavior = Enum.MouseBehavior.Default end)
+        pcall(function() UserInputService.MouseIconEnabled = true end)
     end
 
     local function unlockInput()
