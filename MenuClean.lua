@@ -732,7 +732,7 @@ function MenuLib:Init(config)
     settingsDrag.Parent = settingsMainLayer
 
     local settingsBodyShell = fr(settingsMainLayer, UDim2.new(1, 0, 1, -12), UDim2.new(0, 0, 0, 12), C.BG, 1, 0)
-    settingsbodyShell.ZIndex = Z.CONTENT
+    settingsBodyShell.ZIndex = Z.CONTENT
 
     local settingsLeft = fr(settingsBodyShell, UDim2.new(0, SIDE_W, 1, -4), UDim2.new(0, 0, 0, 4), C.SIDEBAR, 0, 14)
     settingsLeft.ZIndex = Z.CONTENT
