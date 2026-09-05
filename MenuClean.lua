@@ -69,15 +69,7 @@ function MenuLib:Init(config)
         POPUP = 1000, POPUP_CONTENT = 101, INPUT_BLOCKER = -10,
     }
 
-    local DROP_W = 130
-    local DROP_OPTION_H = 30
-    local DROP_PADDING = 12
-    local DROP_MAX_H = 150
-    local PICKER_W = 254
-    local PICKER_H = 324
     local TAB_LABEL_CHAR_W = 7
-    local TAB_LABEL_MIN_W = 28
-    local FIELD_GAP = 6
 
     local function normalizeIconId(id)
         if type(id) ~= "string" and type(id) ~= "number" then return nil end
@@ -107,7 +99,7 @@ function MenuLib:Init(config)
     sg.Parent = pg
 
     local inputBlocker = Instance.new("TextButton")
-    inputBlocker.Size = UDim2.new(1, 0, 1, 0)
+    inputBlocker.Size = UDim2.fromScale(1, 1)
     inputBlocker.BackgroundTransparency = 1
     inputBlocker.Text = ""
     inputBlocker.Active = true
@@ -255,7 +247,7 @@ function MenuLib:Init(config)
         if not parent then return nil end
         local f = Instance.new("Frame")
         f.Size = size
-        f.Position = pos or UDim2.new(0, 0, 0, 0)
+        f.Position = pos or UDim2.fromOffset(0, 0)
         f.BackgroundColor3 = col or C.BG
         f.BackgroundTransparency = trans ~= nil and trans or 0
         f.BorderSizePixel = 0
@@ -276,7 +268,7 @@ function MenuLib:Init(config)
         if not parent then return nil end
         local l = Instance.new("TextLabel")
         l.Size = size
-        l.Position = pos or UDim2.new(0, 0, 0, 0)
+        l.Position = pos or UDim2.fromOffset(0, 0)
         l.BackgroundTransparency = 1
         l.Text = txt
         l.TextColor3 = col or C.TEXT
@@ -349,19 +341,19 @@ function MenuLib:Init(config)
     end))
 
     local function mkToggle(parent, posX, initState, onToggle)
-        local track = fr(parent, UDim2.new(0, 44, 0, 24), UDim2.new(1, posX, 0.5, -12), Color3.fromRGB(18, 8, 36), 0, 12)
+        local track = fr(parent, UDim2.fromOffset(44, 24), UDim2.new(1, posX, 0.5, -12), Color3.fromRGB(18, 8, 36), 0, 12)
         track.ClipsDescendants = true
-        local fill = fr(track, UDim2.new(0, 0, 1, 0), nil, C.ACCENT, 0, 12)
+        local fill = fr(track, UDim2.fromScale(0, 1), nil, C.ACCENT, 0, 12)
         gradV(fill, C.ACCENT, C.ACCENT2)
-        local knob = fr(track, UDim2.new(0, 18, 0, 18), UDim2.new(0, 3, 0.5, -9), C.TEXT, 0, 9)
+        local knob = fr(track, UDim2.fromOffset(18, 18), UDim2.new(0, 3, 0.5, -9), C.TEXT, 0, 9)
         local togBtn = Instance.new("TextButton")
-        togBtn.Size = UDim2.new(1, 0, 1, 0)
+        togBtn.Size = UDim2.fromScale(1, 1)
         togBtn.BackgroundTransparency = 1
         togBtn.Text = ""
         togBtn.Parent = track
         local state = initState
         local function apply(anim, silent)
-            local fillDest = state and UDim2.new(1, 0, 1, 0) or UDim2.new(0, 0, 1, 0)
+            local fillDest = state and UDim2.fromScale(1, 1) or UDim2.fromScale(0, 1)
             local dest = state and UDim2.new(0, 23, 0.5, -9) or UDim2.new(0, 3, 0.5, -9)
             if anim then
                 tw(fill, { Size = fillDest }, 0.35)
@@ -393,13 +385,13 @@ function MenuLib:Init(config)
     local settingKeybind = false
 
 
-    local hudBar = fr(sg, UDim2.new(0, HUD_W, 0, 44), UDim2.new(0.5, -HUD_W / 2, 0, 10), C.DARK, 0, 18)
+    local hudBar = fr(sg, UDim2.fromOffset(HUD_W, 44), UDim2.new(0.5, -HUD_W / 2, 0, 10), C.DARK, 0, 18)
     hudBar.ZIndex = Z.HUD
 
-    local av = fr(hudBar, UDim2.new(0, 32, 0, 32), UDim2.new(0, 10, 0.5, -16), Color3.fromRGB(36, 14, 68), 0, 16)
+    local av = fr(hudBar, UDim2.fromOffset(32, 32), UDim2.new(0, 10, 0.5, -16), Color3.fromRGB(36, 14, 68), 0, 16)
     local avImg = Instance.new("ImageLabel")
     avImg.Size = UDim2.new(1, -4, 1, -4)
-    avImg.Position = UDim2.new(0, 2, 0, 2)
+    avImg.Position = UDim2.fromOffset(2, 2)
     avImg.BackgroundTransparency = 1
     avImg.Parent = av
     Instance.new("UICorner").Parent = avImg
@@ -412,19 +404,19 @@ function MenuLib:Init(config)
         end)
     end)
 
-    lbl(hudBar, "Welcome back,", UDim2.new(0, 140, 0, 14), UDim2.new(0, 48, 0, 6), 9, C.DIM)
-    local nameLbl = lbl(hudBar, lp.Name, UDim2.new(0, 0, 0, 16), UDim2.new(0, 48, 0, 20), 12, C.TEXT, FONT_BOLD)
+    lbl(hudBar, "Welcome back,", UDim2.fromOffset(140, 14), UDim2.fromOffset(48, 6), 9, C.DIM)
+    local nameLbl = lbl(hudBar, lp.Name, UDim2.fromOffset(0, 16), UDim2.fromOffset(48, 20), 12, C.TEXT, FONT_BOLD)
     nameLbl.AutomaticSize = Enum.AutomaticSize.X
 
-    local fpsLbl = lbl(hudBar, "...", UDim2.new(0, 0, 0, 20), UDim2.new(0, 248, 0, 14), 14, C.ACCENT, FONT_BOLD)
+    local fpsLbl = lbl(hudBar, "...", UDim2.fromOffset(0, 20), UDim2.fromOffset(248, 14), 14, C.ACCENT, FONT_BOLD)
     fpsLbl.AutomaticSize = Enum.AutomaticSize.X
-    local pingLbl = lbl(hudBar, "...", UDim2.new(0, 0, 0, 20), UDim2.new(0, 340, 0, 14), 14, C.GREEN, FONT_BOLD)
+    local pingLbl = lbl(hudBar, "...", UDim2.fromOffset(0, 20), UDim2.fromOffset(340, 14), 14, C.GREEN, FONT_BOLD)
     pingLbl.AutomaticSize = Enum.AutomaticSize.X
-    local timeLbl = lbl(hudBar, "12:00 PM", UDim2.new(0, 0, 0, 16), UDim2.new(0, 556, 0, 12), 14, C.TEXT, FONT_BOLD)
+    local timeLbl = lbl(hudBar, "12:00 PM", UDim2.fromOffset(0, 16), UDim2.fromOffset(556, 12), 14, C.TEXT, FONT_BOLD)
     timeLbl.AutomaticSize = Enum.AutomaticSize.X
 
     local function mkDivL(parent)
-        local d = fr(parent, UDim2.new(0, 2, 0, 18), UDim2.new(0, 0, 0.5, -9), C.DIV, 0.2, 1)
+        local d = fr(parent, UDim2.fromOffset(2, 18), UDim2.new(0, 0, 0.5, -9), C.DIV, 0.2, 1)
         gradV(d, C.ACCENT, C.ACCENT2)
         d.Visible = false
         return d
@@ -436,7 +428,7 @@ function MenuLib:Init(config)
     local div5 = mkDivL(hudBar)
 
     local homeBtn = Instance.new("TextButton")
-    homeBtn.Size = UDim2.new(0, 30, 0, 30)
+    homeBtn.Size = UDim2.fromOffset(30, 30)
     homeBtn.Position = UDim2.new(0, 420, 0.45, -15)
     homeBtn.BackgroundColor3 = Color3.fromRGB(24, 10, 48)
     homeBtn.BackgroundTransparency = 0.2
@@ -446,7 +438,7 @@ function MenuLib:Init(config)
     Instance.new("UICorner").Parent = homeBtn
 
     local homeBtnIcon1 = Instance.new("ImageLabel")
-    homeBtnIcon1.Size = UDim2.new(1, 0, 1, 0)
+    homeBtnIcon1.Size = UDim2.fromScale(1, 1)
     homeBtnIcon1.BackgroundTransparency = 1
     homeBtnIcon1.Image = ICON.settings
     homeBtnIcon1.ScaleType = Enum.ScaleType.Fit
@@ -455,7 +447,7 @@ function MenuLib:Init(config)
     homeBtnIcon1.Parent = homeBtn
 
     local homeBtnIcon2 = Instance.new("ImageLabel")
-    homeBtnIcon2.Size = UDim2.new(1, 0, 1, 0)
+    homeBtnIcon2.Size = UDim2.fromScale(1, 1)
     homeBtnIcon2.BackgroundTransparency = 1
     homeBtnIcon2.Image = ICON.home
     homeBtnIcon2.ScaleType = Enum.ScaleType.Fit
@@ -463,10 +455,10 @@ function MenuLib:Init(config)
     homeBtnIcon2.ImageTransparency = 1
     homeBtnIcon2.Parent = homeBtn
 
-    local badge = fr(hudBar, UDim2.new(0, 32, 0, 28), UDim2.new(0, 670, 0.5, -14), C.ACCENT, 0, 8)
+    local badge = fr(hudBar, UDim2.fromOffset(32, 28), UDim2.new(0, 670, 0.5, -14), C.ACCENT, 0, 8)
     gradV(badge, C.ACCENT, C.ACCENT2)
     local fireI = Instance.new("ImageLabel")
-    fireI.Size = UDim2.new(0, 18, 0, 18)
+    fireI.Size = UDim2.fromOffset(18, 18)
     fireI.Position = UDim2.new(0.5, -9, 0.5, -9)
     fireI.BackgroundTransparency = 1
     fireI.Image = ICON.fire
@@ -475,23 +467,23 @@ function MenuLib:Init(config)
     fireI.Parent = badge
     gradV(fireI, C.ACCENT, C.ACCENT2)
     local fireClick = Instance.new("TextButton")
-    fireClick.Size = UDim2.new(1, 0, 1, 0)
+    fireClick.Size = UDim2.fromScale(1, 1)
     fireClick.BackgroundTransparency = 1
     fireClick.Text = ""
     fireClick.ZIndex = Z.HUD + 5
     fireClick.Parent = badge
 
-    win = fr(sg, UDim2.new(0, WIN_W, 0, WIN_H), UDim2.new(0.5, -WIN_W / 2, 0.5, -WIN_H / 2), C.BG, 0, 20)
+    win = fr(sg, UDim2.fromOffset(WIN_W, WIN_H), UDim2.new(0.5, -WIN_W / 2, 0.5, -WIN_H / 2), C.BG, 0, 20)
     win.ClipsDescendants = true
     win.ZIndex = Z.BASE
     win.Visible = false
 
-    local mainLayer = fr(win, UDim2.new(1, 0, 1, 0), UDim2.new(0, 0, 0, 0), C.BG, 1, 0)
+    local mainLayer = fr(win, UDim2.fromScale(1, 1), UDim2.fromOffset(0, 0), C.BG, 1, 0)
     mainLayer.ZIndex = Z.CONTENT
 
     local dragHandle = Instance.new("TextButton")
     dragHandle.Size = UDim2.new(1, 0, 0, 36)
-    dragHandle.Position = UDim2.new(0, 0, 0, 0)
+    dragHandle.Position = UDim2.fromOffset(0, 0)
     dragHandle.BackgroundTransparency = 1
     dragHandle.Text = ""
     dragHandle.ZIndex = Z.DRAG
@@ -499,29 +491,29 @@ function MenuLib:Init(config)
     dragHandle.AutoButtonColor = false
     dragHandle.Parent = mainLayer
 
-    local bodyShell = fr(mainLayer, UDim2.new(1, 0, 1, -12), UDim2.new(0, 0, 0, 12), C.BG, 1, 0)
+    local bodyShell = fr(mainLayer, UDim2.new(1, 0, 1, -12), UDim2.fromOffset(0, 12), C.BG, 1, 0)
     bodyShell.ZIndex = Z.CONTENT
 
-    local sidebar = fr(bodyShell, UDim2.new(0, SIDE_W, 1, -4), UDim2.new(0, 0, 0, 4), C.SIDEBAR, 0, 14)
+    local sidebar = fr(bodyShell, UDim2.new(0, SIDE_W, 1, -4), UDim2.fromOffset(0, 4), C.SIDEBAR, 0, 14)
     sidebar.ZIndex = Z.CONTENT
     sidebar.ClipsDescendants = true
 
-    local sidebarDivider = fr(bodyShell, UDim2.new(0, 1, 1, -4), UDim2.new(0, SIDE_W, 0, 4), C.DIV)
+    local sidebarDivider = fr(bodyShell, UDim2.new(0, 1, 1, -4), UDim2.fromOffset(SIDE_W, 4), C.DIV)
 
     local TAB_BAR_H = 42
     local tabBarIsHorizontal = false
 
-    local topTabBar = fr(bodyShell, UDim2.new(1, -4, 0, TAB_BAR_H), UDim2.new(0, 2, 0, 4), C.SIDEBAR, 0, 14)
+    local topTabBar = fr(bodyShell, UDim2.new(1, -4, 0, TAB_BAR_H), UDim2.fromOffset(2, 4), C.SIDEBAR, 0, 14)
     topTabBar.ZIndex = Z.SIDEBAR
     topTabBar.Visible = false
     topTabBar.ClipsDescendants = true
 
     local topTabScroll = Instance.new("ScrollingFrame")
-    topTabScroll.Size = UDim2.new(1, 0, 1, 0)
+    topTabScroll.Size = UDim2.fromScale(1, 1)
     topTabScroll.BackgroundTransparency = 1
     topTabScroll.BorderSizePixel = 0
     topTabScroll.ScrollBarThickness = 0
-    topTabScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+    topTabScroll.CanvasSize = UDim2.fromOffset(0, 0)
     topTabScroll.AutomaticCanvasSize = Enum.AutomaticSize.X
     topTabScroll.ScrollingDirection = Enum.ScrollingDirection.X
     topTabScroll.Parent = topTabBar
@@ -533,40 +525,22 @@ function MenuLib:Init(config)
     topTabLayout.Padding = UDim.new(0, 4)
     topTabLayout.Parent = topTabScroll
 
-    local topTabDivider = fr(bodyShell, UDim2.new(1, -4, 0, 1), UDim2.new(0, 2, 0, TAB_BAR_H + 4), C.DIV)
+    local topTabDivider = fr(bodyShell, UDim2.new(1, -4, 0, 1), UDim2.fromOffset(2, TAB_BAR_H + 4), C.DIV)
     topTabDivider.Visible = false
 
-    local contentArea = fr(bodyShell, UDim2.new(1, -SIDE_W - 2, 1, -32), UDim2.new(0, SIDE_W + 2, 0, 4), C.CONTENT, 0, 16)
+    local contentArea = fr(bodyShell, UDim2.new(1, -SIDE_W - 2, 1, -32), UDim2.fromOffset(SIDE_W + 2, 4), C.CONTENT, 0, 16)
     contentArea.ZIndex = Z.CONTENT
 
     local statusBar = fr(bodyShell, UDim2.new(1, -SIDE_W - 2, 0, 28), UDim2.new(0, SIDE_W + 2, 1, -32), C.DARK, 0, 12)
 
-    local function mkSmallBtn(parent, txt, size, pos, fn)
-        local b = Instance.new("TextButton")
-        b.Size = size
-        b.Position = pos
-        b.BackgroundColor3 = C.BTN
-        b.Text = txt
-        b.TextColor3 = C.TEXT
-        b.TextSize = 11
-        b.Font = FONT_BOLD
-        b.AutoButtonColor = false
-        b.Parent = parent
-        Instance.new("UICorner").Parent = b
-        table.insert(conns, b.MouseEnter:Connect(function() tw(b, { BackgroundColor3 = C.BTNHOV }, 0.12) end))
-        table.insert(conns, b.MouseLeave:Connect(function() tw(b, { BackgroundColor3 = C.BTN }, 0.12) end))
-        if fn then b.MouseButton1Click:Connect(fn) end
-        return b
-    end
-
-    local navHolder = fr(sidebar, UDim2.new(1, 0, 1, 0), nil, C.SIDEBAR, 1, 0)
+    local navHolder = fr(sidebar, UDim2.fromScale(1, 1), nil, C.SIDEBAR, 1, 0)
     local navScroll = Instance.new("ScrollingFrame")
-    navScroll.Size = UDim2.new(1, 0, 1, 0)
+    navScroll.Size = UDim2.fromScale(1, 1)
     navScroll.ZIndex = Z.CONTENT
     navScroll.BackgroundTransparency = 1
     navScroll.BorderSizePixel = 0
     navScroll.ScrollBarThickness = 0
-    navScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+    navScroll.CanvasSize = UDim2.fromOffset(0, 0)
     navScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
     navScroll.Parent = navHolder
     pad(navScroll, 8, 10, 12, 10)
@@ -606,11 +580,11 @@ function MenuLib:Init(config)
         pad(s, 10, 0, 2, 0)
         table.insert(sectionLabels, s)
         if navSectionCount > 1 then
-            local vdiv = fr(topTabScroll, UDim2.new(0, 1, 0, 22), nil, C.DIV, 1, 0)
+            local vdiv = fr(topTabScroll, UDim2.fromOffset(1, 22), nil, C.DIV, 1, 0)
             vdiv.BackgroundTransparency = 0.4
             vdiv.LayoutOrder = nextTopOrd()
         end
-        local hs = lbl(topTabScroll, name, UDim2.new(0, math.max(28, #name * 7), 0, 28), nil, 10, C.SEC, FONT_BOLD)
+        local hs = lbl(topTabScroll, name, UDim2.fromOffset(math.max(28, #name * 7), 28), nil, 10, C.SEC, FONT_BOLD)
         hs.TextYAlignment = Enum.TextYAlignment.Center
         hs.LayoutOrder = nextTopOrd()
     end
@@ -619,8 +593,8 @@ function MenuLib:Init(config)
         local isCompact = (SIDE_W <= 100)
         local tf = entry.frame
         tf.Visible = true
-        tf.Position = UDim2.new(0, 30, 0, 0)
-        tw(tf, { Position = UDim2.new(0, 0, 0, 0), BackgroundTransparency = 0 }, 0.4)
+        tf.Position = UDim2.fromOffset(30, 0)
+        tw(tf, { Position = UDim2.fromOffset(0, 0), BackgroundTransparency = 0 }, 0.4)
         tw(entry.bg, { BackgroundTransparency = 0 }, 0.3)
         tw(entry.line, { BackgroundTransparency = isCompact and 1 or 0, Size = UDim2.new(0, 4, 0.5, 0) }, 0.35)
         tw(entry.lbl, { TextColor3 = C.TEXT }, 0.25)
@@ -636,15 +610,15 @@ function MenuLib:Init(config)
     local function deselectTab(entry)
         local isCompact = (SIDE_W <= 100)
         local tf = entry.frame
-        tw(tf, { Position = UDim2.new(0, -30, 0, 0), BackgroundTransparency = 1 }, 0.35)
+        tw(tf, { Position = UDim2.fromOffset(-30, 0), BackgroundTransparency = 1 }, 0.35)
         tw(entry.bg, { BackgroundTransparency = 1 }, 0.25)
-        tw(entry.line, { BackgroundTransparency = 1, Size = UDim2.new(0, 4, 0, 0) }, 0.2)
+        tw(entry.line, { BackgroundTransparency = 1, Size = UDim2.fromOffset(4, 0) }, 0.2)
         tw(entry.lbl, { TextColor3 = C.DIM }, 0.2)
         tw(entry.ico, { ImageColor3 = C.DIM, Position = isCompact and UDim2.new(0.5, -entry.iconSize/2, 0.5, -entry.iconSize/2) or UDim2.new(0, entry.iconX, 0.5, -entry.iconSize / 2) }, 0.25)
         task.delay(0.35, function() pcall(function() tf.Visible = false end) end)
         if entry.hBtn then
             tw(entry.hBg, { BackgroundTransparency = 1 }, 0.25)
-            tw(entry.hLine, { BackgroundTransparency = 1, Size = UDim2.new(0.5, 0, 0, 0) }, 0.2)
+            tw(entry.hLine, { BackgroundTransparency = 1, Size = UDim2.fromScale(0.5, 0) }, 0.2)
             tw(entry.hIco, { ImageColor3 = C.DIM }, 0.2)
             tw(entry.hLbl, { TextColor3 = C.DIM }, 0.2)
         end
@@ -668,7 +642,7 @@ function MenuLib:Init(config)
 
     local function addTab(name, iconImage, buildFn)
         if type(name) ~= "string" or name == "" then return nil, nil end
-        local tf = fr(contentArea, UDim2.new(1, 0, 1, 0), nil, C.CONTENT, 1, 0)
+        local tf = fr(contentArea, UDim2.fromScale(1, 1), nil, C.CONTENT, 1, 0)
         tf.Visible = false
         tf.ZIndex = Z.TAB
         if buildFn then pcall(buildFn, tf) end
@@ -684,7 +658,7 @@ function MenuLib:Init(config)
         btn.Parent = navScroll
         Instance.new("UICorner").Parent = btn
 
-        local selBg = fr(btn, UDim2.new(1, 0, 1, 0), nil, C.SEL, 1, 12)
+        local selBg = fr(btn, UDim2.fromScale(1, 1), nil, C.SEL, 1, 12)
         local selLine = fr(btn, UDim2.new(0, 4, 0.5, 0), UDim2.new(1, -5, 0.25, 0), C.ACCENT, 1, 4)
         gradV(selLine, C.ACCENT, C.ACCENT2)
 
@@ -693,7 +667,7 @@ function MenuLib:Init(config)
         local iconX = iconCfg.x
 
         local icoL = Instance.new("ImageLabel")
-        icoL.Size = UDim2.new(0, iconSize, 0, iconSize)
+        icoL.Size = UDim2.fromOffset(iconSize, iconSize)
         icoL.Position = UDim2.new(0, iconX, 0.5, -iconSize / 2)
         icoL.BackgroundTransparency = 1
         icoL.Image = normalizeIconId(iconImage) or ""
@@ -701,7 +675,7 @@ function MenuLib:Init(config)
         icoL.ImageColor3 = C.DIM
         icoL.Parent = btn
 
-        local namL = lbl(btn, name, UDim2.new(1, -52, 1, 0), UDim2.new(0, 44, 0, 0), 12, C.DIM)
+        local namL = lbl(btn, name, UDim2.new(1, -52, 1, 0), UDim2.fromOffset(44, 0), 12, C.DIM)
 
         local hBtnW = math.max(#name * TAB_LABEL_CHAR_W + 42, 70)
         local hBtn = Instance.new("TextButton")
@@ -712,12 +686,12 @@ function MenuLib:Init(config)
         hBtn.Parent = topTabScroll
         Instance.new("UICorner").Parent = hBtn
 
-        local hBg = fr(hBtn, UDim2.new(1, 0, 1, 0), nil, C.SEL, 1, 10)
-        local hLine = fr(hBtn, UDim2.new(0.5, 0, 0, 0), UDim2.new(0.25, 0, 1, -3), C.ACCENT, 1, 2)
+        local hBg = fr(hBtn, UDim2.fromScale(1, 1), nil, C.SEL, 1, 10)
+        local hLine = fr(hBtn, UDim2.fromScale(0.5, 0), UDim2.new(0.25, 0, 1, -3), C.ACCENT, 1, 2)
         gradV(hLine, C.ACCENT2, C.ACCENT)
 
         local hIco = Instance.new("ImageLabel")
-        hIco.Size = UDim2.new(0, 18, 0, 18)
+        hIco.Size = UDim2.fromOffset(18, 18)
         hIco.Position = UDim2.new(0, 8, 0.5, -9)
         hIco.BackgroundTransparency = 1
         hIco.Image = normalizeIconId(iconImage) or ""
@@ -725,7 +699,7 @@ function MenuLib:Init(config)
         hIco.ImageColor3 = C.DIM
         hIco.Parent = hBtn
 
-        local hLbl = lbl(hBtn, name, UDim2.new(1, -34, 1, 0), UDim2.new(0, 30, 0, 0), 11, C.DIM, FONT_BOLD)
+        local hLbl = lbl(hBtn, name, UDim2.new(1, -34, 1, 0), UDim2.fromOffset(30, 0), 11, C.DIM, FONT_BOLD)
 
         local entry = {
             btn = btn, frame = tf, bg = selBg, line = selLine, ico = icoL, lbl = namL,
@@ -759,7 +733,7 @@ function MenuLib:Init(config)
 
         if horizontal then
             tw(sidebar, { Size = UDim2.new(0, 0, 1, -4) }, t, ease)
-            tw(sidebarDivider, { BackgroundTransparency = 1, Position = UDim2.new(0, 0, 0, 4) }, t, ease)
+            tw(sidebarDivider, { BackgroundTransparency = 1, Position = UDim2.fromOffset(0, 4) }, t, ease)
             task.delay(t, function() pcall(function()
                 sidebar.Visible = false
                 sidebarDivider.Visible = false
@@ -772,7 +746,7 @@ function MenuLib:Init(config)
             tw(topTabDivider, { BackgroundTransparency = 0 }, t, ease)
             tw(contentArea, {
                 Size = UDim2.new(1, -4, 1, -TAB_BAR_H - 36),
-                Position = UDim2.new(0, 2, 0, TAB_BAR_H + 6)
+                Position = UDim2.fromOffset(2, TAB_BAR_H + 6)
             }, t, ease)
             tw(statusBar, {
                 Size = UDim2.new(1, -4, 0, 28),
@@ -784,7 +758,7 @@ function MenuLib:Init(config)
             sidebar.Visible = true
             sidebarDivider.Visible = true
             tw(sidebar, { Size = UDim2.new(0, targetW, 1, -4) }, t, ease)
-            tw(sidebarDivider, { BackgroundTransparency = 0, Position = UDim2.new(0, targetW, 0, 4) }, t, ease)
+            tw(sidebarDivider, { BackgroundTransparency = 0, Position = UDim2.fromOffset(targetW, 4) }, t, ease)
             tw(topTabBar, { BackgroundTransparency = 1 }, t, ease)
             tw(topTabDivider, { BackgroundTransparency = 1 }, t, ease)
             task.delay(t, function() pcall(function()
@@ -793,7 +767,7 @@ function MenuLib:Init(config)
             end) end)
             tw(contentArea, {
                 Size = UDim2.new(1, -targetW - 2, 1, -32),
-                Position = UDim2.new(0, targetW + 2, 0, 4)
+                Position = UDim2.fromOffset(targetW + 2, 4)
             }, t, ease)
             tw(statusBar, {
                 Size = UDim2.new(1, -targetW - 2, 0, 28),
@@ -804,17 +778,17 @@ function MenuLib:Init(config)
         if applySettingsLayout then applySettingsLayout(horizontal, t, ease) end
     end
 
-    settingsPanel = fr(sg, UDim2.new(0, WIN_W, 0, WIN_H), UDim2.new(0.5, -WIN_W/2, 0.5, -WIN_H/2), C.BG, 0, 20)
+    settingsPanel = fr(sg, UDim2.fromOffset(WIN_W, WIN_H), UDim2.new(0.5, -WIN_W/2, 0.5, -WIN_H/2), C.BG, 0, 20)
     settingsPanel.ClipsDescendants = true
     settingsPanel.ZIndex = Z.OVERLAY
     settingsPanel.Visible = false
 
-    local settingsMainLayer = fr(settingsPanel, UDim2.new(1, 0, 1, 0), UDim2.new(0, 0, 0, 0), C.BG, 1, 0)
+    local settingsMainLayer = fr(settingsPanel, UDim2.fromScale(1, 1), UDim2.fromOffset(0, 0), C.BG, 1, 0)
     settingsMainLayer.ZIndex = Z.CONTENT
 
     local settingsDrag = Instance.new("TextButton")
     settingsDrag.Size = UDim2.new(1, 0, 0, 36)
-    settingsDrag.Position = UDim2.new(0, 0, 0, 0)
+    settingsDrag.Position = UDim2.fromOffset(0, 0)
     settingsDrag.BackgroundTransparency = 1
     settingsDrag.Text = ""
     settingsDrag.ZIndex = Z.SETTINGS_DRAG
@@ -822,26 +796,26 @@ function MenuLib:Init(config)
     settingsDrag.AutoButtonColor = false
     settingsDrag.Parent = settingsMainLayer
 
-    local settingsBodyShell = fr(settingsMainLayer, UDim2.new(1, 0, 1, -12), UDim2.new(0, 0, 0, 12), C.BG, 1, 0)
+    local settingsBodyShell = fr(settingsMainLayer, UDim2.new(1, 0, 1, -12), UDim2.fromOffset(0, 12), C.BG, 1, 0)
     settingsBodyShell.ZIndex = Z.CONTENT
 
-    local settingsLeft = fr(settingsBodyShell, UDim2.new(0, SIDE_W, 1, -4), UDim2.new(0, 0, 0, 4), C.SIDEBAR, 0, 14)
+    local settingsLeft = fr(settingsBodyShell, UDim2.new(0, SIDE_W, 1, -4), UDim2.fromOffset(0, 4), C.SIDEBAR, 0, 14)
     settingsLeft.ZIndex = Z.CONTENT
     settingsLeft.ClipsDescendants = true
 
-    local settingsDivider = fr(settingsBodyShell, UDim2.new(0, 1, 1, -4), UDim2.new(0, SIDE_W, 0, 4), C.DIV)
+    local settingsDivider = fr(settingsBodyShell, UDim2.new(0, 1, 1, -4), UDim2.fromOffset(SIDE_W, 4), C.DIV)
 
     local catItems = { "General", "Appearance", "Performance", "Keybinds", "Players" }
     local catKeys = { ICON.general, ICON.appearance, ICON.performance, ICON.keyboard, ICON.playerTab }
     local catScroll = Instance.new("ScrollingFrame")
-    catScroll.Size = UDim2.new(1, 0, 1, 0)
+    catScroll.Size = UDim2.fromScale(1, 1)
     catScroll.ZIndex = Z.CONTENT
     catScroll.BackgroundTransparency = 1
     catScroll.BorderSizePixel = 0
     catScroll.ScrollBarThickness = 0
-    catScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+    catScroll.CanvasSize = UDim2.fromOffset(0, 0)
     catScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
-    catScroll.Parent = fr(settingsLeft, UDim2.new(1, 0, 1, 0), nil, C.SIDEBAR, 1, 0)
+    catScroll.Parent = fr(settingsLeft, UDim2.fromScale(1, 1), nil, C.SIDEBAR, 1, 0)
     pad(catScroll, 8, 10, 12, 8)
 
     local catList = Instance.new("UIListLayout")
@@ -864,7 +838,7 @@ function MenuLib:Init(config)
             tw(btn.icon, { ImageColor3 = C.TEXT, Position = isCompact and UDim2.new(0.5, -12, 0.5, -12) or UDim2.new(0, 14, 0.5, -12) }, 0.25, Enum.EasingStyle.Quad)
         else
             tw(btn.bg, { BackgroundTransparency = 1 }, 0.2, Enum.EasingStyle.Quad)
-            tw(btn.line, { BackgroundTransparency = 1, Size = UDim2.new(0, 4, 0, 0) }, 0.15, Enum.EasingStyle.Quad)
+            tw(btn.line, { BackgroundTransparency = 1, Size = UDim2.fromOffset(4, 0) }, 0.15, Enum.EasingStyle.Quad)
             tw(btn.lbl, { TextColor3 = C.DIM }, 0.15, Enum.EasingStyle.Quad)
             tw(btn.icon, { ImageColor3 = C.DIM, Position = isCompact and UDim2.new(0.5, -12, 0.5, -12) or UDim2.new(0, 10, 0.5, -12) }, 0.2, Enum.EasingStyle.Quad)
         end
@@ -881,7 +855,7 @@ function MenuLib:Init(config)
         cb.Parent = catScroll
         Instance.new("UICorner").Parent = cb
 
-        local selBg = fr(cb, UDim2.new(1, 0, 1, 0), nil, C.SEL, 1, 12)
+        local selBg = fr(cb, UDim2.fromScale(1, 1), nil, C.SEL, 1, 12)
         local selLine = fr(cb, UDim2.new(0, 4, 0.5, 0), UDim2.new(1, -5, 0.25, 0), C.ACCENT, 1, 4)
         gradV(selLine, C.ACCENT, C.ACCENT2)
 
@@ -893,14 +867,14 @@ function MenuLib:Init(config)
         local ciCfg = CAT_ICON_SIZES[cat] or { size = 24 }
         local ciSize = ciCfg.size
         local ciOffset = 10 + math.floor((24 - ciSize) / 2)
-        ci.Size = UDim2.new(0, ciSize, 0, ciSize)
+        ci.Size = UDim2.fromOffset(ciSize, ciSize)
         ci.Position = UDim2.new(0, ciOffset, 0.5, -math.floor(ciSize / 2))
         ci.BackgroundTransparency = 1
         ci.Image = normalizeIconId(catKeys[i]) or ""
         ci.ImageColor3 = C.DIM
         ci.Parent = cb
 
-        local namL = lbl(cb, cat, UDim2.new(1, -44, 1, 0), UDim2.new(0, 40, 0, 0), 12, C.DIM)
+        local namL = lbl(cb, cat, UDim2.new(1, -44, 1, 0), UDim2.fromOffset(40, 0), 12, C.DIM)
         catBtns[i] = { btn = cb, icon = ci, lbl = namL, bg = selBg, line = selLine }
 
         table.insert(conns, cb.MouseEnter:Connect(function()
@@ -925,27 +899,27 @@ function MenuLib:Init(config)
                 updateSettingTabVisuals(i, true)
 
                 if oldContent then
-                    tw(oldContent, { Position = UDim2.new(0, -15, 0, 0) }, 0.12, Enum.EasingStyle.Quad)
+                    tw(oldContent, { Position = UDim2.fromOffset(-15, 0) }, 0.12, Enum.EasingStyle.Quad)
                     oldContent.Visible = false
                 end
 
                 newContent.Visible = true
-                newContent.Position = UDim2.new(0, 15, 0, 0)
-                tw(newContent, { Position = UDim2.new(0, 0, 0, 0) }, 0.15, Enum.EasingStyle.Quad)
+                newContent.Position = UDim2.fromOffset(15, 0)
+                tw(newContent, { Position = UDim2.fromOffset(0, 0) }, 0.15, Enum.EasingStyle.Quad)
 
                 activeSettingTab = i
             end
         end))
     end
 
-    local sRight = fr(settingsBodyShell, UDim2.new(1, -SIDE_W - 2, 1, -32), UDim2.new(0, SIDE_W + 2, 0, 4), C.CONTENT, 0, 16)
+    local sRight = fr(settingsBodyShell, UDim2.new(1, -SIDE_W - 2, 1, -32), UDim2.fromOffset(SIDE_W + 2, 4), C.CONTENT, 0, 16)
     sRight.ZIndex = Z.CONTENT
 
     local function setSidebarWidth(w, animate)
         SIDE_W = w
         if tabBarIsHorizontal then return end
         local cw = UDim2.new(1, -SIDE_W - 2, 1, -32)
-        local cp = UDim2.new(0, SIDE_W + 2, 0, 4)
+        local cp = UDim2.fromOffset(SIDE_W + 2, 4)
         local sw = UDim2.new(0, SIDE_W, 1, -4)
 
         local atn = animate and 0.25 or 0
@@ -1007,18 +981,18 @@ function MenuLib:Init(config)
     end
 
     local titleRow = fr(sRight, UDim2.new(1, 0, 0, 40), nil, C.HEADER, 0, 0)
-    lbl(titleRow, "Settings", UDim2.new(1, -16, 1, 0), UDim2.new(0, 14, 0, 0), 16, C.TEXT, FONT_BOLD)
+    lbl(titleRow, "Settings", UDim2.new(1, -16, 1, 0), UDim2.fromOffset(14, 0), 16, C.TEXT, FONT_BOLD)
 
     local SCAT_BAR_H = 36
-    local settingsCatBar = fr(sRight, UDim2.new(1, 0, 0, SCAT_BAR_H), UDim2.new(0, 0, 0, 40), C.SIDEBAR, 0, 0)
+    local settingsCatBar = fr(sRight, UDim2.new(1, 0, 0, SCAT_BAR_H), UDim2.fromOffset(0, 40), C.SIDEBAR, 0, 0)
     settingsCatBar.Visible = false
     settingsCatBar.ClipsDescendants = true
     local scatBarScroll = Instance.new("ScrollingFrame")
-    scatBarScroll.Size = UDim2.new(1, 0, 1, 0)
+    scatBarScroll.Size = UDim2.fromScale(1, 1)
     scatBarScroll.BackgroundTransparency = 1
     scatBarScroll.BorderSizePixel = 0
     scatBarScroll.ScrollBarThickness = 0
-    scatBarScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+    scatBarScroll.CanvasSize = UDim2.fromOffset(0, 0)
     scatBarScroll.AutomaticCanvasSize = Enum.AutomaticSize.X
     scatBarScroll.ScrollingDirection = Enum.ScrollingDirection.X
     scatBarScroll.Parent = settingsCatBar
@@ -1038,20 +1012,20 @@ function MenuLib:Init(config)
         hcBtn.LayoutOrder = i
         hcBtn.Parent = scatBarScroll
         Instance.new("UICorner").Parent = hcBtn
-        local hcBg = fr(hcBtn, UDim2.new(1, 0, 1, 0), nil, C.SEL, 1, 10)
-        local hcLine = fr(hcBtn, UDim2.new(0.5, 0, 0, 0), UDim2.new(0.25, 0, 1, -3), C.ACCENT, 1, 2)
+        local hcBg = fr(hcBtn, UDim2.fromScale(1, 1), nil, C.SEL, 1, 10)
+        local hcLine = fr(hcBtn, UDim2.fromScale(0.5, 0), UDim2.new(0.25, 0, 1, -3), C.ACCENT, 1, 2)
         gradV(hcLine, C.ACCENT2, C.ACCENT)
         local hcIco = Instance.new("ImageLabel")
         local HC_ICON_SIZES = { ["Performance"] = 19 }
         local hcSize = HC_ICON_SIZES[cat] or 16
-        hcIco.Size = UDim2.new(0, hcSize, 0, hcSize)
+        hcIco.Size = UDim2.fromOffset(hcSize, hcSize)
         hcIco.Position = UDim2.new(0, 6, 0.5, -math.floor(hcSize / 2))
         hcIco.BackgroundTransparency = 1
         hcIco.Image = normalizeIconId(catKeys[i]) or ""
         hcIco.ScaleType = Enum.ScaleType.Fit
         hcIco.ImageColor3 = C.DIM
         hcIco.Parent = hcBtn
-        local hcLbl = lbl(hcBtn, cat, UDim2.new(1, -28, 1, 0), UDim2.new(0, 26, 0, 0), 11, C.DIM, FONT_BOLD)
+        local hcLbl = lbl(hcBtn, cat, UDim2.new(1, -28, 1, 0), UDim2.fromOffset(26, 0), 11, C.DIM, FONT_BOLD)
         hCatBtns[i] = { btn = hcBtn, bg = hcBg, line = hcLine, ico = hcIco, lbl = hcLbl }
     end
 
@@ -1064,7 +1038,7 @@ function MenuLib:Init(config)
                 tw(hc.lbl, { TextColor3 = C.TEXT }, 0.2)
             else
                 tw(hc.bg, { BackgroundTransparency = 1 }, 0.2)
-                tw(hc.line, { BackgroundTransparency = 1, Size = UDim2.new(0.5, 0, 0, 0) }, 0.15)
+                tw(hc.line, { BackgroundTransparency = 1, Size = UDim2.fromScale(0.5, 0) }, 0.15)
                 tw(hc.ico, { ImageColor3 = C.DIM }, 0.15)
                 tw(hc.lbl, { TextColor3 = C.DIM }, 0.15)
             end
@@ -1090,26 +1064,26 @@ function MenuLib:Init(config)
                 updateHCatVisuals()
 
                 if oldContent then
-                    tw(oldContent, { Position = UDim2.new(0, -15, 0, 0) }, 0.12)
+                    tw(oldContent, { Position = UDim2.fromOffset(-15, 0) }, 0.12)
                     oldContent.Visible = false
                 end
                 newContent.Visible = true
-                newContent.Position = UDim2.new(0, 15, 0, 0)
-                tw(newContent, { Position = UDim2.new(0, 0, 0, 0) }, 0.15)
+                newContent.Position = UDim2.fromOffset(15, 0)
+                tw(newContent, { Position = UDim2.fromOffset(0, 0) }, 0.15)
             end
         end))
     end
 
-    local sHolder = fr(sRight, UDim2.new(1, 0, 1, -46), UDim2.new(0, 0, 0, 40), C.CONTENT, 1, 0)
+    local sHolder = fr(sRight, UDim2.new(1, 0, 1, -46), UDim2.fromOffset(0, 40), C.CONTENT, 1, 0)
 
     for i = 1, 5 do
         local sScroll = Instance.new("ScrollingFrame")
-        sScroll.Size = UDim2.new(1, 0, 1, 0)
+        sScroll.Size = UDim2.fromScale(1, 1)
         sScroll.ZIndex = Z.CONTENT
         sScroll.BackgroundTransparency = 1
         sScroll.BorderSizePixel = 0
         sScroll.ScrollBarThickness = 0
-        sScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+        sScroll.CanvasSize = UDim2.fromOffset(0, 0)
         sScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
         sScroll.Parent = sHolder
         sScroll.Visible = (i == 1)
@@ -1125,33 +1099,33 @@ function MenuLib:Init(config)
     applySettingsLayout = function(horizontal, t, ease)
         if horizontal then
             tw(settingsLeft, { Size = UDim2.new(0, 0, 1, -4) }, t, ease)
-            tw(settingsDivider, { BackgroundTransparency = 1, Position = UDim2.new(0, 0, 0, 4) }, t, ease)
+            tw(settingsDivider, { BackgroundTransparency = 1, Position = UDim2.fromOffset(0, 4) }, t, ease)
             task.delay(t, function() pcall(function()
                 settingsLeft.Visible = false
                 settingsDivider.Visible = false
             end) end)
             tw(sRight, {
                 Size = UDim2.new(1, -4, 1, -32),
-                Position = UDim2.new(0, 2, 0, 4)
+                Position = UDim2.fromOffset(2, 4)
             }, t, ease)
             settingsCatBar.Visible = true
             settingsCatBar.BackgroundTransparency = 1
             tw(settingsCatBar, { BackgroundTransparency = 0 }, t, ease)
-            tw(sHolder, { Size = UDim2.new(1, 0, 1, -46 - SCAT_BAR_H), Position = UDim2.new(0, 0, 0, 40 + SCAT_BAR_H) }, t, ease)
+            tw(sHolder, { Size = UDim2.new(1, 0, 1, -46 - SCAT_BAR_H), Position = UDim2.fromOffset(0, 40 + SCAT_BAR_H) }, t, ease)
             updateHCatVisuals()
         else
             local targetW = compactEnabled and 52 or 160
             settingsLeft.Visible = true
             settingsDivider.Visible = true
             tw(settingsLeft, { Size = UDim2.new(0, targetW, 1, -4) }, t, ease)
-            tw(settingsDivider, { BackgroundTransparency = 0, Position = UDim2.new(0, targetW, 0, 4) }, t, ease)
+            tw(settingsDivider, { BackgroundTransparency = 0, Position = UDim2.fromOffset(targetW, 4) }, t, ease)
             tw(settingsCatBar, { BackgroundTransparency = 1 }, t, ease)
             task.delay(t, function() pcall(function() settingsCatBar.Visible = false end) end)
             tw(sRight, {
                 Size = UDim2.new(1, -targetW - 2, 1, -32),
-                Position = UDim2.new(0, targetW + 2, 0, 4)
+                Position = UDim2.fromOffset(targetW + 2, 4)
             }, t, ease)
-            tw(sHolder, { Size = UDim2.new(1, 0, 1, -46), Position = UDim2.new(0, 0, 0, 40) }, t, ease)
+            tw(sHolder, { Size = UDim2.new(1, 0, 1, -46), Position = UDim2.fromOffset(0, 40) }, t, ease)
         end
     end
 
@@ -1170,9 +1144,9 @@ function MenuLib:Init(config)
 
         local row = fr(scrollFrame, UDim2.new(1, -10, 0, 40), nil, C.HEADER, 0, 10)
         row.LayoutOrder = #scrollFrame:GetChildren()
-        local stripe = fr(row, UDim2.new(0, 3, 1, -8), UDim2.new(0, 0, 0, 4), C.ACCENT, 0, 0)
+        local stripe = fr(row, UDim2.new(0, 3, 1, -8), UDim2.fromOffset(0, 4), C.ACCENT, 0, 0)
         gradV(stripe, C.ACCENT, C.ACCENT2)
-        lbl(row, labelText, UDim2.new(1, -70, 1, 0), UDim2.new(0, 14, 0, 0), 12, C.TEXT)
+        lbl(row, labelText, UDim2.new(1, -70, 1, 0), UDim2.fromOffset(14, 0), 12, C.TEXT)
         if hasToggle then 
             local toggle = mkToggle(row, -56, initValue or false, callback)
             if not _G._MenuToggles then _G._MenuToggles = {} end
@@ -1199,9 +1173,9 @@ function MenuLib:Init(config)
         if scrollFrame then
             local row = fr(scrollFrame, UDim2.new(1, -10, 0, 40), nil, C.HEADER, 0, 10)
             row.LayoutOrder = #scrollFrame:GetChildren()
-            local stripe = fr(row, UDim2.new(0, 3, 1, -8), UDim2.new(0, 0, 0, 4), C.ACCENT, 0, 0)
+            local stripe = fr(row, UDim2.new(0, 3, 1, -8), UDim2.fromOffset(0, 4), C.ACCENT, 0, 0)
             gradV(stripe, C.ACCENT, C.ACCENT2)
-            lbl(row, "Tab layout", UDim2.new(1, -140, 1, 0), UDim2.new(0, 14, 0, 0), 12, C.TEXT)
+            lbl(row, "Tab layout", UDim2.new(1, -140, 1, 0), UDim2.fromOffset(14, 0), 12, C.TEXT)
 
             local layoutOptions = {"Vertical", "Horizontal"}
             local selectedIdx = 1
@@ -1209,7 +1183,7 @@ function MenuLib:Init(config)
             local LAYOUT_DROP_W = 110
 
             local layoutDropBtn = Instance.new("TextButton")
-            layoutDropBtn.Size = UDim2.new(0, LAYOUT_DROP_W, 0, 26)
+            layoutDropBtn.Size = UDim2.fromOffset(LAYOUT_DROP_W, 26)
             layoutDropBtn.Position = UDim2.new(1, -(LAYOUT_DROP_W + 10), 0.5, -13)
             layoutDropBtn.BackgroundColor3 = C.DARK
             layoutDropBtn.Text = "Vertical"
@@ -1225,7 +1199,7 @@ function MenuLib:Init(config)
             ddStroke.Parent = layoutDropBtn
 
             local chevron = Instance.new("ImageLabel")
-            chevron.Size = UDim2.new(0, 10, 0, 10)
+            chevron.Size = UDim2.fromOffset(10, 10)
             chevron.Position = UDim2.new(1, -16, 0.5, -5)
             chevron.BackgroundTransparency = 1
             chevron.Image = "rbxassetid://6031091004"
@@ -1255,7 +1229,7 @@ function MenuLib:Init(config)
                 if closeConn then closeConn:Disconnect() closeConn = nil end
                 tw(chevron, { Rotation = 0 }, 0.2)
                 if dropFrame then
-                    tw(dropFrame, { Size = UDim2.new(0, LAYOUT_DROP_W, 0, 0), BackgroundTransparency = 1 }, 0.2)
+                    tw(dropFrame, { Size = UDim2.fromOffset(LAYOUT_DROP_W, 0), BackgroundTransparency = 1 }, 0.2)
                     local cf = dropFrame
                     local cs = dropShadow
                     dropFrame = nil
@@ -1278,10 +1252,10 @@ function MenuLib:Init(config)
                 local dropX = btnPos.X
                 local targetH = #layoutOptions * 30 + 8
 
-                dropShadow = fr(sg, UDim2.new(0, LAYOUT_DROP_W, 0, 0), UDim2.new(0, dropX + 2, 0, dropY + 2), Color3.new(0, 0, 0), 0.7, 8)
+                dropShadow = fr(sg, UDim2.fromOffset(LAYOUT_DROP_W, 0), UDim2.fromOffset(dropX + 2, dropY + 2), Color3.new(0, 0, 0), 0.7, 8)
                 dropShadow.ZIndex = Z.DROPDOWN_SHADOW
 
-                dropFrame = fr(sg, UDim2.new(0, LAYOUT_DROP_W, 0, 0), UDim2.new(0, dropX, 0, dropY), C.DARK, 0, 8)
+                dropFrame = fr(sg, UDim2.fromOffset(LAYOUT_DROP_W, 0), UDim2.fromOffset(dropX, dropY), C.DARK, 0, 8)
                 dropFrame.ZIndex = Z.DROPDOWN
                 dropFrame.ClipsDescendants = true
                 local dStroke = Instance.new("UIStroke")
@@ -1292,11 +1266,11 @@ function MenuLib:Init(config)
 
                 local dScroll = Instance.new("ScrollingFrame")
                 dScroll.Size = UDim2.new(1, -4, 1, -4)
-                dScroll.Position = UDim2.new(0, 2, 0, 2)
+                dScroll.Position = UDim2.fromOffset(2, 2)
                 dScroll.BackgroundTransparency = 1
                 dScroll.BorderSizePixel = 0
                 dScroll.ScrollBarThickness = 0
-                dScroll.CanvasSize = UDim2.new(0, 0, 0, #layoutOptions * 30)
+                dScroll.CanvasSize = UDim2.fromOffset(0, #layoutOptions * 30)
                 dScroll.Parent = dropFrame
                 local dList = Instance.new("UIListLayout")
                 dList.SortOrder = Enum.SortOrder.LayoutOrder
@@ -1342,8 +1316,8 @@ function MenuLib:Init(config)
                     end))
                 end
 
-                tw(dropShadow, { Size = UDim2.new(0, LAYOUT_DROP_W, 0, targetH) }, 0.25, Enum.EasingStyle.Quint)
-                tw(dropFrame, { Size = UDim2.new(0, LAYOUT_DROP_W, 0, targetH) }, 0.25, Enum.EasingStyle.Quint)
+                tw(dropShadow, { Size = UDim2.fromOffset(LAYOUT_DROP_W, targetH) }, 0.25, Enum.EasingStyle.Quint)
+                tw(dropFrame, { Size = UDim2.fromOffset(LAYOUT_DROP_W, targetH) }, 0.25, Enum.EasingStyle.Quint)
 
                 if closeConn then closeConn:Disconnect() closeConn = nil end
                 closeConn = UserInputService.InputBegan:Connect(function(input)
@@ -1456,19 +1430,19 @@ function MenuLib:Init(config)
             local columnsRow = fr(playersScroll, UDim2.new(1, -10, 1, -10), nil, C.CONTENT, 1, 0)
             columnsRow.LayoutOrder = 1
 
-            local leftCol = fr(columnsRow, UDim2.new(0.5, -4, 1, 0), UDim2.new(0, 0, 0, 0), C.HEADER, 0, 12)
+            local leftCol = fr(columnsRow, UDim2.new(0.5, -4, 1, 0), UDim2.fromOffset(0, 0), C.HEADER, 0, 12)
 
             local leftHeader = fr(leftCol, UDim2.new(1, 0, 0, 36), nil, C.DARK, 0, UDim.new(0, 12))
-            lbl(leftHeader, "Players", UDim2.new(0, 80, 1, 0), UDim2.new(0, 12, 0, 0), 14, C.TEXT, FONT_BOLD)
-            local playerCountLbl = lbl(leftHeader, "0", UDim2.new(0, 30, 0, 18), UDim2.new(0, 80, 0.5, -9), 10, C.ACCENT, FONT_BOLD)
+            lbl(leftHeader, "Players", UDim2.new(0, 80, 1, 0), UDim2.fromOffset(12, 0), 14, C.TEXT, FONT_BOLD)
+            local playerCountLbl = lbl(leftHeader, "0", UDim2.fromOffset(30, 18), UDim2.new(0, 80, 0.5, -9), 10, C.ACCENT, FONT_BOLD)
             playerCountLbl.BackgroundColor3 = C.SEL
             playerCountLbl.BackgroundTransparency = 0
             playerCountLbl.TextXAlignment = Enum.TextXAlignment.Center
             Instance.new("UICorner", playerCountLbl).CornerRadius = UDim.new(0, 6)
 
-            local playerSearchBar = fr(leftCol, UDim2.new(1, -16, 0, 28), UDim2.new(0, 8, 0, 42), C.SEL, 0, 8)
+            local playerSearchBar = fr(leftCol, UDim2.new(1, -16, 0, 28), UDim2.fromOffset(8, 42), C.SEL, 0, 8)
             local playerSearchIcon = Instance.new("ImageLabel")
-            playerSearchIcon.Size = UDim2.new(0, 14, 0, 14)
+            playerSearchIcon.Size = UDim2.fromOffset(14, 14)
             playerSearchIcon.Position = UDim2.new(0, 8, 0.5, -7)
             playerSearchIcon.BackgroundTransparency = 1
             playerSearchIcon.Image = "rbxassetid://6031154871"
@@ -1477,7 +1451,7 @@ function MenuLib:Init(config)
 
             local playerSearchBox = Instance.new("TextBox")
             playerSearchBox.Size = UDim2.new(1, -30, 1, 0)
-            playerSearchBox.Position = UDim2.new(0, 26, 0, 0)
+            playerSearchBox.Position = UDim2.fromOffset(26, 0)
             playerSearchBox.BackgroundTransparency = 1
             playerSearchBox.Text = ""
             playerSearchBox.TextColor3 = C.TEXT
@@ -1491,12 +1465,12 @@ function MenuLib:Init(config)
 
             local playerListScroll = Instance.new("ScrollingFrame")
             playerListScroll.Size = UDim2.new(1, -16, 1, -80)
-            playerListScroll.Position = UDim2.new(0, 8, 0, 76)
+            playerListScroll.Position = UDim2.fromOffset(8, 76)
             playerListScroll.BackgroundTransparency = 1
             playerListScroll.BorderSizePixel = 0
             playerListScroll.ScrollBarThickness = 3
             playerListScroll.ScrollBarImageColor3 = C.ACCENT
-            playerListScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+            playerListScroll.CanvasSize = UDim2.fromOffset(0, 0)
             playerListScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
             playerListScroll.Parent = leftCol
 
@@ -1508,16 +1482,16 @@ function MenuLib:Init(config)
             local rightCol = fr(columnsRow, UDim2.new(0.5, -4, 1, 0), UDim2.new(0.5, 4, 0, 0), C.HEADER, 0, 12)
 
             local rightHeader = fr(rightCol, UDim2.new(1, 0, 0, 36), nil, C.DARK, 0, UDim.new(0, 12))
-            lbl(rightHeader, "Friends", UDim2.new(0, 80, 1, 0), UDim2.new(0, 12, 0, 0), 14, C.TEXT, FONT_BOLD)
-            local friendCountLbl = lbl(rightHeader, "0", UDim2.new(0, 30, 0, 18), UDim2.new(0, 80, 0.5, -9), 10, C.GREEN, FONT_BOLD)
+            lbl(rightHeader, "Friends", UDim2.new(0, 80, 1, 0), UDim2.fromOffset(12, 0), 14, C.TEXT, FONT_BOLD)
+            local friendCountLbl = lbl(rightHeader, "0", UDim2.fromOffset(30, 18), UDim2.new(0, 80, 0.5, -9), 10, C.GREEN, FONT_BOLD)
             friendCountLbl.BackgroundColor3 = C.SEL
             friendCountLbl.BackgroundTransparency = 0
             friendCountLbl.TextXAlignment = Enum.TextXAlignment.Center
             Instance.new("UICorner", friendCountLbl).CornerRadius = UDim.new(0, 6)
 
-            local friendSearchBar = fr(rightCol, UDim2.new(1, -16, 0, 28), UDim2.new(0, 8, 0, 42), C.SEL, 0, 8)
+            local friendSearchBar = fr(rightCol, UDim2.new(1, -16, 0, 28), UDim2.fromOffset(8, 42), C.SEL, 0, 8)
             local friendSearchIcon = Instance.new("ImageLabel")
-            friendSearchIcon.Size = UDim2.new(0, 14, 0, 14)
+            friendSearchIcon.Size = UDim2.fromOffset(14, 14)
             friendSearchIcon.Position = UDim2.new(0, 8, 0.5, -7)
             friendSearchIcon.BackgroundTransparency = 1
             friendSearchIcon.Image = "rbxassetid://6031154871"
@@ -1526,7 +1500,7 @@ function MenuLib:Init(config)
 
             local friendSearchBox = Instance.new("TextBox")
             friendSearchBox.Size = UDim2.new(1, -30, 1, 0)
-            friendSearchBox.Position = UDim2.new(0, 26, 0, 0)
+            friendSearchBox.Position = UDim2.fromOffset(26, 0)
             friendSearchBox.BackgroundTransparency = 1
             friendSearchBox.Text = ""
             friendSearchBox.TextColor3 = C.TEXT
@@ -1540,12 +1514,12 @@ function MenuLib:Init(config)
 
             local friendListScroll = Instance.new("ScrollingFrame")
             friendListScroll.Size = UDim2.new(1, -16, 1, -80)
-            friendListScroll.Position = UDim2.new(0, 8, 0, 76)
+            friendListScroll.Position = UDim2.fromOffset(8, 76)
             friendListScroll.BackgroundTransparency = 1
             friendListScroll.BorderSizePixel = 0
             friendListScroll.ScrollBarThickness = 3
             friendListScroll.ScrollBarImageColor3 = C.GREEN
-            friendListScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+            friendListScroll.CanvasSize = UDim2.fromOffset(0, 0)
             friendListScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
             friendListScroll.Parent = rightCol
 
@@ -1571,10 +1545,10 @@ function MenuLib:Init(config)
                         local row = fr(friendListScroll, UDim2.new(1, 0, 0, 36), nil, C.SEL, 0, 8)
                         row.LayoutOrder = count
 
-                        local avFrame = fr(row, UDim2.new(0, 26, 0, 26), UDim2.new(0, 6, 0.5, -13), C.DARK, 0, 13)
+                        local avFrame = fr(row, UDim2.fromOffset(26, 26), UDim2.new(0, 6, 0.5, -13), C.DARK, 0, 13)
                         local avFImg = Instance.new("ImageLabel")
                         avFImg.Size = UDim2.new(1, -4, 1, -4)
-                        avFImg.Position = UDim2.new(0, 2, 0, 2)
+                        avFImg.Position = UDim2.fromOffset(2, 2)
                         avFImg.BackgroundTransparency = 1
                         avFImg.Parent = avFrame
                         Instance.new("UICorner", avFImg).CornerRadius = UDim.new(1, 0)
@@ -1591,17 +1565,17 @@ function MenuLib:Init(config)
                             end
                         end)
 
-                        local fNameLbl = lbl(row, friendName, UDim2.new(1, -100, 1, 0), UDim2.new(0, 38, 0, 0), 11, C.TEXT, FONT_BOLD)
+                        local fNameLbl = lbl(row, friendName, UDim2.new(1, -100, 1, 0), UDim2.fromOffset(38, 0), 11, C.TEXT, FONT_BOLD)
                         fNameLbl.TextTruncate = Enum.TextTruncate.AtEnd
 
                         local isOnline = false
                         for _, p in ipairs(Players:GetPlayers()) do
                             if p.Name == friendName then isOnline = true break end
                         end
-                        local onlineDot = fr(row, UDim2.new(0, 8, 0, 8), UDim2.new(0, 38, 0, 4), isOnline and C.GREEN or C.RED, 0, 4)
+                        fr(row, UDim2.fromOffset(8, 8), UDim2.fromOffset(38, 4), isOnline and C.GREEN or C.RED, 0, 4)
 
                         local removeBtn = Instance.new("TextButton")
-                        removeBtn.Size = UDim2.new(0, 60, 0, 24)
+                        removeBtn.Size = UDim2.fromOffset(60, 24)
                         removeBtn.Position = UDim2.new(1, -66, 0.5, -12)
                         removeBtn.BackgroundColor3 = C.RED
                         removeBtn.Text = "Remove"
@@ -1611,7 +1585,8 @@ function MenuLib:Init(config)
                         removeBtn.AutoButtonColor = false
                         removeBtn.Parent = row
                         Instance.new("UICorner", removeBtn).CornerRadius = UDim.new(0, 6)
-                        local remGrad = Instance.new("UIGradient", removeBtn)
+                        local remGrad = Instance.new("UIGradient")
+                        remGrad.Parent = removeBtn
                         remGrad.Color = ColorSequence.new({ColorSequenceKeypoint.new(0, C.RED), ColorSequenceKeypoint.new(1, Color3.fromRGB(190, 45, 45))})
                         remGrad.Rotation = 90
 
@@ -1626,7 +1601,7 @@ function MenuLib:Init(config)
                                 end
                             end
                             SaveFriendsToFile()
-                            tw(row, {Size = UDim2.new(1, 0, 0, 0), BackgroundTransparency = 1}, 0.15)
+                            tw(row, {Size = UDim2.fromScale(1, 0), BackgroundTransparency = 1}, 0.15)
                             pcall(function() task.delay(0.15, function() pcall(function()
                                 row:Destroy()
                                 refreshFriendList(friendSearchBox.Text)
@@ -1663,10 +1638,10 @@ function MenuLib:Init(config)
                         local row = fr(playerListScroll, UDim2.new(1, 0, 0, 36), nil, C.SEL, 0, 8)
                         row.LayoutOrder = count
 
-                        local avFrame = fr(row, UDim2.new(0, 26, 0, 26), UDim2.new(0, 6, 0.5, -13), C.DARK, 0, 13)
+                        local avFrame = fr(row, UDim2.fromOffset(26, 26), UDim2.new(0, 6, 0.5, -13), C.DARK, 0, 13)
                         local avPImg = Instance.new("ImageLabel")
                         avPImg.Size = UDim2.new(1, -4, 1, -4)
-                        avPImg.Position = UDim2.new(0, 2, 0, 2)
+                        avPImg.Position = UDim2.fromOffset(2, 2)
                         avPImg.BackgroundTransparency = 1
                         avPImg.Parent = avFrame
                         Instance.new("UICorner", avPImg).CornerRadius = UDim.new(1, 0)
@@ -1678,11 +1653,11 @@ function MenuLib:Init(config)
                             if ok2 and url2 then avPImg.Image = url2 end
                         end)
 
-                        local pNameLbl = lbl(row, pName, UDim2.new(1, -100, 1, 0), UDim2.new(0, 38, 0, 0), 11, C.TEXT, FONT_BOLD)
+                        local pNameLbl = lbl(row, pName, UDim2.new(1, -100, 1, 0), UDim2.fromOffset(38, 0), 11, C.TEXT, FONT_BOLD)
                         pNameLbl.TextTruncate = Enum.TextTruncate.AtEnd
 
                         if player == lp then
-                            local youBadge = lbl(row, "YOU", UDim2.new(0, 28, 0, 14), UDim2.new(1, -96, 0.5, -7), 9, C.ACCENT, FONT_BOLD)
+                            local youBadge = lbl(row, "YOU", UDim2.fromOffset(28, 14), UDim2.new(1, -96, 0.5, -7), 9, C.ACCENT, FONT_BOLD)
                             youBadge.BackgroundColor3 = C.SEL
                             youBadge.BackgroundTransparency = 0
                             youBadge.TextXAlignment = Enum.TextXAlignment.Center
@@ -1696,11 +1671,11 @@ function MenuLib:Init(config)
 
                         if player ~= lp then
                             if isFriend then
-                                local addedLbl = lbl(row, "✓ Friend", UDim2.new(0, 56, 0, 24), UDim2.new(1, -62, 0.5, -12), 10, C.GREEN, FONT_BOLD)
+                                local addedLbl = lbl(row, "✓ Friend", UDim2.fromOffset(56, 24), UDim2.new(1, -62, 0.5, -12), 10, C.GREEN, FONT_BOLD)
                                 addedLbl.TextXAlignment = Enum.TextXAlignment.Center
                             else
                                 local addBtn = Instance.new("TextButton")
-                                addBtn.Size = UDim2.new(0, 46, 0, 24)
+                                addBtn.Size = UDim2.fromOffset(46, 24)
                                 addBtn.Position = UDim2.new(1, -52, 0.5, -12)
                                 addBtn.BackgroundColor3 = C.ACCENT
                                 addBtn.Text = "✓"
@@ -1710,7 +1685,8 @@ function MenuLib:Init(config)
                                 addBtn.AutoButtonColor = false
                                 addBtn.Parent = row
                                 Instance.new("UICorner", addBtn).CornerRadius = UDim.new(0, 6)
-                                local addGrad = Instance.new("UIGradient", addBtn)
+                                local addGrad = Instance.new("UIGradient")
+                                addGrad.Parent = addBtn
                                 addGrad.Color = ColorSequence.new({ColorSequenceKeypoint.new(0, C.ACCENT), ColorSequenceKeypoint.new(1, C.ACCENT2)})
                                 addGrad.Rotation = 90
 
@@ -1771,18 +1747,18 @@ function MenuLib:Init(config)
         local scrollFrame = settingsTabs[tabName]
         local row = fr(scrollFrame, UDim2.new(1, -10, 0, 40), nil, C.HEADER, 0, 10)
         row.LayoutOrder = #scrollFrame:GetChildren()
-        local stripe = fr(row, UDim2.new(0, 3, 1, -8), UDim2.new(0, 0, 0, 4), C.ACCENT, 0, 0)
+        local stripe = fr(row, UDim2.new(0, 3, 1, -8), UDim2.fromOffset(0, 4), C.ACCENT, 0, 0)
         gradV(stripe, C.ACCENT, C.ACCENT2)
-        lbl(row, label, UDim2.new(1, -100, 1, 0), UDim2.new(0, 14, 0, 0), 12, C.TEXT)
+        lbl(row, label, UDim2.new(1, -100, 1, 0), UDim2.fromOffset(14, 0), 12, C.TEXT)
         local keyBtn = Instance.new("TextButton")
-        keyBtn.Size = UDim2.new(0, 70, 0, 26)
+        keyBtn.Size = UDim2.fromOffset(70, 26)
         keyBtn.Position = UDim2.new(1, -82, 0.5, -13)
         keyBtn.BackgroundColor3 = C.SEL
         local keyText = ""
         if typeof(key) == "EnumItem" then
-            if key.EnumType == Enum.KeyCode then
+            if rawequal(key.EnumType, Enum.KeyCode) then
                 keyText = key.Name
-            elseif key.EnumType == Enum.UserInputType then
+            elseif rawequal(key.EnumType, Enum.UserInputType) then
                 keyText = key.Name:gsub("MouseButton", "MB")
             end
         else
@@ -1800,8 +1776,8 @@ function MenuLib:Init(config)
 
         local function displayFor(k)
             if typeof(k) == "EnumItem" then
-                if k.EnumType == Enum.KeyCode then return k.Name end
-                if k.EnumType == Enum.UserInputType then return (k.Name:gsub("MouseButton", "MB")) end
+                if rawequal(k.EnumType, Enum.KeyCode) then return k.Name end
+                if rawequal(k.EnumType, Enum.UserInputType) then return (k.Name:gsub("MouseButton", "MB")) end
             end
             return tostring(k)
         end
@@ -1857,13 +1833,10 @@ function MenuLib:Init(config)
                     return
                 end
                 local selectedKey = nil
-                local displayText = ""
-                if inp.KeyCode and inp.KeyCode ~= Enum.KeyCode.Unknown then
+                if inp.KeyCode and inp.KeyCode.Name ~= "Unknown" then
                     selectedKey = inp.KeyCode
-                    displayText = inp.KeyCode.Name
                 elseif inp.UserInputType and (inp.UserInputType.Name:match("MouseButton") or inp.UserInputType.Name:match("MouseWheel")) then
                     selectedKey = inp.UserInputType
-                    displayText = inp.UserInputType.Name:gsub("MouseButton", "MB")
                 end
                 if selectedKey then
                     cleanup()
@@ -1893,13 +1866,13 @@ function MenuLib:Init(config)
         tw(homeBtnIcon1, { ImageTransparency = 1 }, 0.25)
         tw(homeBtnIcon2, { ImageTransparency = 0 }, 0.25)
 
-        tw(win, { Size = UDim2.new(0, 0, 0, 0), Position = UDim2.new(0.5, 0, 0.5, 0) }, 0.2)
+        tw(win, { Size = UDim2.fromOffset(0, 0), Position = UDim2.fromScale(0.5, 0.5) }, 0.2)
         pcall(function() task.delay(0.2, function() pcall(function() win.Visible = false end) end) end)
 
-        settingsPanel.Size = UDim2.new(0, 0, 0, 0)
-        settingsPanel.Position = UDim2.new(0.5, 0, 0.5, 0)
+        settingsPanel.Size = UDim2.fromOffset(0, 0)
+        settingsPanel.Position = UDim2.fromScale(0.5, 0.5)
         settingsPanel.Visible = true
-        tw(settingsPanel, { Size = UDim2.new(0, WIN_W, 0, WIN_H), Position = UDim2.new(0.5, -WIN_W/2, 0.5, -WIN_H/2) }, 0.25)
+        tw(settingsPanel, { Size = UDim2.fromOffset(WIN_W, WIN_H), Position = UDim2.new(0.5, -WIN_W/2, 0.5, -WIN_H/2) }, 0.25)
         activeSettingTab = 1
         for i, content in ipairs(settingsTabContents) do
             content.Visible = (i == 1)
@@ -1915,7 +1888,7 @@ function MenuLib:Init(config)
         for i = 2, #catBtns do
             catBtns[i].bg.BackgroundTransparency = 1
             catBtns[i].line.BackgroundTransparency = 1
-            catBtns[i].line.Size = UDim2.new(0, 4, 0, 0)
+            catBtns[i].line.Size = UDim2.fromOffset(4, 0)
             catBtns[i].icon.ImageColor3 = C.DIM
             catBtns[i].icon.Position = UDim2.new(0, 10, 0.5, -12)
             catBtns[i].lbl.TextColor3 = C.DIM
@@ -1931,15 +1904,15 @@ function MenuLib:Init(config)
         tw(homeBtnIcon1, { ImageTransparency = 0 }, 0.25)
         tw(homeBtnIcon2, { ImageTransparency = 1 }, 0.25)
 
-        tw(settingsPanel, { Size = UDim2.new(0, 0, 0, 0), Position = UDim2.new(0.5, 0, 0.5, 0) }, 0.2)
+        tw(settingsPanel, { Size = UDim2.fromOffset(0, 0), Position = UDim2.fromScale(0.5, 0.5) }, 0.2)
         pcall(function() task.delay(0.2, function() pcall(function()
             settingsPanel.Visible = false
         end) end) end)
 
-        win.Size = UDim2.new(0, 0, 0, 0)
-        win.Position = UDim2.new(0.5, 0, 0.5, 0)
+        win.Size = UDim2.fromOffset(0, 0)
+        win.Position = UDim2.fromScale(0.5, 0.5)
         win.Visible = true
-        tw(win, { Size = UDim2.new(0, WIN_W, 0, WIN_H), Position = UDim2.new(0.5, -WIN_W / 2, 0.5, -WIN_H / 2) }, 0.25)
+        tw(win, { Size = UDim2.fromOffset(WIN_W, WIN_H), Position = UDim2.new(0.5, -WIN_W / 2, 0.5, -WIN_H / 2) }, 0.25)
         pcall(function() task.delay(0.25, function() isTransitioning = false end) end)
     end
 
@@ -1960,11 +1933,11 @@ function MenuLib:Init(config)
         end
         if inSettings then
             unlockInput()
-            tw(settingsPanel, { Size = UDim2.new(0, 0, 0, 0), Position = UDim2.new(0.5, 0, 0.5, 0) }, 0.15)
+            tw(settingsPanel, { Size = UDim2.fromOffset(0, 0), Position = UDim2.fromScale(0.5, 0.5) }, 0.15)
             pcall(function() task.delay(0.15, function() pcall(function() settingsPanel.Visible = false end) end) end)
         else
             unlockInput()
-            tw(win, { Size = UDim2.new(0, 0, 0, 0), Position = UDim2.new(0.5, 0, 0.5, 0) }, 0.15)
+            tw(win, { Size = UDim2.fromOffset(0, 0), Position = UDim2.fromScale(0.5, 0.5) }, 0.15)
             pcall(function() task.delay(0.15, function() pcall(function() win.Visible = false end) end) end)
         end
     end
@@ -1987,14 +1960,14 @@ function MenuLib:Init(config)
         end
         if inSettings then
             settingsPanel.Visible = true
-            settingsPanel.Size = UDim2.new(0, 0, 0, 0)
-            settingsPanel.Position = UDim2.new(0.5, 0, 0.5, 0)
-            tw(settingsPanel, { Size = UDim2.new(0, WIN_W, 0, WIN_H), Position = UDim2.new(0.5, -WIN_W/2, 0.5, -WIN_H/2) }, 0.22)
+            settingsPanel.Size = UDim2.fromOffset(0, 0)
+            settingsPanel.Position = UDim2.fromScale(0.5, 0.5)
+            tw(settingsPanel, { Size = UDim2.fromOffset(WIN_W, WIN_H), Position = UDim2.new(0.5, -WIN_W/2, 0.5, -WIN_H/2) }, 0.22)
         else
             win.Visible = true
-            win.Size = UDim2.new(0, 0, 0, 0)
-            win.Position = UDim2.new(0.5, 0, 0.5, 0)
-            tw(win, { Size = UDim2.new(0, WIN_W, 0, WIN_H), Position = UDim2.new(0.5, -WIN_W/2, 0.5, -WIN_H/2) }, 0.22)
+            win.Size = UDim2.fromOffset(0, 0)
+            win.Position = UDim2.fromScale(0.5, 0.5)
+            tw(win, { Size = UDim2.fromOffset(WIN_W, WIN_H), Position = UDim2.new(0.5, -WIN_W/2, 0.5, -WIN_H/2) }, 0.22)
         end
     end
 
@@ -2024,11 +1997,6 @@ function MenuLib:Init(config)
     local winOrig = UDim2.new()
     local settingsOrig = UDim2.new()
     local dragTarget = nil
-    local guiInset = Vector2.new(0, 0)
-    pcall(function()
-        local gi = game:GetService("GuiService"):GetGuiInset()
-        guiInset = Vector2.new(gi.X, gi.Y)
-    end)
 
     table.insert(conns, dragHandle.InputBegan:Connect(function(inp)
         if inp.UserInputType == Enum.UserInputType.MouseButton1 then
@@ -2036,8 +2004,8 @@ function MenuLib:Init(config)
             dragTarget = "main"
             dragOrig = Vector2.new(inp.Position.X, inp.Position.Y)
             if win then
-                win.Size = UDim2.new(0, win.AbsoluteSize.X, 0, win.AbsoluteSize.Y)
-                win.Position = UDim2.new(0, win.AbsolutePosition.X, 0, win.AbsolutePosition.Y)
+                win.Size = UDim2.fromOffset(win.AbsoluteSize.X, win.AbsoluteSize.Y)
+                win.Position = UDim2.fromOffset(win.AbsolutePosition.X, win.AbsolutePosition.Y)
                 winOrig = win.Position
             end
         end
@@ -2056,8 +2024,8 @@ function MenuLib:Init(config)
             dragTarget = "settings"
             dragOrig = Vector2.new(inp.Position.X, inp.Position.Y)
             if settingsPanel then
-                settingsPanel.Size = UDim2.new(0, settingsPanel.AbsoluteSize.X, 0, settingsPanel.AbsoluteSize.Y)
-                settingsPanel.Position = UDim2.new(0, settingsPanel.AbsolutePosition.X, 0, settingsPanel.AbsolutePosition.Y)
+                settingsPanel.Size = UDim2.fromOffset(settingsPanel.AbsoluteSize.X, settingsPanel.AbsoluteSize.Y)
+                settingsPanel.Position = UDim2.fromOffset(settingsPanel.AbsolutePosition.X, settingsPanel.AbsolutePosition.Y)
                 settingsOrig = settingsPanel.Position
             end
         end
@@ -2075,11 +2043,11 @@ function MenuLib:Init(config)
             local mp = UserInputService:GetMouseLocation()
             if dragTarget == "settings" and settingsPanel then
                 pcall(function()
-                    settingsPanel.Position = UDim2.new(0, settingsOrig.X.Offset + (mp.X - dragOrig.X), 0, settingsOrig.Y.Offset + (mp.Y - dragOrig.Y))
+                    settingsPanel.Position = UDim2.fromOffset(settingsOrig.X.Offset + (mp.X - dragOrig.X), settingsOrig.Y.Offset + (mp.Y - dragOrig.Y))
                 end)
             elseif dragTarget == "main" and win then
                 pcall(function()
-                    win.Position = UDim2.new(0, winOrig.X.Offset + (mp.X - dragOrig.X), 0, winOrig.Y.Offset + (mp.Y - dragOrig.Y))
+                    win.Position = UDim2.fromOffset(winOrig.X.Offset + (mp.X - dragOrig.X), winOrig.Y.Offset + (mp.Y - dragOrig.Y))
                 end)
             end
         end
@@ -2155,9 +2123,9 @@ function MenuLib:Init(config)
 
         local targetWidth = currentX + 8
         if animate then
-            tw(hudBar, { Size = UDim2.new(0, targetWidth, 0, 44), Position = UDim2.new(0.5, -targetWidth / 2, 0, 10) }, 0.25)
+            tw(hudBar, { Size = UDim2.fromOffset(targetWidth, 44), Position = UDim2.new(0.5, -targetWidth / 2, 0, 10) }, 0.25)
         else
-            hudBar.Size = UDim2.new(0, targetWidth, 0, 44)
+            hudBar.Size = UDim2.fromOffset(targetWidth, 44)
             hudBar.Position = UDim2.new(0.5, -targetWidth / 2, 0, 10)
         end
     end
@@ -2228,9 +2196,9 @@ function MenuLib:Init(config)
                 end)
             end)
             pcall(function()
-                local lp = game:GetService("Players").LocalPlayer
-                if lp then
-                    local ps = lp:FindFirstChild("PlayerScripts")
+                local localPlayer = game:GetService("Players").LocalPlayer
+                if localPlayer then
+                    local ps = localPlayer:FindFirstChild("PlayerScripts")
                     if ps then
                         local pm = ps:FindFirstChild("PlayerModule")
                         if pm then
@@ -2342,9 +2310,9 @@ function MenuLib:Init(config)
         local rowBg = isPanel and C.HEADER or C.SEL
         local row = fr(container, UDim2.new(1, 0, 0, 40), nil, rowBg, 0, 10)
         row.LayoutOrder = #container:GetChildren()
-        local stripe = fr(row, UDim2.new(0, 3, 1, -8), UDim2.new(0, 0, 0, 4), C.ACCENT, 0, 0)
+        local stripe = fr(row, UDim2.new(0, 3, 1, -8), UDim2.fromOffset(0, 4), C.ACCENT, 0, 0)
         gradV(stripe, C.ACCENT, C.ACCENT2)
-        lbl(row, label, UDim2.new(1, reserveColorSlots and -118 or -70, 1, 0), UDim2.new(0, 14, 0, 0), 12, C.TEXT)
+        lbl(row, label, UDim2.new(1, reserveColorSlots and -118 or -70, 1, 0), UDim2.fromOffset(14, 0), 12, C.TEXT)
         local toggle = mkToggle(row, -56, default or false, callback)
         toggle.Row = row
         toggle.SetVisible = function(visible) pcall(function() row.Visible = visible and true or false end) end
@@ -2362,25 +2330,25 @@ function MenuLib:Init(config)
         local rowBg = isPanel and C.HEADER or C.SEL
         local row = fr(container, UDim2.new(1, 0, 0, 50), nil, rowBg, 0, 10)
         row.LayoutOrder = #container:GetChildren()
-        local stripe = fr(row, UDim2.new(0, 3, 1, -8), UDim2.new(0, 0, 0, 4), C.ACCENT, 0, 0)
+        local stripe = fr(row, UDim2.new(0, 3, 1, -8), UDim2.fromOffset(0, 4), C.ACCENT, 0, 0)
         gradV(stripe, C.ACCENT, C.ACCENT2)
 
-        lbl(row, label, UDim2.new(1, -20, 0, 20), UDim2.new(0, 14, 0, 4), 12, C.TEXT)
-        local valueLbl = lbl(row, tostring(default or min), UDim2.new(0, 40, 0, 20), UDim2.new(1, -50, 0, 4), 12, C.ACCENT, FONT_BOLD)
+        lbl(row, label, UDim2.new(1, -20, 0, 20), UDim2.fromOffset(14, 4), 12, C.TEXT)
+        local valueLbl = lbl(row, tostring(default or min), UDim2.fromOffset(40, 20), UDim2.new(1, -50, 0, 4), 12, C.ACCENT, FONT_BOLD)
         valueLbl.TextXAlignment = Enum.TextXAlignment.Right
 
-        local track = fr(row, UDim2.new(1, -28, 0, 6), UDim2.new(0, 14, 0, 28), Color3.fromRGB(40, 20, 70), 0, 3)
-        local fill = fr(track, UDim2.new(0, 0, 1, 0), nil, C.ACCENT, 0, 3)
+        local track = fr(row, UDim2.new(1, -28, 0, 6), UDim2.fromOffset(14, 28), Color3.fromRGB(40, 20, 70), 0, 3)
+        local fill = fr(track, UDim2.fromScale(0, 1), nil, C.ACCENT, 0, 3)
         gradV(fill, C.ACCENT, C.ACCENT2)
 
-        local knob = fr(track, UDim2.new(0, 12, 0, 12), nil, C.TEXT, 0, 6)
+        local knob = fr(track, UDim2.fromOffset(12, 12), nil, C.TEXT, 0, 6)
 
         local value = default or min
         local range = max - min
 
         local function updateVisuals(animate)
             local percent = math.clamp((value - min) / range, 0, 1)
-            local targetWidth = UDim2.new(percent, 0, 1, 0)
+            local targetWidth = UDim2.fromScale(percent, 1)
             local targetPos = UDim2.new(percent, -6, 0, -3)
             if animate then
                 tw(fill, { Size = targetWidth }, 0.15)
@@ -2394,10 +2362,10 @@ function MenuLib:Init(config)
 
         updateVisuals(false)
 
-        local dragging = false
+        local trackDragging = false
         table.insert(conns, track.InputBegan:Connect(function(inp)
             if inp.UserInputType == Enum.UserInputType.MouseButton1 then
-                dragging = true
+                trackDragging = true
                 local absX = inp.Position.X - track.AbsolutePosition.X
                 local percent = math.clamp(absX / track.AbsoluteSize.X, 0, 1)
                 value = min + (percent * range)
@@ -2407,7 +2375,7 @@ function MenuLib:Init(config)
         end))
 
         table.insert(conns, UserInputService.InputChanged:Connect(function(inp)
-            if dragging and inp.UserInputType == Enum.UserInputType.MouseMovement then
+            if trackDragging and inp.UserInputType == Enum.UserInputType.MouseMovement then
                 local absX = inp.Position.X - track.AbsolutePosition.X
                 local percent = math.clamp(absX / track.AbsoluteSize.X, 0, 1)
                 value = min + (percent * range)
@@ -2418,7 +2386,7 @@ function MenuLib:Init(config)
 
         table.insert(conns, UserInputService.InputEnded:Connect(function(inp)
             if inp.UserInputType == Enum.UserInputType.MouseButton1 then
-                dragging = false
+                trackDragging = false
             end
         end))
 
@@ -2443,9 +2411,9 @@ function MenuLib:Init(config)
             local rowBg = isPanel and C.HEADER or C.SEL
             row = fr(container, UDim2.new(1, 0, 0, 40), nil, rowBg, 0, 10)
             row.LayoutOrder = #container:GetChildren()
-            local stripe = fr(row, UDim2.new(0, 3, 1, -8), UDim2.new(0, 0, 0, 4), C.ACCENT, 0, 0)
+            local stripe = fr(row, UDim2.new(0, 3, 1, -8), UDim2.fromOffset(0, 4), C.ACCENT, 0, 0)
             gradV(stripe, C.ACCENT, C.ACCENT2)
-            lbl(row, label, UDim2.new(1, -70, 1, 0), UDim2.new(0, 14, 0, 0), 12, C.TEXT)
+            lbl(row, label, UDim2.new(1, -70, 1, 0), UDim2.fromOffset(14, 0), 12, C.TEXT)
         end
 
         local color = defaultColor or Color3.fromRGB(255, 255, 255)
@@ -2525,7 +2493,6 @@ function MenuLib:Init(config)
                 if closer ~= closePicker then pcall(closer) end
             end
 
-            local GuiService = game:GetService("GuiService")
             local camera = workspace.CurrentCamera
             local viewport = camera and camera.ViewportSize or Vector2.new(1280, 720)
             local startX = math.floor((viewport.X - PICKER_W) * 0.5)
@@ -3087,17 +3054,17 @@ function MenuLib:Init(config)
         local rowBg = isPanel and C.HEADER or C.SEL
         local row = fr(container, UDim2.new(1, 0, 0, 40), nil, rowBg, 0, 10)
         row.LayoutOrder = #container:GetChildren()
-        local stripe = fr(row, UDim2.new(0, 3, 1, -8), UDim2.new(0, 0, 0, 4), C.ACCENT, 0, 0)
+        local stripe = fr(row, UDim2.new(0, 3, 1, -8), UDim2.fromOffset(0, 4), C.ACCENT, 0, 0)
         gradV(stripe, C.ACCENT, C.ACCENT2)
 
-        lbl(row, label, UDim2.new(1, -155, 1, 0), UDim2.new(0, 14, 0, 0), 12, C.TEXT)
+        lbl(row, label, UDim2.new(1, -155, 1, 0), UDim2.fromOffset(14, 0), 12, C.TEXT)
 
         local selectedIndex = defaultIndex or 1
         local ddIsOpen = false
         local DROP_W = 130
 
         local dropdownBtn = Instance.new("TextButton")
-        dropdownBtn.Size = UDim2.new(0, DROP_W, 0, 28)
+        dropdownBtn.Size = UDim2.fromOffset(DROP_W, 28)
         dropdownBtn.Position = UDim2.new(1, -(DROP_W + 8), 0.5, -14)
         dropdownBtn.BackgroundColor3 = C.DARK
         dropdownBtn.Text = options[selectedIndex] or "Select"
@@ -3123,7 +3090,7 @@ function MenuLib:Init(config)
         btnStroke.Parent = dropdownBtn
 
         local chevron = Instance.new("ImageLabel")
-        chevron.Size = UDim2.new(0, 10, 0, 10)
+        chevron.Size = UDim2.fromOffset(10, 10)
         chevron.Position = UDim2.new(1, -16, 0.5, -5)
         chevron.BackgroundTransparency = 1
         chevron.Image = "rbxassetid://6031091004"
@@ -3142,24 +3109,22 @@ function MenuLib:Init(config)
         local dropdownFrame = nil
         local shadow = nil
         local closeConn = nil
-        local optionButtons = {}
 
         local function closeDropdown()
             ddIsOpen = false
             if closeConn then pcall(function() closeConn:Disconnect() end) closeConn = nil end
             tw(chevron, { Rotation = 0 }, 0.2, Enum.EasingStyle.Quint)
             if shadow then
-                tw(shadow, { Size = UDim2.new(0, DROP_W, 0, 0), BackgroundTransparency = 1 }, 0.22, Enum.EasingStyle.Quint)
+                tw(shadow, { Size = UDim2.fromOffset(DROP_W, 0), BackgroundTransparency = 1 }, 0.22, Enum.EasingStyle.Quint)
             end
             if dropdownFrame then
-                tw(dropdownFrame, { Size = UDim2.new(0, DROP_W, 0, 0), BackgroundTransparency = 1 }, 0.22, Enum.EasingStyle.Quint)
+                tw(dropdownFrame, { Size = UDim2.fromOffset(DROP_W, 0), BackgroundTransparency = 1 }, 0.22, Enum.EasingStyle.Quint)
                 local capturedFrame = dropdownFrame
                 local capturedShadow = shadow
                 dropdownFrame = nil
                 shadow = nil
                 pcall(function() task.delay(0.25, function() pcall(function() if capturedFrame then capturedFrame:Destroy() end if capturedShadow then capturedShadow:Destroy() end end) end) end)
             end
-            optionButtons = {}
         end
 
         local function openDropdown()
@@ -3176,12 +3141,12 @@ function MenuLib:Init(config)
 
             local targetHeight = math.min(#options * 30 + 12, 150)
 
-            shadow = fr(sg, UDim2.new(0, DROP_W, 0, 0),
-                UDim2.new(0, dropX + 2, 0, dropY + 2), Color3.fromRGB(0, 0, 0), 0.7, 8)
+            shadow = fr(sg, UDim2.fromOffset(DROP_W, 0),
+                UDim2.fromOffset(dropX + 2, dropY + 2), Color3.fromRGB(0, 0, 0), 0.7, 8)
             shadow.ZIndex = Z.DROPDOWN_SHADOW
 
-            dropdownFrame = fr(sg, UDim2.new(0, DROP_W, 0, 0),
-                UDim2.new(0, dropX, 0, dropY), C.DARK, 0, 8)
+            dropdownFrame = fr(sg, UDim2.fromOffset(DROP_W, 0),
+                UDim2.fromOffset(dropX, dropY), C.DARK, 0, 8)
             dropdownFrame.ZIndex = Z.DROPDOWN
             dropdownFrame.ClipsDescendants = true
 
@@ -3193,12 +3158,12 @@ function MenuLib:Init(config)
 
             local scroll = Instance.new("ScrollingFrame")
             scroll.Size = UDim2.new(1, -4, 1, -8)
-            scroll.Position = UDim2.new(0, 2, 0, 4)
+            scroll.Position = UDim2.fromOffset(2, 4)
             scroll.BackgroundTransparency = 1
             scroll.BorderSizePixel = 0
             scroll.ScrollBarThickness = 2
             scroll.ScrollBarImageColor3 = C.ACCENT
-            scroll.CanvasSize = UDim2.new(0, 0, 0, #options * 30)
+            scroll.CanvasSize = UDim2.fromOffset(0, #options * 30)
             scroll.Parent = dropdownFrame
 
             local list = Instance.new("UIListLayout")
@@ -3253,16 +3218,14 @@ function MenuLib:Init(config)
                         end) end) end)
                     end
                 end))
-
-                table.insert(optionButtons, optBtn)
             end
 
-            tw(shadow, { Size = UDim2.new(0, DROP_W, 0, targetHeight) }, 0.25, Enum.EasingStyle.Quint)
-            tw(dropdownFrame, { Size = UDim2.new(0, DROP_W, 0, targetHeight) }, 0.25, Enum.EasingStyle.Quint)
+            tw(shadow, { Size = UDim2.fromOffset(DROP_W, targetHeight) }, 0.25, Enum.EasingStyle.Quint)
+            tw(dropdownFrame, { Size = UDim2.fromOffset(DROP_W, targetHeight) }, 0.25, Enum.EasingStyle.Quint)
 
             if not ddIsOpen then return end
             if closeConn then pcall(function() closeConn:Disconnect() end) closeConn = nil end
-            closeConn = UserInputService.InputBegan:Connect(function(input, gpe)
+            closeConn = UserInputService.InputBegan:Connect(function(input, _gpe)
                     if not ddIsOpen then
                         if closeConn then closeConn:Disconnect() closeConn = nil end
                         return
@@ -3338,13 +3301,13 @@ function MenuLib:Init(config)
         local rowBg = isPanel and C.HEADER or C.SEL
         local row = fr(container, UDim2.new(1, 0, 0, 44), nil, rowBg, 0, 10)
         row.LayoutOrder = #container:GetChildren()
-        local stripe = fr(row, UDim2.new(0, 3, 1, -8), UDim2.new(0, 0, 0, 4), C.ACCENT, 0, 0)
+        local stripe = fr(row, UDim2.new(0, 3, 1, -8), UDim2.fromOffset(0, 4), C.ACCENT, 0, 0)
         gradV(stripe, C.ACCENT, C.ACCENT2)
 
-        lbl(row, label, UDim2.new(1, -130, 1, 0), UDim2.new(0, 14, 0, 0), 12, C.TEXT)
+        lbl(row, label, UDim2.new(1, -130, 1, 0), UDim2.fromOffset(14, 0), 12, C.TEXT)
 
         local btn = Instance.new("TextButton")
-        btn.Size = UDim2.new(0, 110, 0, 28)
+        btn.Size = UDim2.fromOffset(110, 28)
         btn.Position = UDim2.new(1, -118, 0.5, -14)
         btn.BackgroundColor3 = C.ACCENT
         btn.Text = "Execute"
@@ -3385,12 +3348,12 @@ function MenuLib:Init(config)
         local rowBg = isPanel and C.HEADER or C.SEL
         local row = fr(container, UDim2.new(1, 0, 0, 44), nil, rowBg, 0, 10)
         row.LayoutOrder = #container:GetChildren()
-        local stripe = fr(row, UDim2.new(0, 3, 1, -8), UDim2.new(0, 0, 0, 4), C.ACCENT, 0, 0)
+        local stripe = fr(row, UDim2.new(0, 3, 1, -8), UDim2.fromOffset(0, 4), C.ACCENT, 0, 0)
         gradV(stripe, C.ACCENT, C.ACCENT2)
 
-        lbl(row, label, UDim2.new(1, -145, 1, 0), UDim2.new(0, 14, 0, 0), 12, C.TEXT)
+        lbl(row, label, UDim2.new(1, -145, 1, 0), UDim2.fromOffset(14, 0), 12, C.TEXT)
 
-        local txtBg = fr(row, UDim2.new(0, 120, 0, 28), UDim2.new(1, -128, 0.5, -14), C.BG, 0, 6)
+        local txtBg = fr(row, UDim2.fromOffset(120, 28), UDim2.new(1, -128, 0.5, -14), C.BG, 0, 6)
         local stroke = Instance.new("UIStroke")
         stroke.Color = C.HEADER
         stroke.Thickness = 1
@@ -3398,7 +3361,7 @@ function MenuLib:Init(config)
 
         local tb = Instance.new("TextBox")
         tb.Size = UDim2.new(1, -10, 1, 0)
-        tb.Position = UDim2.new(0, 5, 0, 0)
+        tb.Position = UDim2.fromOffset(5, 0)
         tb.BackgroundTransparency = 1
         tb.Text = tostring(defaultText or "")
         tb.TextColor3 = C.TEXT
@@ -3455,11 +3418,11 @@ function MenuLib:Init(config)
     addSection("AIM")
     local firstTab = API.AddTab("Aimbot", ICON.aim, function(f)
         local scroll = Instance.new("ScrollingFrame")
-        scroll.Size = UDim2.new(1, 0, 1, 0)
+        scroll.Size = UDim2.fromScale(1, 1)
         scroll.BackgroundTransparency = 1
         scroll.BorderSizePixel = 0
         scroll.ScrollBarThickness = 0
-        scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+        scroll.CanvasSize = UDim2.fromOffset(0, 0)
         scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
         scroll.Parent = f
         pad(scroll, 8, 10, 8, 8)
@@ -3471,9 +3434,9 @@ function MenuLib:Init(config)
         v.Padding = UDim.new(0, 8)
         v.Parent = card
         pad(card, 16, 16, 16, 16)
-        lbl(card, "Aimbot", UDim2.new(1, 0, 0, 0), nil, 18, C.TEXT, FONT_BOLD)
+        lbl(card, "Aimbot", UDim2.fromScale(1, 0), nil, 18, C.TEXT, FONT_BOLD)
 
-        local mainRow = fr(card, UDim2.new(1, 0, 0, 0), nil, C.HEADER, 1, 0)
+        local mainRow = fr(card, UDim2.fromScale(1, 0), nil, C.HEADER, 1, 0)
         mainRow.LayoutOrder = 1
         mainRow.AutomaticSize = Enum.AutomaticSize.Y
         local rowLayout = Instance.new("UIListLayout")
@@ -3482,7 +3445,7 @@ function MenuLib:Init(config)
         rowLayout.FillDirection = Enum.FillDirection.Horizontal
         rowLayout.Parent = mainRow
 
-        local leftPanel = fr(mainRow, UDim2.new(0.5, -4, 0, 0), UDim2.new(0, 0, 0, 0), C.SEL, 0, 10)
+        local leftPanel = fr(mainRow, UDim2.new(0.5, -4, 0, 0), UDim2.fromOffset(0, 0), C.SEL, 0, 10)
         leftPanel.AutomaticSize = Enum.AutomaticSize.Y
         leftPanel.LayoutOrder = 1
         local leftV = Instance.new("UIListLayout")
@@ -3490,7 +3453,7 @@ function MenuLib:Init(config)
         leftV.Padding = UDim.new(0, 8)
         leftV.Parent = leftPanel
         pad(leftPanel, 12, 12, 12, 12)
-        lbl(leftPanel, "Main", UDim2.new(1, 0, 0, 0), nil, 14, C.TEXT, FONT_BOLD)
+        lbl(leftPanel, "Main", UDim2.fromScale(1, 0), nil, 14, C.TEXT, FONT_BOLD)
 
         local rightPanel = fr(mainRow, UDim2.new(0.5, -4, 0, 0), UDim2.new(0.5, 4, 0, 0), C.SEL, 0, 10)
         rightPanel.AutomaticSize = Enum.AutomaticSize.Y
@@ -3500,7 +3463,7 @@ function MenuLib:Init(config)
         rightV.Padding = UDim.new(0, 8)
         rightV.Parent = rightPanel
         pad(rightPanel, 12, 12, 12, 12)
-        lbl(rightPanel, "Silent Aim", UDim2.new(1, 0, 0, 0), nil, 14, C.TEXT, FONT_BOLD)
+        lbl(rightPanel, "Silent Aim", UDim2.fromScale(1, 0), nil, 14, C.TEXT, FONT_BOLD)
 
         tabPanels["Aimbot"] = { leftPanel = leftPanel, rightPanel = rightPanel }
     end)
@@ -3509,11 +3472,11 @@ function MenuLib:Init(config)
     addSection("VISUALS")
     API.AddTab("Visuals", ICON.players, function(f)
         local scroll = Instance.new("ScrollingFrame")
-        scroll.Size = UDim2.new(1, 0, 1, 0)
+        scroll.Size = UDim2.fromScale(1, 1)
         scroll.BackgroundTransparency = 1
         scroll.BorderSizePixel = 0
         scroll.ScrollBarThickness = 0
-        scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+        scroll.CanvasSize = UDim2.fromOffset(0, 0)
         scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
         scroll.Parent = f
         pad(scroll, 8, 10, 8, 8)
@@ -3525,9 +3488,9 @@ function MenuLib:Init(config)
         v.Padding = UDim.new(0, 8)
         v.Parent = card
         pad(card, 16, 16, 16, 16)
-        lbl(card, "Visuals", UDim2.new(1, 0, 0, 0), nil, 18, C.TEXT, FONT_BOLD)
+        lbl(card, "Visuals", UDim2.fromScale(1, 0), nil, 18, C.TEXT, FONT_BOLD)
 
-        local mainRow = fr(card, UDim2.new(1, 0, 0, 0), nil, C.HEADER, 1, 0)
+        local mainRow = fr(card, UDim2.fromScale(1, 0), nil, C.HEADER, 1, 0)
         mainRow.LayoutOrder = 1
         mainRow.AutomaticSize = Enum.AutomaticSize.Y
         local rowLayout = Instance.new("UIListLayout")
@@ -3536,7 +3499,7 @@ function MenuLib:Init(config)
         rowLayout.FillDirection = Enum.FillDirection.Horizontal
         rowLayout.Parent = mainRow
 
-        local leftPanel = fr(mainRow, UDim2.new(0.5, -4, 0, 0), UDim2.new(0, 0, 0, 0), C.SEL, 0, 10)
+        local leftPanel = fr(mainRow, UDim2.new(0.5, -4, 0, 0), UDim2.fromOffset(0, 0), C.SEL, 0, 10)
         leftPanel.AutomaticSize = Enum.AutomaticSize.Y
         leftPanel.LayoutOrder = 1
         local leftV = Instance.new("UIListLayout")
@@ -3560,11 +3523,11 @@ function MenuLib:Init(config)
 
     API.AddTab("World", ICON.world, function(f)
         local scroll = Instance.new("ScrollingFrame")
-        scroll.Size = UDim2.new(1, 0, 1, 0)
+        scroll.Size = UDim2.fromScale(1, 1)
         scroll.BackgroundTransparency = 1
         scroll.BorderSizePixel = 0
         scroll.ScrollBarThickness = 0
-        scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+        scroll.CanvasSize = UDim2.fromOffset(0, 0)
         scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
         scroll.Parent = f
         pad(scroll, 8, 10, 8, 8)
@@ -3576,18 +3539,18 @@ function MenuLib:Init(config)
         v.Padding = UDim.new(0, 8)
         v.Parent = card
         pad(card, 16, 16, 16, 16)
-        lbl(card, "World", UDim2.new(1, 0, 0, 0), nil, 18, C.TEXT, FONT_BOLD)
+        lbl(card, "World", UDim2.fromScale(1, 0), nil, 18, C.TEXT, FONT_BOLD)
     end)
     RunService.Heartbeat:Wait()
 
     API.AddTab("Skin Changer", ICON.skin, function(f)
         local scroll = Instance.new("ScrollingFrame")
-        scroll.Size = UDim2.new(1, 0, 1, 0)
+        scroll.Size = UDim2.fromScale(1, 1)
         scroll.BackgroundTransparency = 1
         scroll.BorderSizePixel = 0
         scroll.ScrollBarThickness = 3
         scroll.ScrollBarImageColor3 = C.ACCENT
-        scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+        scroll.CanvasSize = UDim2.fromOffset(0, 0)
         scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
         scroll.Parent = f
         pad(scroll, 8, 10, 8, 8)
@@ -3605,11 +3568,11 @@ function MenuLib:Init(config)
     addSection("MISC")
     API.AddTab("Misc", ICON.misc, function(f)
         local scroll = Instance.new("ScrollingFrame")
-        scroll.Size = UDim2.new(1, 0, 1, 0)
+        scroll.Size = UDim2.fromScale(1, 1)
         scroll.BackgroundTransparency = 1
         scroll.BorderSizePixel = 0
         scroll.ScrollBarThickness = 0
-        scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+        scroll.CanvasSize = UDim2.fromOffset(0, 0)
         scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
         scroll.Parent = f
         pad(scroll, 8, 10, 8, 8)
@@ -3621,17 +3584,17 @@ function MenuLib:Init(config)
         v.Padding = UDim.new(0, 8)
         v.Parent = card
         pad(card, 16, 16, 16, 16)
-        lbl(card, "Misc", UDim2.new(1, 0, 0, 0), nil, 18, C.TEXT, FONT_BOLD)
+        lbl(card, "Misc", UDim2.fromScale(1, 0), nil, 18, C.TEXT, FONT_BOLD)
     end)
     RunService.Heartbeat:Wait()
 
     API.AddTab("Protections", ICON.protection, function(f)
         local scroll = Instance.new("ScrollingFrame")
-        scroll.Size = UDim2.new(1, 0, 1, 0)
+        scroll.Size = UDim2.fromScale(1, 1)
         scroll.BackgroundTransparency = 1
         scroll.BorderSizePixel = 0
         scroll.ScrollBarThickness = 0
-        scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+        scroll.CanvasSize = UDim2.fromOffset(0, 0)
         scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
         scroll.Parent = f
         pad(scroll, 8, 10, 8, 8)
@@ -3643,17 +3606,17 @@ function MenuLib:Init(config)
         v.Padding = UDim.new(0, 8)
         v.Parent = card
         pad(card, 16, 16, 16, 16)
-        lbl(card, "Protections", UDim2.new(1, 0, 0, 0), nil, 18, C.TEXT, FONT_BOLD)
+        lbl(card, "Protections", UDim2.fromScale(1, 0), nil, 18, C.TEXT, FONT_BOLD)
     end)
     RunService.Heartbeat:Wait()
 
     API.AddTab("Exploits", ICON.exploits, function(f)
         local scroll = Instance.new("ScrollingFrame")
-        scroll.Size = UDim2.new(1, 0, 1, 0)
+        scroll.Size = UDim2.fromScale(1, 1)
         scroll.BackgroundTransparency = 1
         scroll.BorderSizePixel = 0
         scroll.ScrollBarThickness = 0
-        scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+        scroll.CanvasSize = UDim2.fromOffset(0, 0)
         scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
         scroll.Parent = f
         pad(scroll, 8, 10, 8, 8)
@@ -3665,17 +3628,17 @@ function MenuLib:Init(config)
         v.Padding = UDim.new(0, 8)
         v.Parent = card
         pad(card, 16, 16, 16, 16)
-        lbl(card, "Exploits", UDim2.new(1, 0, 0, 0), nil, 18, C.TEXT, FONT_BOLD)
+        lbl(card, "Exploits", UDim2.fromScale(1, 0), nil, 18, C.TEXT, FONT_BOLD)
     end)
     RunService.Heartbeat:Wait()
 
     API.AddTab("SFX", ICON.sfx, function(f)
         local scroll = Instance.new("ScrollingFrame")
-        scroll.Size = UDim2.new(1, 0, 1, 0)
+        scroll.Size = UDim2.fromScale(1, 1)
         scroll.BackgroundTransparency = 1
         scroll.BorderSizePixel = 0
         scroll.ScrollBarThickness = 0
-        scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+        scroll.CanvasSize = UDim2.fromOffset(0, 0)
         scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
         scroll.Parent = f
         pad(scroll, 8, 10, 8, 8)
@@ -3688,42 +3651,42 @@ function MenuLib:Init(config)
         v.Padding = UDim.new(0, 8)
         v.Parent = card
         pad(card, 16, 16, 16, 16)
-        lbl(card, "Sound Effects", UDim2.new(1, 0, 0, 0), nil, 18, C.TEXT, FONT_BOLD)
+        lbl(card, "Sound Effects", UDim2.fromScale(1, 0), nil, 18, C.TEXT, FONT_BOLD)
     end)
     RunService.Heartbeat:Wait()
 
     API.AddTab("Configuration", ICON.config, function(f)
         local scroll = Instance.new("ScrollingFrame")
-        scroll.Size = UDim2.new(1, 0, 1, 0)
+        scroll.Size = UDim2.fromScale(1, 1)
         scroll.BackgroundTransparency = 1
         scroll.BorderSizePixel = 0
         scroll.ScrollBarThickness = 0
-        scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+        scroll.CanvasSize = UDim2.fromOffset(0, 0)
         scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
         scroll.Parent = f
         pad(scroll, 8, 10, 8, 8)
 
-        local card = fr(scroll, UDim2.new(1, 0, 0, 0), nil, C.HEADER, 0, 16)
+        local card = fr(scroll, UDim2.fromScale(1, 0), nil, C.HEADER, 0, 16)
         card.AutomaticSize = Enum.AutomaticSize.Y
         local cardLayout = Instance.new("UIListLayout")
         cardLayout.SortOrder = Enum.SortOrder.LayoutOrder
         cardLayout.Padding = UDim.new(0, 8)
         cardLayout.Parent = card
 
-        local titleRow = fr(card, UDim2.new(1, 0, 0, 28), nil, C.HEADER, 1, 0)
-        titleRow.LayoutOrder = 0
-        lbl(titleRow, "Configurations", UDim2.new(1, -20, 1, 0), UDim2.new(0, 14, 0, 0), 14, C.TEXT, FONT_BOLD)
+        local cardTitleRow = fr(card, UDim2.new(1, 0, 0, 28), nil, C.HEADER, 1, 0)
+        cardTitleRow.LayoutOrder = 0
+        lbl(cardTitleRow, "Configurations", UDim2.new(1, -20, 1, 0), UDim2.fromOffset(14, 0), 14, C.TEXT, FONT_BOLD)
 
         local mainRow = fr(card, UDim2.new(1, 0, 0, 340), nil, C.HEADER, 1, 0)
         mainRow.LayoutOrder = 1
 
-        local leftPanel = fr(mainRow, UDim2.new(0.5, -6, 1, 0), UDim2.new(0, 0, 0, 0), C.SEL, 0, 10)
+        local leftPanel = fr(mainRow, UDim2.new(0.5, -6, 1, 0), UDim2.fromOffset(0, 0), C.SEL, 0, 10)
         local rightPanel = fr(mainRow, UDim2.new(0.5, -6, 1, 0), UDim2.new(0.5, 6, 0, 0), C.SEL, 0, 10)
 
         local function makeBtn(parent, text, yPos, col, col2)
             local btn = Instance.new("TextButton")
             btn.Size = UDim2.new(1, -16, 0, 30)
-            btn.Position = UDim2.new(0, 8, 0, yPos)
+            btn.Position = UDim2.fromOffset(8, yPos)
             btn.BackgroundColor3 = col
             btn.Text = text
             btn.TextColor3 = C.TEXT
@@ -3732,7 +3695,8 @@ function MenuLib:Init(config)
             btn.AutoButtonColor = false
             btn.Parent = parent
             Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
-            local grad = Instance.new("UIGradient", btn)
+            local grad = Instance.new("UIGradient")
+            grad.Parent = btn
             grad.Color = ColorSequence.new({ColorSequenceKeypoint.new(0, col), ColorSequenceKeypoint.new(1, col2 or col)})
             grad.Rotation = 90
             return btn
@@ -3745,16 +3709,16 @@ function MenuLib:Init(config)
         local importBtn = makeBtn(leftPanel, "Import from Clipboard", 162, Color3.fromRGB(40, 100, 200), Color3.fromRGB(30, 70, 160))
         local exportBtn = makeBtn(leftPanel, "Export to Clipboard", 200, Color3.fromRGB(180, 60, 200), Color3.fromRGB(140, 40, 170))
 
-        local listTitle = lbl(rightPanel, "Saved Configs", UDim2.new(1, -16, 0, 20), UDim2.new(0, 10, 0, 8), 12, C.TEXT, FONT_BOLD)
+        lbl(rightPanel, "Saved Configs", UDim2.new(1, -16, 0, 20), UDim2.fromOffset(10, 8), 12, C.TEXT, FONT_BOLD)
 
         local configScroll = Instance.new("ScrollingFrame")
         configScroll.Size = UDim2.new(1, -16, 1, -32)
-        configScroll.Position = UDim2.new(0, 8, 0, 28)
+        configScroll.Position = UDim2.fromOffset(8, 28)
         configScroll.BackgroundTransparency = 1
         configScroll.BorderSizePixel = 0
         configScroll.ScrollBarThickness = 3
         configScroll.ScrollBarImageColor3 = C.ACCENT
-        configScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+        configScroll.CanvasSize = UDim2.fromOffset(0, 0)
         configScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
         configScroll.Parent = rightPanel
 
@@ -3763,7 +3727,6 @@ function MenuLib:Init(config)
         local autoLoadFile = configFolder .. "/" .. tostring(lp.UserId):gsub("[^%w]", "_") .. "_autoload.json"
 
         local selectedConfig = nil
-        local selectedRow = nil
 
         local function LoadConfigsFromFile()
             if isfile and isfile(configFile) then
@@ -3816,19 +3779,19 @@ function MenuLib:Init(config)
         LoadConfigsFromFile()
         _G._SaveConfigList = SaveConfigsToFile
 
-        local popupOverlay = fr(sg, UDim2.new(1, 0, 1, 0), UDim2.new(0, 0, 0, 0), Color3.fromRGB(0, 0, 0), 0.6, 0)
+        local popupOverlay = fr(sg, UDim2.fromScale(1, 1), UDim2.fromOffset(0, 0), Color3.fromRGB(0, 0, 0), 0.6, 0)
         popupOverlay.Visible = false
         popupOverlay.ZIndex = Z.POPUP
 
-        local popupFrame = fr(popupOverlay, UDim2.new(0, 280, 0, 120), UDim2.new(0.5, -140, 0.5, -60), C.HEADER, 0, 16)
+        local popupFrame = fr(popupOverlay, UDim2.fromOffset(280, 120), UDim2.new(0.5, -140, 0.5, -60), C.HEADER, 0, 16)
         popupFrame.ZIndex = Z.POPUP_CONTENT
 
-        local popupTitle = lbl(popupFrame, "Enter Config Name", UDim2.new(1, -20, 0, 24), UDim2.new(0, 10, 0, 12), 14, C.TEXT, FONT_BOLD)
+        local popupTitle = lbl(popupFrame, "Enter Config Name", UDim2.new(1, -20, 0, 24), UDim2.fromOffset(10, 12), 14, C.TEXT, FONT_BOLD)
         popupTitle.TextXAlignment = Enum.TextXAlignment.Center
 
         local popupBox = Instance.new("TextBox")
         popupBox.Size = UDim2.new(1, -20, 0, 28)
-        popupBox.Position = UDim2.new(0, 10, 0, 44)
+        popupBox.Position = UDim2.fromOffset(10, 44)
         popupBox.BackgroundColor3 = C.SEL
         popupBox.TextColor3 = C.TEXT
         popupBox.TextSize = 12
@@ -3839,11 +3802,11 @@ function MenuLib:Init(config)
         popupBox.ZIndex = 102
         Instance.new("UICorner", popupBox).CornerRadius = UDim.new(0, 8)
 
-        local popupBtnRow = fr(popupFrame, UDim2.new(1, -20, 0, 28), UDim2.new(0, 10, 0, 80), C.HEADER, 1, 0)
+        local popupBtnRow = fr(popupFrame, UDim2.new(1, -20, 0, 28), UDim2.fromOffset(10, 80), C.HEADER, 1, 0)
         popupBtnRow.ZIndex = 102
 
         local popupConfirm = Instance.new("TextButton")
-        popupConfirm.Size = UDim2.new(0.48, 0, 1, 0)
+        popupConfirm.Size = UDim2.fromScale(0.48, 1)
         popupConfirm.BackgroundColor3 = C.GREEN
         popupConfirm.Text = "OK"
         popupConfirm.TextColor3 = C.TEXT
@@ -3854,8 +3817,8 @@ function MenuLib:Init(config)
         Instance.new("UICorner", popupConfirm).CornerRadius = UDim.new(0, 6)
 
         local popupCancel = Instance.new("TextButton")
-        popupCancel.Size = UDim2.new(0.48, 0, 1, 0)
-        popupCancel.Position = UDim2.new(0.52, 0, 0, 0)
+        popupCancel.Size = UDim2.fromScale(0.48, 1)
+        popupCancel.Position = UDim2.fromScale(0.52, 0)
         popupCancel.BackgroundColor3 = C.BTN
         popupCancel.Text = "Cancel"
         popupCancel.TextColor3 = C.DIM
@@ -3882,32 +3845,32 @@ function MenuLib:Init(config)
                 popupBox.Visible = false
                 popupTitle.Text = "Delete '" .. (defaultText or "?") .. "'?"
                 popupTitle.Size = UDim2.new(1, -20, 0, 48)
-                popupTitle.Position = UDim2.new(0, 10, 0, 20)
-                popupBtnRow.Position = UDim2.new(0, 10, 0, 76)
+                popupTitle.Position = UDim2.fromOffset(10, 20)
+                popupBtnRow.Position = UDim2.fromOffset(10, 76)
                 popupConfirm.BackgroundColor3 = C.RED
                 popupConfirm.Text = "Delete"
             else
                 popupBox.Visible = true
                 popupTitle.Size = UDim2.new(1, -20, 0, 24)
-                popupTitle.Position = UDim2.new(0, 10, 0, 12)
-                popupBtnRow.Position = UDim2.new(0, 10, 0, 80)
+                popupTitle.Position = UDim2.fromOffset(10, 12)
+                popupBtnRow.Position = UDim2.fromOffset(10, 80)
                 popupBox.Text = defaultText or ""
                 popupConfirm.BackgroundColor3 = C.GREEN
                 popupConfirm.Text = "OK"
             end
             popupOverlay.Visible = true
             popupOverlay.BackgroundTransparency = 1
-            popupFrame.Size = UDim2.new(0, 200, 0, 100)
+            popupFrame.Size = UDim2.fromOffset(200, 100)
             popupFrame.Position = UDim2.new(0.5, -100, 0.5, -50)
             tw(popupOverlay, {BackgroundTransparency = 0.6}, 0.2)
-            tw(popupFrame, {Size = UDim2.new(0, 280, 0, 120), Position = UDim2.new(0.5, -140, 0.5, -60)}, 0.25, Enum.EasingStyle.Back)
+            tw(popupFrame, {Size = UDim2.fromOffset(280, 120), Position = UDim2.new(0.5, -140, 0.5, -60)}, 0.25, Enum.EasingStyle.Back)
             if mode ~= "delete" then
                 pcall(function() task.delay(0.15, function() pcall(function() popupBox:CaptureFocus() end) end) end)
             end
         end
 
         local function hidePopup()
-            tw(popupFrame, {Size = UDim2.new(0, 200, 0, 100), Position = UDim2.new(0.5, -100, 0.5, -50)}, 0.2)
+            tw(popupFrame, {Size = UDim2.fromOffset(200, 100), Position = UDim2.new(0.5, -100, 0.5, -50)}, 0.2)
             tw(popupOverlay, {BackgroundTransparency = 1}, 0.2)
             pcall(function() task.delay(0.2, function() pcall(function() popupOverlay.Visible = false end) end) end)
         end
@@ -3918,7 +3881,6 @@ function MenuLib:Init(config)
                 if child:IsA("Frame") then child:Destroy() end
             end
             selectedConfig = nil
-            selectedRow = nil
             if not _G._ConfigList then _G._ConfigList = {} end
             local autoLoadName = GetAutoLoadConfig()
             local sortedNames = {}
@@ -3927,15 +3889,15 @@ function MenuLib:Init(config)
             for _, name in ipairs(sortedNames) do
                 local row = fr(configScroll, UDim2.new(1, 0, 0, 36), nil, C.SEL, 0.8, 6)
                 row.LayoutOrder = #configScroll:GetChildren()
-                local nameLbl = lbl(row, name, UDim2.new(1, -50, 1, 0), UDim2.new(0, 12, 0, 0), 12, C.TEXT, FONT_BOLD)
-                nameLbl.TextTruncate = Enum.TextTruncate.AtEnd
-                local stripe = fr(row, UDim2.new(0, 4, 0.6, 0), UDim2.new(0, 0, 0.2, 0), C.ACCENT, 1, 2)
+                local rowNameLbl = lbl(row, name, UDim2.new(1, -50, 1, 0), UDim2.fromOffset(12, 0), 12, C.TEXT, FONT_BOLD)
+                rowNameLbl.TextTruncate = Enum.TextTruncate.AtEnd
+                local stripe = fr(row, UDim2.new(0, 4, 0.6, 0), UDim2.fromScale(0, 0.2), C.ACCENT, 1, 2)
                 gradV(stripe, C.ACCENT, C.ACCENT2)
                 local isAutoLoad = (autoLoadName == name)
-                local autoLbl = lbl(row, "Auto-Load", UDim2.new(0, 60, 0, 16), UDim2.new(1, -88, 0.5, -8), 10, isAutoLoad and C.GREEN or C.DIM, FONT_BOLD)
+                local autoLbl = lbl(row, "Auto-Load", UDim2.fromOffset(60, 16), UDim2.new(1, -88, 0.5, -8), 10, isAutoLoad and C.GREEN or C.DIM, FONT_BOLD)
                 autoLbl.TextXAlignment = Enum.TextXAlignment.Right
                 local autoBox = Instance.new("TextButton")
-                autoBox.Size = UDim2.new(0, 20, 0, 20)
+                autoBox.Size = UDim2.fromOffset(20, 20)
                 autoBox.Position = UDim2.new(1, -26, 0.5, -10)
                 autoBox.BackgroundColor3 = isAutoLoad and C.GREEN or C.BTN
                 autoBox.Text = isAutoLoad and "X" or ""
@@ -3957,7 +3919,6 @@ function MenuLib:Init(config)
                 clickBtn.Parent = row
                 local function selectThis()
                     selectedConfig = name
-                    selectedRow = row
                     for _, child in ipairs(configScroll:GetChildren()) do
                         if child:IsA("Frame") then
                             tw(child, {BackgroundTransparency = 1}, 0.15)
@@ -4006,7 +3967,6 @@ function MenuLib:Init(config)
                     if autoLoadName == deleteTargetName then SetAutoLoadConfig(nil) end
                     deleteTargetName = nil
                     selectedConfig = nil
-                    selectedRow = nil
                     RefreshConfigList()
                 end
                 hidePopup()
@@ -4144,9 +4104,7 @@ function MenuLib:Init(config)
         end
         table.insert(conns, importBtn.MouseButton1Click:Connect(function()
             local clipText = nil
-            if getclipboard then clipText = getclipboard()
-            elseif cb then clipText = cb()
-            end
+            if getclipboard then clipText = getclipboard() end
             if not clipText or clipText == "" then notifyImport("Clipboard is empty") return end
             local ok, jsonStr = pcall(function() return b64decode(clipText) end)
             if not ok or not jsonStr then notifyImport("Invalid base64 data") return end
@@ -4358,8 +4316,8 @@ function MenuLib:Init(config)
                         WIN_W = math.max(600, tonumber(s.WindowWidth))
                         WIN_H = math.max(380, tonumber(s.WindowHeight))
                         pcall(function()
-                            if win then win.Size = UDim2.new(0, WIN_W, 0, WIN_H) end
-                            if settingsPanel then settingsPanel.Size = UDim2.new(0, WIN_W, 0, WIN_H) end
+                            if win then win.Size = UDim2.fromOffset(WIN_W, WIN_H) end
+                            if settingsPanel then settingsPanel.Size = UDim2.fromOffset(WIN_W, WIN_H) end
                         end)
                     end
                     if tonumber(s.SidebarWidth) then
@@ -4433,7 +4391,7 @@ function MenuLib:Init(config)
     end
 
     local resizer = Instance.new("TextButton")
-    resizer.Size = UDim2.new(0, 24, 0, 24)
+    resizer.Size = UDim2.fromOffset(24, 24)
     resizer.Position = UDim2.new(1, -24, 1, -24)
     resizer.BackgroundTransparency = 1
     resizer.Text = ""
@@ -4443,7 +4401,7 @@ function MenuLib:Init(config)
     resizer.Parent = win
 
     local settingsResizer = Instance.new("TextButton")
-    settingsResizer.Size = UDim2.new(0, 24, 0, 24)
+    settingsResizer.Size = UDim2.fromOffset(24, 24)
     settingsResizer.Position = UDim2.new(1, -24, 1, -24)
     settingsResizer.BackgroundTransparency = 1
     settingsResizer.Text = ""
@@ -4457,7 +4415,6 @@ function MenuLib:Init(config)
     local resizeStartMouse = nil
     local resizeStartW = 0
     local resizeStartH = 0
-    local resizeStartPos = UDim2.new()
 
     local function beginResize(target)
         return function(input)
@@ -4467,11 +4424,6 @@ function MenuLib:Init(config)
                 resizeStartMouse = UserInputService:GetMouseLocation()
                 resizeStartW = WIN_W
                 resizeStartH = WIN_H
-                if target == "main" and win then
-                    resizeStartPos = win.Position
-                elseif target == "settings" and settingsPanel then
-                    resizeStartPos = settingsPanel.Position
-                end
             end
         end
     end
@@ -4494,9 +4446,9 @@ function MenuLib:Init(config)
             WIN_W = newW
             WIN_H = newH
             if resizeTarget == "main" and win then
-                win.Size = UDim2.new(0, newW, 0, newH)
+                win.Size = UDim2.fromOffset(newW, newH)
             elseif resizeTarget == "settings" and settingsPanel then
-                settingsPanel.Size = UDim2.new(0, newW, 0, newH)
+                settingsPanel.Size = UDim2.fromOffset(newW, newH)
             end
             setSidebarWidth(SIDE_W, false)
         end
