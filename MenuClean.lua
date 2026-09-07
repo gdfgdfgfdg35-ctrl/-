@@ -3933,29 +3933,45 @@ if player ~= lp then
                 local stripe = fr(row, UDim2.new(0, 4, 0.6, 0), UDim2.fromScale(0, 0.2), C.ACCENT, 1, 2)
                 gradV(stripe, C.ACCENT, C.ACCENT2)
                 local isAutoLoad = (autoLoadName == name)
-                local autoLbl = lbl(row, "Auto-Load", UDim2.fromOffset(60, 16), UDim2.new(1, -88, 0.5, -8), 10, isAutoLoad and C.GREEN or C.DIM, FONT_BOLD)
+                local autoLbl = lbl(row, "Auto-Load", UDim2.fromOffset(56, 16), UDim2.new(1, -92, 0.5, -8), 10, isAutoLoad and C.TEXT or C.DIM, FONT_BOLD)
                 autoLbl.TextXAlignment = Enum.TextXAlignment.Right
+
                 local autoBox = Instance.new("TextButton")
-                autoBox.Size = UDim2.fromOffset(20, 20)
-                autoBox.Position = UDim2.new(1, -26, 0.5, -10)
-                autoBox.BackgroundColor3 = isAutoLoad and C.GREEN or C.BTN
-                autoBox.Text = isAutoLoad and "X" or ""
-                autoBox.TextColor3 = C.TEXT
-                autoBox.TextSize = 14
+                autoBox.Size = UDim2.fromOffset(22, 22)
+                autoBox.Position = UDim2.new(1, -30, 0.5, -11)
+                autoBox.BackgroundColor3 = isAutoLoad and C.ACCENT or Color3.fromRGB(14, 7, 30)
+                autoBox.Text = isAutoLoad and "✓" or ""
+                autoBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+                autoBox.TextSize = 12
                 autoBox.Font = FONT_BOLD
                 autoBox.AutoButtonColor = false
                 autoBox.Parent = row
-                Instance.new("UICorner", autoBox).CornerRadius = UDim.new(0, 4)
+
+                local autoCorner = Instance.new("UICorner")
+                autoCorner.CornerRadius = UDim.new(0, 6)
+                autoCorner.Parent = autoBox
+
                 local autoStroke = Instance.new("UIStroke")
-                autoStroke.Color = isAutoLoad and C.GREEN or C.DIM
-                autoStroke.Thickness = 2
-                autoStroke.Transparency = 0.1
+                autoStroke.Thickness = 1.2
+                autoStroke.Color = isAutoLoad and C.ACCENT2 or Color3.fromRGB(48, 24, 88)
+                autoStroke.Transparency = isAutoLoad and 0 or 0.35
                 autoStroke.Parent = autoBox
+
+                local autoGrad = Instance.new("UIGradient")
+                autoGrad.Color = ColorSequence.new({
+                    ColorSequenceKeypoint.new(0, C.ACCENT),
+                    ColorSequenceKeypoint.new(1, C.ACCENT2)
+                })
+                autoGrad.Rotation = 90
+                autoGrad.Enabled = isAutoLoad
+                autoGrad.Parent = autoBox
+
                 local clickBtn = Instance.new("TextButton")
                 clickBtn.Size = UDim2.new(1, -95, 1, 0)
                 clickBtn.BackgroundTransparency = 1
                 clickBtn.Text = ""
                 clickBtn.Parent = row
+
                 local function selectThis()
                     selectedConfig = name
                     for _, child in ipairs(configScroll:GetChildren()) do
@@ -3969,8 +3985,35 @@ if player ~= lp then
                     tw(row, {BackgroundColor3 = C.ACCENT, BackgroundTransparency = 0.3}, 0.2)
                     tw(stripe, {BackgroundTransparency = 0}, 0.25)
                 end
+
                 table.insert(conns, clickBtn.MouseButton1Click:Connect(selectThis))
+
+                table.insert(conns, autoBox.MouseEnter:Connect(function()
+                    if GetAutoLoadConfig() ~= name then
+                        tw(autoBox, { BackgroundColor3 = Color3.fromRGB(24, 12, 48) }, 0.12)
+                        tw(autoStroke, { Color = C.ACCENT, Transparency = 0 }, 0.12)
+                    else
+                        tw(autoBox, { BackgroundColor3 = Color3.fromRGB(140, 50, 255) }, 0.12)
+                    end
+                end))
+
+                table.insert(conns, autoBox.MouseLeave:Connect(function()
+                    local active = (GetAutoLoadConfig() == name)
+                    if not active then
+                        tw(autoBox, { BackgroundColor3 = Color3.fromRGB(14, 7, 30) }, 0.12)
+                        tw(autoStroke, { Color = Color3.fromRGB(48, 24, 88), Transparency = 0.35 }, 0.12)
+                    else
+                        tw(autoBox, { BackgroundColor3 = C.ACCENT }, 0.12)
+                        tw(autoStroke, { Color = C.ACCENT2, Transparency = 0 }, 0.12)
+                    end
+                end))
+
                 table.insert(conns, autoBox.MouseButton1Click:Connect(function()
+                    tw(autoBox, { Size = UDim2.fromOffset(18, 18), Position = UDim2.new(1, -28, 0.5, -9) }, 0.06)
+                    task.delay(0.06, function()
+                        tw(autoBox, { Size = UDim2.fromOffset(22, 22), Position = UDim2.new(1, -30, 0.5, -11) }, 0.12, Enum.EasingStyle.Back)
+                    end)
+
                     local current = GetAutoLoadConfig()
                     local turningOn = (current ~= name)
                     if turningOn then
@@ -3978,11 +4021,14 @@ if player ~= lp then
                     else
                         SetAutoLoadConfig(nil)
                     end
-                    autoBox.Text = turningOn and "X" or ""
-                    tw(autoBox, {BackgroundColor3 = turningOn and C.GREEN or C.BTN}, 0.15)
-                    tw(autoStroke, {Color = turningOn and C.GREEN or C.DIM}, 0.15)
-                    tw(autoLbl, {TextColor3 = turningOn and C.GREEN or C.DIM}, 0.15)
-                    pcall(function() task.delay(0.2, function() pcall(RefreshConfigList) end) end)
+
+                    autoBox.Text = turningOn and "✓" or ""
+                    autoGrad.Enabled = turningOn
+                    tw(autoBox, { BackgroundColor3 = turningOn and C.ACCENT or Color3.fromRGB(14, 7, 30) }, 0.15)
+                    tw(autoStroke, { Color = turningOn and C.ACCENT2 or Color3.fromRGB(48, 24, 88), Transparency = turningOn and 0 or 0.35 }, 0.15)
+                    tw(autoLbl, { TextColor3 = turningOn and C.TEXT or C.DIM }, 0.15)
+
+                    pcall(function() task.delay(0.18, function() pcall(RefreshConfigList) end) end)
                 end))
                 table.insert(conns, clickBtn.MouseEnter:Connect(function()
                     if selectedConfig ~= name then
