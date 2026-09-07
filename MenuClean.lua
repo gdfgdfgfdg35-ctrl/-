@@ -1669,45 +1669,84 @@ function MenuLib:Init(config)
                             if fn == pName then isFriend = true break end
                         end
 
-                        if player ~= lp then
-                            if isFriend then
-                                local addedLbl = lbl(row, "✓ Friend", UDim2.fromOffset(56, 24), UDim2.new(1, -62, 0.5, -12), 10, C.GREEN, FONT_BOLD)
-                                addedLbl.TextXAlignment = Enum.TextXAlignment.Center
-                            else
-                                local addBtn = Instance.new("TextButton")
-                                addBtn.Size = UDim2.fromOffset(46, 24)
-                                addBtn.Position = UDim2.new(1, -52, 0.5, -12)
-                                addBtn.BackgroundColor3 = C.ACCENT
-                                addBtn.Text = "✓"
-                                addBtn.TextColor3 = C.TEXT
-                                addBtn.TextSize = 10
-                                addBtn.Font = FONT_BOLD
-                                addBtn.AutoButtonColor = false
-                                addBtn.Parent = row
-                                Instance.new("UICorner", addBtn).CornerRadius = UDim.new(0, 6)
-                                local addGrad = Instance.new("UIGradient")
-                                addGrad.Parent = addBtn
-                                addGrad.Color = ColorSequence.new({ColorSequenceKeypoint.new(0, C.ACCENT), ColorSequenceKeypoint.new(1, C.ACCENT2)})
-                                addGrad.Rotation = 90
+if player ~= lp then
+                            local checkBtn = Instance.new("TextButton")
+                            checkBtn.Size = UDim2.fromOffset(22, 22)
+                            checkBtn.Position = UDim2.new(1, -32, 0.5, -11)
+                            checkBtn.BackgroundColor3 = isFriend and C.ACCENT or Color3.fromRGB(14, 7, 30)
+                            checkBtn.Text = isFriend and "✓" or ""
+                            checkBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+                            checkBtn.TextSize = 12
+                            checkBtn.Font = FONT_BOLD
+                            checkBtn.AutoButtonColor = false
+                            checkBtn.Parent = row
 
-                                table.insert(conns, addBtn.MouseEnter:Connect(function() tw(addBtn, {BackgroundColor3 = Color3.fromRGB(140, 50, 255)}, 0.12) end))
-                                table.insert(conns, addBtn.MouseLeave:Connect(function() tw(addBtn, {BackgroundColor3 = C.ACCENT}, 0.12) end))
+                            local corner = Instance.new("UICorner")
+                            corner.CornerRadius = UDim.new(0, 6)
+                            corner.Parent = checkBtn
 
-                                table.insert(conns, addBtn.MouseButton1Click:Connect(function()
+                            local stroke = Instance.new("UIStroke")
+                            stroke.Thickness = 1.2
+                            stroke.Color = isFriend and C.ACCENT2 or Color3.fromRGB(48, 24, 88)
+                            stroke.Transparency = isFriend and 0 or 0.35
+                            stroke.Parent = checkBtn
+
+                            local grad = Instance.new("UIGradient")
+                            grad.Color = ColorSequence.new({
+                                ColorSequenceKeypoint.new(0, C.ACCENT),
+                                ColorSequenceKeypoint.new(1, C.ACCENT2)
+                            })
+                            grad.Rotation = 90
+                            grad.Enabled = isFriend
+                            grad.Parent = checkBtn
+
+                            table.insert(conns, checkBtn.MouseEnter:Connect(function()
+                                if not isFriend then
+                                    tw(checkBtn, { BackgroundColor3 = Color3.fromRGB(24, 12, 48) }, 0.12)
+                                    tw(stroke, { Color = C.ACCENT, Transparency = 0 }, 0.12)
+                                else
+                                    tw(checkBtn, { BackgroundColor3 = Color3.fromRGB(140, 50, 255) }, 0.12)
+                                end
+                            end))
+
+                            table.insert(conns, checkBtn.MouseLeave:Connect(function()
+                                if not isFriend then
+                                    tw(checkBtn, { BackgroundColor3 = Color3.fromRGB(14, 7, 30) }, 0.12)
+                                    tw(stroke, { Color = Color3.fromRGB(48, 24, 88), Transparency = 0.35 }, 0.12)
+                                else
+                                    tw(checkBtn, { BackgroundColor3 = C.ACCENT }, 0.12)
+                                end
+                            end))
+
+                            table.insert(conns, checkBtn.MouseButton1Click:Connect(function()
+                                tw(checkBtn, { Size = UDim2.fromOffset(18, 18), Position = UDim2.new(1, -30, 0.5, -9) }, 0.06)
+                                task.delay(0.06, function()
+                                    tw(checkBtn, { Size = UDim2.fromOffset(22, 22), Position = UDim2.new(1, -32, 0.5, -11) }, 0.12, Enum.EasingStyle.Back)
+                                end)
+
+                                if isFriend then
+                                    for idx, fn in ipairs(_G._FriendsList or {}) do
+                                        if fn == pName then
+                                            table.remove(_G._FriendsList, idx)
+                                            break
+                                        end
+                                    end
+                                else
                                     table.insert(_G._FriendsList, pName)
-                                    SaveFriendsToFile()
-                                    tw(addBtn, {BackgroundColor3 = C.GREEN}, 0.1)
-                                    addBtn.Text = "✓"
-                                    task.delay(0.3, function() pcall(function()
+                                end
+                                SaveFriendsToFile()
+
+                                task.delay(0.12, function()
+                                    pcall(function()
                                         refreshPlayerList(playerSearchBox.Text)
                                         refreshFriendList(friendSearchBox.Text)
-                                    end) end)
-                                end))
-                            end
+                                    end)
+                                end)
+                            end))
                         end
 
                         local rowBtn = Instance.new("TextButton")
-                        rowBtn.Size = UDim2.new(1, -56, 1, 0)
+                        rowBtn.Size = UDim2.new(1, -40, 1, 0)
                         rowBtn.BackgroundTransparency = 1
                         rowBtn.Text = ""
                         rowBtn.Parent = row
