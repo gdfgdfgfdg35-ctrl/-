@@ -3445,6 +3445,9 @@ if player ~= lp then
     API.GetScreenGui = function() return sg end
     API.GetWindow = function() return win end
     API.GetHUD = function() return hudBar end
+    API.GetTabFrame = function(tabName) return tabContents[tabName] end
+    API.GetColors = function() return C end
+    API.GetFonts = function() return { FONT = FONT, FONT_BOLD = FONT_BOLD } end
 
     API.Show = function()
         openMenu()
