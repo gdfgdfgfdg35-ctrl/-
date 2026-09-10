@@ -4855,16 +4855,6 @@ if player ~= lp then
             autoLoaded = true
 
             local autoLoadName = GetAutoLoadConfig()
-            if not autoLoadName or not (_G._ConfigList and _G._ConfigList[autoLoadName]) then
-                if _G._ConfigList then
-                    if _G._ConfigList["Default"] then
-                        autoLoadName = "Default"
-                    elseif _G._ConfigList["default"] then
-                        autoLoadName = "default"
-                    end
-                end
-            end
-
             if autoLoadName and _G._ConfigList and _G._ConfigList[autoLoadName] and _G.LoadConfigData then
                 pcall(function()
                     _G.LoadConfigData(_G._ConfigList[autoLoadName])
