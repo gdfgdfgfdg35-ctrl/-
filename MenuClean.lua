@@ -22,6 +22,16 @@ function MenuLib:Init(config)
         _guidCounter = _guidCounter + 1
         _guid = tostring(math.random(1, 999999)) .. "_" .. tostring(tick()) .. "_" .. tostring(_guidCounter)
     end
+    if _G._ActiveMenuClean and _G._ActiveMenuClean.Shutdown then
+        pcall(_G._ActiveMenuClean.Shutdown)
+        _G._ActiveMenuClean = nil
+    end
+
+    pcall(function()
+        local existing = pg:FindFirstChild("MenuGui_v4")
+        if existing then existing:Destroy() end
+    end)
+
     local RS_BIND_INP = "MenuGuiInp_" .. _guid
 
     _G._MenuLib = _G._MenuLib or {}
@@ -88,7 +98,7 @@ function MenuLib:Init(config)
     local prevMouseBehavior = Enum.MouseBehavior.Default
     local prevMouseIconEnabled = UserInputService.MouseIconEnabled
     local behaviorTarget = nil
-    local win, settingsPanel, toggleMenu, fpsT, fpsN
+    local win, settingsPanel, toggleMenu, fpsT, fpsN, API
 
     local sg = Instance.new("ScreenGui")
     sg.Name = "MenuGui_v4"
@@ -135,9 +145,6 @@ function MenuLib:Init(config)
     end
 
     local function lockInput()
-        -- Guard on controlsDisabledByUs, NOT isOpen: openMenu sets isOpen = true
-        -- before calling this, so an isOpen guard never samples anything and the
-        -- restore on close has nothing to put back.
         if not controlsDisabledByUs then
             pcall(function()
                 prevMouseIconEnabled = UserInputService.MouseIconEnabled
@@ -149,6 +156,17 @@ function MenuLib:Init(config)
         if inputBlocker then inputBlocker.Visible = true end
         local ctrl = ensureControls()
         if ctrl then pcall(function() ctrl:Disable() end) end
+
+        pcall(function()
+            local rep = game:GetService("ReplicatedStorage")
+            local okCH, CH = pcall(function()
+                return require(rep.Modules.Handlers.CameraHandler)
+            end)
+            if okCH and CH and CH.toggleFreeMouse then
+                CH:toggleFreeMouse(true)
+            end
+        end)
+
         pcall(function() UserInputService.MouseBehavior = Enum.MouseBehavior.Default end)
         pcall(function() UserInputService.MouseIconEnabled = true end)
     end
@@ -156,17 +174,43 @@ function MenuLib:Init(config)
     local function gameWantsLockedMouse()
         local locked = nil
         pcall(function()
-            local okCH, CH = pcall(function()
-                return require(game:GetService("ReplicatedStorage").Modules.Handlers.CameraHandler)
+            local rep = game:GetService("ReplicatedStorage")
+            local okGH, GH = pcall(function()
+                return require(rep.Modules.Handlers.GameplayHandler)
             end)
-            if okCH and CH then
-                if CH.freeMouseState == true then
-                    locked = false
-                elseif CH.firstPerson == true then
-                    locked = true
-                end
+            local isPlaying = (okGH and GH and GH.IsClientPlaying == true)
+
+            if isPlaying then
+                locked = true
+                return
             end
+
+            local okCH, CH = pcall(function()
+                return require(rep.Modules.Handlers.CameraHandler)
+            end)
+
+            if okCH and CH and CH.firstPerson == true then
+                locked = true
+                return
+            end
+
+            local lp = game:GetService("Players").LocalPlayer
+            if lp and lp.CameraMode == Enum.CameraMode.LockFirstPerson then
+                locked = true
+                return
+            end
+
+            local cam = workspace.CurrentCamera
+            if cam and cam.CameraType == Enum.CameraType.Scriptable and isPlaying then
+                locked = true
+                return
+            end
+
+            locked = false
         end)
+        if locked == nil then
+            locked = (prevMouseBehavior == Enum.MouseBehavior.LockCenter)
+        end
         return locked
     end
 
@@ -175,10 +219,33 @@ function MenuLib:Init(config)
         if locked == nil then
             locked = (prevMouseBehavior == Enum.MouseBehavior.LockCenter)
         end
+
+        pcall(function()
+            local rep = game:GetService("ReplicatedStorage")
+            local okCH, CH = pcall(function()
+                return require(rep.Modules.Handlers.CameraHandler)
+            end)
+            if okCH and CH and CH.toggleFreeMouse then
+                CH:toggleFreeMouse(not locked)
+            end
+        end)
+
+        pcall(function()
+            local lp = game:GetService("Players").LocalPlayer
+            if lp then
+                lp.CameraMode = locked and Enum.CameraMode.LockFirstPerson or Enum.CameraMode.Classic
+            end
+        end)
+
         behaviorTarget = locked and Enum.MouseBehavior.LockCenter or Enum.MouseBehavior.Default
         pcall(function() UserInputService.MouseBehavior = behaviorTarget end)
         pcall(function() UserInputService.MouseIconEnabled = not locked end)
-        behaviorAssertUntil = os.clock() + 1.5
+
+        if locked then
+            behaviorAssertUntil = os.clock() + 0.3
+        else
+            behaviorAssertUntil = 0
+        end
     end
 
     local function unlockInput()
@@ -186,15 +253,26 @@ function MenuLib:Init(config)
         controlsDisabledByUs = false
         if inputBlocker then pcall(function() inputBlocker.Visible = false end) end
         local ctrl = ensureControls()
-        if ctrl then pcall(function() ctrl:Enable() end) end
+        if ctrl then
+            pcall(function() ctrl:Enable() end)
+            if ctrl.activeController and ctrl.activeController.Enable then
+                pcall(function() ctrl.activeController:Enable() end)
+            end
+        end
         pcall(function()
             local ctrl2 = getControls()
-            if ctrl2 then pcall(ctrl2.Enable, ctrl2) end
+            if ctrl2 then
+                pcall(ctrl2.Enable, ctrl2)
+                if ctrl2.activeController and ctrl2.activeController.Enable then
+                    pcall(ctrl2.activeController.Enable, ctrl2.activeController)
+                end
+            end
         end)
         applyGameMouseState()
     end
 
     local function menuIsVisible()
+        if not isOpen then return false end
         if not win or not settingsPanel then return false end
         local okW, winVisible = pcall(function() return win.Visible end)
         local okS, panelVisible = pcall(function() return settingsPanel.Visible end)
@@ -204,6 +282,46 @@ function MenuLib:Init(config)
     local function ensureUnlocked()
         if menuIsVisible() then return end
         if isOpen or controlsDisabledByUs then pcall(unlockInput) end
+    end
+
+    local function shutdownMenu()
+        if unloaded then return end
+        unloaded = true
+        isOpen = false
+        controlsDisabledByUs = false
+
+        for _, c in ipairs(conns) do pcall(function() c:Disconnect() end) end
+        table.clear(conns)
+
+        pcall(function() RunService:UnbindFromRenderStep(RS_BIND_INP) end)
+
+        if inputBlocker then pcall(function() inputBlocker.Visible = false end) end
+
+        pcall(function()
+            local ctrl = ensureControls()
+            if ctrl then
+                pcall(function() ctrl:Enable() end)
+                if ctrl.activeController and ctrl.activeController.Enable then
+                    pcall(function() ctrl.activeController:Enable() end)
+                end
+            end
+        end)
+
+        pcall(applyGameMouseState)
+
+        if blurPart then pcall(function() blurPart:Destroy() end) blurPart = nil end
+        pcall(function() sg:Destroy() end)
+
+        if _G._ActiveMenuClean == API then
+            _G._ActiveMenuClean = nil
+        end
+
+        task.spawn(function()
+            for _ = 1, 5 do
+                task.wait(0.05)
+                pcall(applyGameMouseState)
+            end
+        end)
     end
 
 
@@ -326,18 +444,38 @@ function MenuLib:Init(config)
                 if UserInputService.MouseBehavior ~= behaviorTarget then
                     UserInputService.MouseBehavior = behaviorTarget
                 end
+                if behaviorTarget == Enum.MouseBehavior.LockCenter and UserInputService.MouseIconEnabled then
+                    UserInputService.MouseIconEnabled = false
+                end
             end)
         end
 
         reassertClock = reassertClock + dt
-        if reassertClock < 0.5 then return end
+        if reassertClock < 0.3 then return end
         reassertClock = 0
         local ctrl = getControls()
-        if ctrl then pcall(ctrl.Enable, ctrl) end
+        if ctrl then
+            pcall(ctrl.Enable, ctrl)
+            if ctrl.activeController and ctrl.activeController.Enable then
+                pcall(ctrl.activeController.Enable, ctrl.activeController)
+            end
+        end
         if inputBlocker then
             local okV, visible = pcall(function() return inputBlocker.Visible end)
-            if okV and visible then pcall(function() inputBlocker.Visible = false end) end
+            if okV and visible and not isOpen then pcall(function() inputBlocker.Visible = false end) end
         end
+        pcall(function()
+            if not isOpen and gameWantsLockedMouse() then
+                local gs = game:GetService("GuiService")
+                local isGuiOpen = gs and gs:IsMenuOpen()
+                local isChatting = (UserInputService:GetFocusedTextBox() ~= nil)
+                if not isGuiOpen and not isChatting then
+                    if UserInputService.MouseBehavior ~= Enum.MouseBehavior.LockCenter then
+                        applyGameMouseState()
+                    end
+                end
+            end
+        end)
     end))
 
     local function mkToggle(parent, posX, initState, onToggle)
@@ -374,14 +512,31 @@ function MenuLib:Init(config)
 
     table.insert(conns, UserInputService.WindowFocusReleased:Connect(function()
         if isOpen then
-            pcall(toggleMenu)
+            pcall(closeMenu)
         end
         pcall(ensureUnlocked)
     end))
 
     table.insert(conns, UserInputService.WindowFocused:Connect(function()
         pcall(ensureUnlocked)
+        if not isOpen then
+            pcall(applyGameMouseState)
+        end
     end))
+
+    pcall(function()
+        local GuiService = game:GetService("GuiService")
+        table.insert(conns, GuiService.MenuOpened:Connect(function()
+            if isOpen then
+                pcall(closeMenu)
+            end
+        end))
+        table.insert(conns, GuiService.MenuClosed:Connect(function()
+            if not isOpen then
+                pcall(applyGameMouseState)
+            end
+        end))
+    end)
     local settingKeybind = false
 
 
@@ -2213,92 +2368,14 @@ if player ~= lp then
 
         if inp.KeyCode == unloadKey then
             settingKeybind = false
-            unloaded = true
-
-            for _, c in ipairs(conns) do pcall(function() c:Disconnect() end) end
-            table.clear(conns)
-
-            pcall(function() RunService:UnbindFromRenderStep(RS_BIND_INP) end)
-
-            isOpen = false
-            controlsDisabledByUs = false
-            if inputBlocker then
-                pcall(function() inputBlocker.Visible = false end)
-            end
-            local ctrl = ensureControls()
-            if ctrl then pcall(function() ctrl:Enable() end) end
-            pcall(function() UserInputService.MouseIconEnabled = (prevMouseIconEnabled ~= false) end)
-            pcall(applyGameMouseState)
-            pcall(function()
-                task.delay(0.5, function()
-                    pcall(applyGameMouseState)
-                end)
-            end)
-            pcall(function()
-                local localPlayer = game:GetService("Players").LocalPlayer
-                if localPlayer then
-                    local ps = localPlayer:FindFirstChild("PlayerScripts")
-                    if ps then
-                        local pm = ps:FindFirstChild("PlayerModule")
-                        if pm then
-                            local okPM, PM = pcall(function() return require(pm) end)
-                            if okPM and PM and PM.GetControls then
-                                local okCtrl, ctrl2 = pcall(PM.GetControls, PM)
-                                if okCtrl and ctrl2 then pcall(ctrl2.Enable, ctrl2) end
-                            end
-                        end
-                    end
-                end
-            end)
-
-            if M.OriginalBrightness then
-                Lighting.Brightness = M.OriginalBrightness
-                Lighting.ClockTime = M.OriginalClockTime
-            end
-
-            if M.OriginalQualityLevel then
-                settings().Rendering.QualityLevel = M.OriginalQualityLevel
-            end
-
-            if blurPart then pcall(function() blurPart:Destroy() end) blurPart = nil end
-
-            pcall(function() sg:Destroy() end)
-
-            M.AutoRefresh = nil
-            M.BlurEnabled = nil
-            M.LightingDimEnabled = nil
-            M.OriginalBrightness = nil
-            M.OriginalClockTime = nil
-            M.OriginalQualityLevel = nil
-            M.MenuToggleKey = nil
-            M.UnloadKey = nil
-            M.SmoothAnimations = nil
-            M.ESPColour = nil
-            _G._MenuLib = nil
-            _G._MenuToggles = nil
-            _G._MenuSliders = nil
-            _G._MenuDropdowns = nil
-            _G._MenuColorPickers = nil
-            _G._MenuTextBoxes = nil
-            _G._ConfigList = nil
-            _G._CurrentConfig = nil
-            _G._ConfigLoaded = nil
-            _G._FriendsList = nil
-            _G._MenuKeybinds = nil
-            _G._ConfigExtensions = nil
-            _G._ConfigLoading = nil
-            _G._SaveConfigList = nil
-            _G._SaveFriendsList = nil
-            _G._RefreshFriendsList = nil
-            _G.GetConfigData = nil
-            _G.LoadConfigData = nil
-            settingKeybind = false
+            shutdownMenu()
         elseif inp.KeyCode == toggleKey and not settingKeybind then
             toggleMenu()
         end
     end))
 
-    local API = {}
+    API = API or {}
+    _G._ActiveMenuClean = API
 
     API.AddSection = addSection
 
@@ -3431,15 +3508,7 @@ if player ~= lp then
 
 
     API.Shutdown = function()
-        if unloaded then return end
-        pcall(unlockInput)
-        unloaded = true
-        for _, c in ipairs(conns) do pcall(function() c:Disconnect() end) end
-        table.clear(conns)
-        pcall(function() RunService:UnbindFromRenderStep(RS_BIND_INP) end)
-        isOpen = false
-        if blurPart then pcall(function() blurPart:Destroy() end) blurPart = nil end
-        pcall(function() sg:Destroy() end)
+        shutdownMenu()
     end
 
     API.GetScreenGui = function() return sg end
