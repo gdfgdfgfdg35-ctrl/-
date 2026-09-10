@@ -90,15 +90,31 @@ function MenuLib:Init(config)
         return s
     end
 
+    local conns = {}
     local controls = nil
     local isOpen = false
     local controlsDisabledByUs = false
-    local behaviorAssertUntil = 0
     local unloaded = false
     local prevMouseBehavior = Enum.MouseBehavior.Default
     local prevMouseIconEnabled = UserInputService.MouseIconEnabled
-    local behaviorTarget = nil
     local win, settingsPanel, toggleMenu, fpsT, fpsN, API
+
+    pcall(function()
+        local ps = lp:FindFirstChild("PlayerScripts")
+        local pm = ps and ps:FindFirstChild("PlayerModule")
+        if pm then
+            local okPM, PM = pcall(function() return require(pm) end)
+            if okPM and PM and PM.GetControls then
+                local ctrl = PM:GetControls()
+                if ctrl then
+                    pcall(ctrl.Enable, ctrl)
+                    if ctrl.activeController and ctrl.activeController.Enable then
+                        pcall(ctrl.activeController.Enable, ctrl.activeController)
+                    end
+                end
+            end
+        end
+    end)
 
     local sg = Instance.new("ScreenGui")
     sg.Name = "MenuGui_v4"
@@ -237,34 +253,50 @@ function MenuLib:Init(config)
             end
         end)
 
-        behaviorTarget = locked and Enum.MouseBehavior.LockCenter or Enum.MouseBehavior.Default
-        pcall(function() UserInputService.MouseBehavior = behaviorTarget end)
-        pcall(function() UserInputService.MouseIconEnabled = not locked end)
-
-        if locked then
-            behaviorAssertUntil = os.clock() + 0.3
-        else
-            behaviorAssertUntil = 0
-        end
+        pcall(function()
+            UserInputService.MouseBehavior = locked and Enum.MouseBehavior.LockCenter or Enum.MouseBehavior.Default
+            UserInputService.MouseIconEnabled = not locked
+        end)
     end
 
     local function unlockInput()
         isOpen = false
         controlsDisabledByUs = false
         if inputBlocker then pcall(function() inputBlocker.Visible = false end) end
-        local ctrl = ensureControls()
-        if ctrl then
-            pcall(function() ctrl:Enable() end)
-            if ctrl.activeController and ctrl.activeController.Enable then
-                pcall(function() ctrl.activeController:Enable() end)
+        pcall(function()
+            local ctrl = ensureControls()
+            if ctrl then
+                pcall(function() ctrl:Enable() end)
+                if ctrl.activeController and ctrl.activeController.Enable then
+                    pcall(function() ctrl.activeController:Enable() end)
+                end
             end
-        end
+        end)
         pcall(function()
             local ctrl2 = getControls()
             if ctrl2 then
                 pcall(ctrl2.Enable, ctrl2)
                 if ctrl2.activeController and ctrl2.activeController.Enable then
                     pcall(ctrl2.activeController.Enable, ctrl2.activeController)
+                end
+            end
+        end)
+        pcall(function()
+            local pl = game:GetService("Players").LocalPlayer
+            if pl then
+                local ps = pl:FindFirstChild("PlayerScripts")
+                local pm = ps and ps:FindFirstChild("PlayerModule")
+                if pm then
+                    local okPM, PM = pcall(function() return require(pm) end)
+                    if okPM and PM and PM.GetControls then
+                        local c = PM:GetControls()
+                        if c then
+                            pcall(c.Enable, c)
+                            if c.activeController and c.activeController.Enable then
+                                pcall(c.activeController.Enable, c.activeController)
+                            end
+                        end
+                    end
                 end
             end
         end)
@@ -290,12 +322,20 @@ function MenuLib:Init(config)
         isOpen = false
         controlsDisabledByUs = false
 
-        for _, c in ipairs(conns) do pcall(function() c:Disconnect() end) end
-        table.clear(conns)
+        if conns then
+            for _, c in ipairs(conns) do pcall(function() c:Disconnect() end) end
+            table.clear(conns)
+        end
 
         pcall(function() RunService:UnbindFromRenderStep(RS_BIND_INP) end)
 
-        if inputBlocker then pcall(function() inputBlocker.Visible = false end) end
+        if inputBlocker then
+            pcall(function()
+                inputBlocker.Visible = false
+                inputBlocker:Destroy()
+            end)
+            inputBlocker = nil
+        end
 
         pcall(function()
             local ctrl = ensureControls()
@@ -303,6 +343,34 @@ function MenuLib:Init(config)
                 pcall(function() ctrl:Enable() end)
                 if ctrl.activeController and ctrl.activeController.Enable then
                     pcall(function() ctrl.activeController:Enable() end)
+                end
+            end
+        end)
+        pcall(function()
+            local ctrl2 = getControls()
+            if ctrl2 then
+                pcall(ctrl2.Enable, ctrl2)
+                if ctrl2.activeController and ctrl2.activeController.Enable then
+                    pcall(ctrl2.activeController.Enable, ctrl2.activeController)
+                end
+            end
+        end)
+        pcall(function()
+            local pl = game:GetService("Players").LocalPlayer
+            if pl then
+                local ps = pl:FindFirstChild("PlayerScripts")
+                local pm = ps and ps:FindFirstChild("PlayerModule")
+                if pm then
+                    local okPM, PM = pcall(function() return require(pm) end)
+                    if okPM and PM and PM.GetControls then
+                        local c = PM:GetControls()
+                        if c then
+                            pcall(c.Enable, c)
+                            if c.activeController and c.activeController.Enable then
+                                pcall(c.activeController.Enable, c.activeController)
+                            end
+                        end
+                    end
                 end
             end
         end)
@@ -315,13 +383,6 @@ function MenuLib:Init(config)
         if _G._ActiveMenuClean == API then
             _G._ActiveMenuClean = nil
         end
-
-        task.spawn(function()
-            for _ = 1, 5 do
-                task.wait(0.05)
-                pcall(applyGameMouseState)
-            end
-        end)
     end
 
 
@@ -425,57 +486,18 @@ function MenuLib:Init(config)
 
     local blurPart = nil
     local activeDropdownClosers = {}
-    local conns = {}
 
-    local reassertClock = 0
-    table.insert(conns, RunService.Heartbeat:Connect(function(dt)
+    table.insert(conns, RunService.Heartbeat:Connect(function()
         if unloaded then return end
-        if menuIsVisible() then return end
-
-        if isOpen or controlsDisabledByUs then
-            pcall(unlockInput)
-            return
-        end
-
-        -- Hold the restored lock briefly: the game's camera controller can take a
-        -- few frames to resume, and anything it does in that window wins afterwards.
-        if os.clock() < behaviorAssertUntil and behaviorTarget ~= nil then
-            pcall(function()
-                if UserInputService.MouseBehavior ~= behaviorTarget then
-                    UserInputService.MouseBehavior = behaviorTarget
-                end
-                if behaviorTarget == Enum.MouseBehavior.LockCenter and UserInputService.MouseIconEnabled then
-                    UserInputService.MouseIconEnabled = false
-                end
-            end)
-        end
-
-        reassertClock = reassertClock + dt
-        if reassertClock < 0.3 then return end
-        reassertClock = 0
-        local ctrl = getControls()
-        if ctrl then
-            pcall(ctrl.Enable, ctrl)
-            if ctrl.activeController and ctrl.activeController.Enable then
-                pcall(ctrl.activeController.Enable, ctrl.activeController)
+        if not isOpen then
+            if controlsDisabledByUs then
+                pcall(unlockInput)
+            end
+            if inputBlocker then
+                local okV, visible = pcall(function() return inputBlocker.Visible end)
+                if okV and visible then pcall(function() inputBlocker.Visible = false end) end
             end
         end
-        if inputBlocker then
-            local okV, visible = pcall(function() return inputBlocker.Visible end)
-            if okV and visible and not isOpen then pcall(function() inputBlocker.Visible = false end) end
-        end
-        pcall(function()
-            if not isOpen and gameWantsLockedMouse() then
-                local gs = game:GetService("GuiService")
-                local isGuiOpen = gs and gs:IsMenuOpen()
-                local isChatting = (UserInputService:GetFocusedTextBox() ~= nil)
-                if not isGuiOpen and not isChatting then
-                    if UserInputService.MouseBehavior ~= Enum.MouseBehavior.LockCenter then
-                        applyGameMouseState()
-                    end
-                end
-            end
-        end)
     end))
 
     local function mkToggle(parent, posX, initState, onToggle)
