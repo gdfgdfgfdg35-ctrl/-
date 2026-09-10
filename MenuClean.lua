@@ -377,9 +377,80 @@ function MenuLib:Init(config)
         DARK = Color3.fromRGB(4, 2, 9),
     }
 
-    local WIN_W = config.width or 650
-    local WIN_H = config.height or 490
-    local SIDE_W = config.sidebarWidth or 160
+    local configFolder = "MenuLibConfigs"
+    local configFile = configFolder .. "/" .. tostring(lp.UserId):gsub("[^%w]", "_") .. "_configs.json"
+    local autoLoadFile = configFolder .. "/" .. tostring(lp.UserId):gsub("[^%w]", "_") .. "_autoload.json"
+    local menuStateFile = configFolder .. "/" .. tostring(lp.UserId):gsub("[^%w]", "_") .. "_menustate.json"
+
+    local function LoadConfigsFromFile()
+        if isfile and isfile(configFile) then
+            local ok, content = pcall(function() return readfile(configFile) end)
+            if ok and content then
+                local ok2, decoded = pcall(function() return HttpService:JSONDecode(content) end)
+                if ok2 and type(decoded) == "table" then
+                    _G._ConfigList = decoded
+                    return true
+                end
+            end
+        end
+        _G._ConfigList = _G._ConfigList or {}
+        return false
+    end
+
+    local function SaveConfigsToFile()
+        if not _G._ConfigList then return false end
+        if makefolder and isfolder and not isfolder(configFolder) then
+            pcall(function() makefolder(configFolder) end)
+        end
+        local ok, encoded = pcall(function() return HttpService:JSONEncode(_G._ConfigList) end)
+        if ok and encoded and writefile then
+            local wok = pcall(function() writefile(configFile, encoded) end)
+            return wok
+        end
+        return false
+    end
+
+    local function GetAutoLoadConfig()
+        if isfile and isfile(autoLoadFile) then
+            local ok, content = pcall(function() return readfile(autoLoadFile) end)
+            if ok and content then
+                local ok2, name = pcall(function() return HttpService:JSONDecode(content) end)
+                if ok2 and type(name) == "string" then return name end
+            end
+        end
+        return nil
+    end
+
+    local function SetAutoLoadConfig(name)
+        if makefolder and isfolder and not isfolder(configFolder) then
+            pcall(function() makefolder(configFolder) end)
+        end
+        if writefile then
+            pcall(function() writefile(autoLoadFile, HttpService:JSONEncode(name)) end)
+        end
+    end
+
+    local function LoadMenuState()
+        if isfile and isfile(menuStateFile) then
+            local ok, content = pcall(function() return readfile(menuStateFile) end)
+            if ok and content then
+                local ok2, decoded = pcall(function() return HttpService:JSONDecode(content) end)
+                if ok2 and type(decoded) == "table" then
+                    return decoded
+                end
+            end
+        end
+        return nil
+    end
+
+    LoadConfigsFromFile()
+    _G._SaveConfigList = SaveConfigsToFile
+
+    local initialMenuState = LoadMenuState()
+
+    local WIN_W = (initialMenuState and tonumber(initialMenuState.Width)) and math.max(600, tonumber(initialMenuState.Width)) or (config.width or 650)
+    local WIN_H = (initialMenuState and tonumber(initialMenuState.Height)) and math.max(380, tonumber(initialMenuState.Height)) or (config.height or 490)
+    local SIDE_W = (initialMenuState and tonumber(initialMenuState.SidebarWidth)) and math.max(100, tonumber(initialMenuState.SidebarWidth)) or (config.sidebarWidth or 160)
     local HUD_W = config.hudWidth or 520
 
     local function fr(parent, size, pos, col, trans, rad)
@@ -616,7 +687,16 @@ function MenuLib:Init(config)
     fireClick.ZIndex = Z.HUD + 5
     fireClick.Parent = badge
 
-    win = fr(sg, UDim2.fromOffset(WIN_W, WIN_H), UDim2.new(0.5, -WIN_W / 2, 0.5, -WIN_H / 2), C.BG, 0, 20)
+    local initWinPos = UDim2.new(0.5, -WIN_W / 2, 0.5, -WIN_H / 2)
+    if initialMenuState and initialMenuState.WinPosXScale ~= nil and initialMenuState.WinPosXOffset ~= nil then
+        initWinPos = UDim2.new(
+            tonumber(initialMenuState.WinPosXScale) or 0.5,
+            tonumber(initialMenuState.WinPosXOffset) or (-WIN_W / 2),
+            tonumber(initialMenuState.WinPosYScale) or 0.5,
+            tonumber(initialMenuState.WinPosYOffset) or (-WIN_H / 2)
+        )
+    end
+    win = fr(sg, UDim2.fromOffset(WIN_W, WIN_H), initWinPos, C.BG, 0, 20)
     win.ClipsDescendants = true
     win.ZIndex = Z.BASE
     win.Visible = false
@@ -934,11 +1014,65 @@ function MenuLib:Init(config)
         if applySettingsLayout then applySettingsLayout(horizontal, t, ease) end
     end
 
-    settingsPanel = fr(sg, UDim2.fromOffset(WIN_W, WIN_H), UDim2.new(0.5, -WIN_W/2, 0.5, -WIN_H/2), C.BG, 0, 20)
+    local initSettingsPos = UDim2.new(0.5, -WIN_W / 2, 0.5, -WIN_H / 2)
+    if initialMenuState and initialMenuState.SettingsPosXScale ~= nil and initialMenuState.SettingsPosXOffset ~= nil then
+        initSettingsPos = UDim2.new(
+            tonumber(initialMenuState.SettingsPosXScale) or 0.5,
+            tonumber(initialMenuState.SettingsPosXOffset) or (-WIN_W / 2),
+            tonumber(initialMenuState.SettingsPosYScale) or 0.5,
+            tonumber(initialMenuState.SettingsPosYOffset) or (-WIN_H / 2)
+        )
+    end
+    settingsPanel = fr(sg, UDim2.fromOffset(WIN_W, WIN_H), initSettingsPos, C.BG, 0, 20)
     settingsPanel.ClipsDescendants = true
     settingsPanel.ZIndex = Z.OVERLAY
     settingsPanel.Visible = false
     local lastSettingsPos = settingsPanel.Position
+
+    local function SaveMenuState()
+        pcall(function()
+            if makefolder and isfolder and not isfolder(configFolder) then
+                pcall(function() makefolder(configFolder) end)
+            end
+            local curWinPos = lastWinPos or (win and win.Position)
+            local curSettingsPos = lastSettingsPos or (settingsPanel and settingsPanel.Position)
+            local state = {
+                Width = WIN_W,
+                Height = WIN_H,
+                SidebarWidth = SIDE_W,
+                WinPosXScale = curWinPos and curWinPos.X.Scale or 0.5,
+                WinPosXOffset = curWinPos and curWinPos.X.Offset or (-WIN_W / 2),
+                WinPosYScale = curWinPos and curWinPos.Y.Scale or 0.5,
+                WinPosYOffset = curWinPos and curWinPos.Y.Offset or (-WIN_H / 2),
+                SettingsPosXScale = curSettingsPos and curSettingsPos.X.Scale or 0.5,
+                SettingsPosXOffset = curSettingsPos and curSettingsPos.X.Offset or (-WIN_W / 2),
+                SettingsPosYScale = curSettingsPos and curSettingsPos.Y.Scale or 0.5,
+                SettingsPosYOffset = curSettingsPos and curSettingsPos.Y.Offset or (-WIN_H / 2),
+            }
+            if writefile then
+                pcall(function()
+                    writefile(menuStateFile, HttpService:JSONEncode(state))
+                end)
+            end
+            if _G._CurrentConfig and _G._ConfigList and _G._ConfigList[_G._CurrentConfig] and _G._SaveConfigList then
+                local cfg = _G._ConfigList[_G._CurrentConfig]
+                if type(cfg) == "table" and type(cfg._MenuSettings) == "table" then
+                    cfg._MenuSettings.WindowWidth = WIN_W
+                    cfg._MenuSettings.WindowHeight = WIN_H
+                    cfg._MenuSettings.SidebarWidth = SIDE_W
+                    cfg._MenuSettings.WindowPosXScale = state.WinPosXScale
+                    cfg._MenuSettings.WindowPosXOffset = state.WinPosXOffset
+                    cfg._MenuSettings.WindowPosYScale = state.WinPosYScale
+                    cfg._MenuSettings.WindowPosYOffset = state.WinPosYOffset
+                    cfg._MenuSettings.SettingsPosXScale = state.SettingsPosXScale
+                    cfg._MenuSettings.SettingsPosXOffset = state.SettingsPosXOffset
+                    cfg._MenuSettings.SettingsPosYScale = state.SettingsPosYScale
+                    cfg._MenuSettings.SettingsPosYOffset = state.SettingsPosYOffset
+                    pcall(_G._SaveConfigList)
+                end
+            end
+        end)
+    end
 
     local settingsMainLayer = fr(settingsPanel, UDim2.fromScale(1, 1), UDim2.fromOffset(0, 0), C.BG, 1, 0)
     settingsMainLayer.ZIndex = Z.CONTENT
@@ -1313,6 +1447,99 @@ function MenuLib:Init(config)
         return row
     end
 
+    local function addSettingSlider(tabName, labelText, min, max, defaultVal, callback)
+        local scrollFrame = settingsTabs[tabName]
+        if not scrollFrame then return nil end
+
+        local existingChildren = #scrollFrame:GetChildren()
+        if existingChildren > 2 then
+            local divider = fr(scrollFrame, UDim2.new(1, -10, 0, 1), nil, C.DIV, 0.5, 0)
+            divider.LayoutOrder = existingChildren
+            divider.Name = "Divider"
+        end
+
+        local row = fr(scrollFrame, UDim2.new(1, -10, 0, 48), nil, C.HEADER, 0, 10)
+        row.LayoutOrder = #scrollFrame:GetChildren()
+        local stripe = fr(row, UDim2.new(0, 3, 1, -8), UDim2.fromOffset(0, 4), C.ACCENT, 0, 0)
+        gradV(stripe, C.ACCENT, C.ACCENT2)
+
+        lbl(row, labelText, UDim2.new(1, -80, 0, 18), UDim2.fromOffset(14, 6), 12, C.TEXT)
+        local valueLbl = lbl(row, tostring(math.round(defaultVal)), UDim2.fromOffset(50, 18), UDim2.new(1, -60, 0, 6), 11, C.DIM, FONT_BOLD)
+        valueLbl.TextXAlignment = Enum.TextXAlignment.Right
+
+        local track = fr(row, UDim2.new(1, -28, 0, 6), UDim2.fromOffset(14, 30), Color3.fromRGB(18, 8, 36), 0, 3)
+        local fill = fr(track, UDim2.fromScale(0, 1), nil, C.ACCENT, 0, 3)
+        gradV(fill, C.ACCENT, C.ACCENT2)
+        local knob = fr(track, UDim2.fromOffset(12, 12), UDim2.new(0, 0, 0.5, -6), C.TEXT, 0, 6)
+
+        local curVal = defaultVal
+        local range = max - min
+
+        local function updateVisuals(anim)
+            local pct = math.clamp((curVal - min) / range, 0, 1)
+            local targetWidth = UDim2.fromScale(pct, 1)
+            local targetPos = UDim2.new(pct, -6, 0.5, -6)
+            if anim and M.SmoothAnimations then
+                tw(fill, { Size = targetWidth }, 0.15)
+                tw(knob, { Position = targetPos }, 0.15)
+            else
+                fill.Size = targetWidth
+                knob.Position = targetPos
+            end
+            valueLbl.Text = tostring(math.round(curVal))
+        end
+        updateVisuals(false)
+
+        local sliderDragging = false
+        table.insert(conns, track.InputBegan:Connect(function(inp)
+            if inp.UserInputType == Enum.UserInputType.MouseButton1 then
+                sliderDragging = true
+                local absX = inp.Position.X - track.AbsolutePosition.X
+                local percent = math.clamp(absX / track.AbsoluteSize.X, 0, 1)
+                curVal = min + (percent * range)
+                updateVisuals(true)
+                if callback then pcall(callback, curVal) end
+            end
+        end))
+
+        table.insert(conns, UserInputService.InputChanged:Connect(function(inp)
+            if sliderDragging and inp.UserInputType == Enum.UserInputType.MouseMovement then
+                local absX = inp.Position.X - track.AbsolutePosition.X
+                local percent = math.clamp(absX / track.AbsoluteSize.X, 0, 1)
+                curVal = min + (percent * range)
+                updateVisuals(true)
+                if callback then pcall(callback, curVal) end
+            end
+        end))
+
+        table.insert(conns, UserInputService.InputEnded:Connect(function(inp)
+            if inp.UserInputType == Enum.UserInputType.MouseButton1 then
+                if sliderDragging then
+                    sliderDragging = false
+                    SaveMenuState()
+                end
+            end
+        end))
+
+        local slObj = {
+            Get = function() return curVal end,
+            Set = function(v)
+                curVal = math.clamp(v, min, max)
+                updateVisuals(true)
+                if callback then pcall(callback, curVal) end
+                SaveMenuState()
+            end,
+            SetVisual = function(v)
+                curVal = math.clamp(v, min, max)
+                updateVisuals(false)
+            end,
+        }
+
+        if not _G._MenuSliders then _G._MenuSliders = {} end
+        _G._MenuSliders[tabName .. "_" .. labelText] = slObj
+        return slObj
+    end
+
     local watermarkEnabled = true
     addSettingOption("General", "Show FPS counter", true, function(on) fpsLbl.Visible = on end, true)
     addSettingOption("General", "Show ping counter", true, function(on) pingLbl.Visible = on end, true)
@@ -1529,6 +1756,25 @@ function MenuLib:Init(config)
             pcall(function() task.delay(0.25, function() pcall(function() if currentBlur and not M.BlurEnabled then currentBlur:Destroy() if blurPart == currentBlur then blurPart = nil end end end) end) end)
         end
     end, false)
+
+    local widthSlider = addSettingSlider("Appearance", "Window Width", 600, 1400, WIN_W, function(val)
+        WIN_W = math.round(val)
+        if win then win.Size = UDim2.fromOffset(WIN_W, WIN_H) end
+        if settingsPanel then settingsPanel.Size = UDim2.fromOffset(WIN_W, WIN_H) end
+        setSidebarWidth(SIDE_W, false)
+    end)
+
+    local heightSlider = addSettingSlider("Appearance", "Window Height", 380, 1000, WIN_H, function(val)
+        WIN_H = math.round(val)
+        if win then win.Size = UDim2.fromOffset(WIN_W, WIN_H) end
+        if settingsPanel then settingsPanel.Size = UDim2.fromOffset(WIN_W, WIN_H) end
+        setSidebarWidth(SIDE_W, false)
+    end)
+
+    _G._SyncAppearanceSizeSliders = function(newW, newH)
+        if widthSlider and widthSlider.SetVisual then widthSlider.SetVisual(newW) end
+        if heightSlider and heightSlider.SetVisual then heightSlider.SetVisual(newH) end
+    end
 
     addSettingOption("Performance", "Lighting preset dim", true, function(on)
         M.LightingDimEnabled = on
@@ -2233,6 +2479,7 @@ if player ~= lp then
             dragging = false
             dragTarget = nil
             if win then lastWinPos = win.Position end
+            SaveMenuState()
         end
     end))
 
@@ -2255,6 +2502,7 @@ if player ~= lp then
             dragging = false
             dragTarget = nil
             if settingsPanel then lastSettingsPos = settingsPanel.Position end
+            SaveMenuState()
         end
     end))
 
@@ -3878,62 +4126,7 @@ if player ~= lp then
         configScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
         configScroll.Parent = rightPanel
 
-        local configFolder = "MenuLibConfigs"
-        local configFile = configFolder .. "/" .. tostring(lp.UserId):gsub("[^%w]", "_") .. "_configs.json"
-        local autoLoadFile = configFolder .. "/" .. tostring(lp.UserId):gsub("[^%w]", "_") .. "_autoload.json"
-
         local selectedConfig = nil
-
-        local function LoadConfigsFromFile()
-            if isfile and isfile(configFile) then
-                local ok, content = pcall(function() return readfile(configFile) end)
-                if ok and content then
-                    local ok2, decoded = pcall(function() return HttpService:JSONDecode(content) end)
-                    if ok2 and decoded then
-                        _G._ConfigList = decoded
-                        return true
-                    end
-                end
-            end
-            _G._ConfigList = _G._ConfigList or {}
-            return false
-        end
-
-        local function SaveConfigsToFile()
-            if not _G._ConfigList then return false end
-            if makefolder and isfolder and not isfolder(configFolder) then
-                pcall(function() makefolder(configFolder) end)
-            end
-            local ok, encoded = pcall(function() return HttpService:JSONEncode(_G._ConfigList) end)
-            if ok and encoded and writefile then
-                local wok = pcall(function() writefile(configFile, encoded) end)
-                return wok
-            end
-            return false
-        end
-
-        local function GetAutoLoadConfig()
-            if isfile and isfile(autoLoadFile) then
-                local ok, content = pcall(function() return readfile(autoLoadFile) end)
-                if ok and content then
-                    local ok2, name = pcall(function() return HttpService:JSONDecode(content) end)
-                    if ok2 and type(name) == "string" then return name end
-                end
-            end
-            return nil
-        end
-
-        local function SetAutoLoadConfig(name)
-            if makefolder and isfolder and not isfolder(configFolder) then
-                pcall(function() makefolder(configFolder) end)
-            end
-            if writefile then
-                pcall(function() writefile(autoLoadFile, HttpService:JSONEncode(name)) end)
-            end
-        end
-
-        LoadConfigsFromFile()
-        _G._SaveConfigList = SaveConfigsToFile
 
         local popupOverlay = fr(sg, UDim2.fromScale(1, 1), UDim2.fromOffset(0, 0), Color3.fromRGB(0, 0, 0), 0.6, 0)
         popupOverlay.Visible = false
@@ -4567,7 +4760,12 @@ if player ~= lp then
                         pcall(function()
                             if win then win.Size = UDim2.fromOffset(WIN_W, WIN_H) end
                             if settingsPanel then settingsPanel.Size = UDim2.fromOffset(WIN_W, WIN_H) end
+                            setSidebarWidth(SIDE_W, false)
+                            if _G._SyncAppearanceSizeSliders then
+                                _G._SyncAppearanceSizeSliders(WIN_W, WIN_H)
+                            end
                         end)
+                        SaveMenuState()
                     end
                     if s.WindowPosXScale ~= nil and s.WindowPosXOffset ~= nil and s.WindowPosYScale ~= nil and s.WindowPosYOffset ~= nil then
                         lastWinPos = UDim2.new(tonumber(s.WindowPosXScale) or 0.5, tonumber(s.WindowPosXOffset) or (-WIN_W / 2), tonumber(s.WindowPosYScale) or 0.5, tonumber(s.WindowPosYOffset) or (-WIN_H / 2))
@@ -4645,42 +4843,39 @@ if player ~= lp then
 
                 _G._ConfigLoading = false
                 _G._ConfigLoaded = tick()
+                SaveMenuState()
             end
         end
 
         RefreshConfigList()
 
-        local autoLoadName = GetAutoLoadConfig()
-        if autoLoadName and _G._ConfigList[autoLoadName] and _G.LoadConfigData then
-            task.spawn(function()
-                local function widgetCount()
-                    local n = 0
-                    for _, reg in ipairs({ _G._MenuToggles, _G._MenuSliders, _G._MenuDropdowns,
-                        _G._MenuColorPickers, _G._MenuTextBoxes, _G._MenuKeybinds }) do
-                        for _ in pairs(reg or {}) do n = n + 1 end
-                    end
-                    return n
-                end
-                local last = -1
-                local stable = 0
-                local deadline = tick() + 15
-                while tick() < deadline do
-                    task.wait(0.25)
-                    local n = widgetCount()
-                    if n == last and n > 0 then
-                        stable = stable + 1
-                        if stable >= 4 then break end
-                    else
-                        stable = 0
-                        last = n
+        local autoLoaded = false
+        local function executeAutoLoad()
+            if autoLoaded then return end
+            autoLoaded = true
+
+            local autoLoadName = GetAutoLoadConfig()
+            if not autoLoadName or not (_G._ConfigList and _G._ConfigList[autoLoadName]) then
+                if _G._ConfigList then
+                    if _G._ConfigList["Default"] then
+                        autoLoadName = "Default"
+                    elseif _G._ConfigList["default"] then
+                        autoLoadName = "default"
                     end
                 end
+            end
+
+            if autoLoadName and _G._ConfigList and _G._ConfigList[autoLoadName] and _G.LoadConfigData then
                 pcall(function()
                     _G.LoadConfigData(_G._ConfigList[autoLoadName])
                     _G._CurrentConfig = autoLoadName
+                    selectedConfig = autoLoadName
                 end)
-            end)
+            end
         end
+
+        API.LoadAutoConfig = executeAutoLoad
+        task.defer(executeAutoLoad)
     end)
 
     if firstTab and firstTab.Select then
@@ -4692,25 +4887,54 @@ if player ~= lp then
         end
     end
 
-    local resizer = Instance.new("TextButton")
-    resizer.Size = UDim2.fromOffset(24, 24)
-    resizer.Position = UDim2.new(1, -24, 1, -24)
-    resizer.BackgroundTransparency = 1
-    resizer.Text = ""
-    resizer.ZIndex = Z.RESIZER
-    resizer.Active = true
-    resizer.AutoButtonColor = false
-    resizer.Parent = win
+    local function createResizeGrip(parent)
+        local gripBtn = Instance.new("TextButton")
+        gripBtn.Size = UDim2.fromOffset(24, 24)
+        gripBtn.Position = UDim2.new(1, -24, 1, -24)
+        gripBtn.BackgroundTransparency = 1
+        gripBtn.Text = ""
+        gripBtn.ZIndex = Z.RESIZER
+        gripBtn.Active = true
+        gripBtn.AutoButtonColor = false
+        gripBtn.Parent = parent
 
-    local settingsResizer = Instance.new("TextButton")
-    settingsResizer.Size = UDim2.fromOffset(24, 24)
-    settingsResizer.Position = UDim2.new(1, -24, 1, -24)
-    settingsResizer.BackgroundTransparency = 1
-    settingsResizer.Text = ""
-    settingsResizer.ZIndex = Z.RESIZER
-    settingsResizer.Active = true
-    settingsResizer.AutoButtonColor = false
-    settingsResizer.Parent = settingsPanel
+        local gripIcon = Instance.new("Frame")
+        gripIcon.Size = UDim2.fromOffset(14, 14)
+        gripIcon.Position = UDim2.new(1, -16, 1, -16)
+        gripIcon.BackgroundTransparency = 1
+        gripIcon.Parent = gripBtn
+
+        local function dot(ox, oy, sz)
+            local d = Instance.new("Frame")
+            d.Size = UDim2.fromOffset(sz, sz)
+            d.Position = UDim2.fromOffset(ox, oy)
+            d.BackgroundColor3 = C.DIM
+            d.BackgroundTransparency = 0.4
+            d.BorderSizePixel = 0
+            Instance.new("UICorner", d).CornerRadius = UDim.new(1, 0)
+            d.Parent = gripIcon
+            return d
+        end
+        local d1 = dot(10, 10, 3)
+        local d2 = dot(5, 10, 2)
+        local d3 = dot(10, 5, 2)
+
+        table.insert(conns, gripBtn.MouseEnter:Connect(function()
+            tw(d1, { BackgroundColor3 = C.ACCENT, BackgroundTransparency = 0 }, 0.15)
+            tw(d2, { BackgroundColor3 = C.ACCENT, BackgroundTransparency = 0 }, 0.15)
+            tw(d3, { BackgroundColor3 = C.ACCENT, BackgroundTransparency = 0 }, 0.15)
+        end))
+        table.insert(conns, gripBtn.MouseLeave:Connect(function()
+            tw(d1, { BackgroundColor3 = C.DIM, BackgroundTransparency = 0.4 }, 0.15)
+            tw(d2, { BackgroundColor3 = C.DIM, BackgroundTransparency = 0.4 }, 0.15)
+            tw(d3, { BackgroundColor3 = C.DIM, BackgroundTransparency = 0.4 }, 0.15)
+        end))
+
+        return gripBtn
+    end
+
+    local resizer = createResizeGrip(win)
+    local settingsResizer = createResizeGrip(settingsPanel)
 
     local isResizing = false
     local resizeTarget = nil
@@ -4734,8 +4958,11 @@ if player ~= lp then
 
     table.insert(conns, UserInputService.InputEnded:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            isResizing = false
-            resizeTarget = nil
+            if isResizing then
+                isResizing = false
+                resizeTarget = nil
+                SaveMenuState()
+            end
         end
     end))
 
@@ -4743,18 +4970,36 @@ if player ~= lp then
         if input.UserInputType == Enum.UserInputType.MouseMovement and isResizing then
             local currMouse = UserInputService:GetMouseLocation()
             local delta = currMouse - resizeStartMouse
-            local newW = math.max(600, resizeStartW + delta.X)
-            local newH = math.max(380, resizeStartH + delta.Y)
+            local newW = math.clamp(math.round(resizeStartW + delta.X), 600, 1400)
+            local newH = math.clamp(math.round(resizeStartH + delta.Y), 380, 1000)
             WIN_W = newW
             WIN_H = newH
-            if resizeTarget == "main" and win then
-                win.Size = UDim2.fromOffset(newW, newH)
-            elseif resizeTarget == "settings" and settingsPanel then
-                settingsPanel.Size = UDim2.fromOffset(newW, newH)
-            end
+            if win then win.Size = UDim2.fromOffset(newW, newH) end
+            if settingsPanel then settingsPanel.Size = UDim2.fromOffset(newW, newH) end
             setSidebarWidth(SIDE_W, false)
+            if _G._SyncAppearanceSizeSliders then
+                pcall(_G._SyncAppearanceSizeSliders, newW, newH)
+            end
         end
     end))
+
+    API.SetSize = function(w, h)
+        if tonumber(w) then WIN_W = math.clamp(math.round(tonumber(w)), 600, 1400) end
+        if tonumber(h) then WIN_H = math.clamp(math.round(tonumber(h)), 380, 1000) end
+        if win then win.Size = UDim2.fromOffset(WIN_W, WIN_H) end
+        if settingsPanel then settingsPanel.Size = UDim2.fromOffset(WIN_W, WIN_H) end
+        setSidebarWidth(SIDE_W, false)
+        if _G._SyncAppearanceSizeSliders then
+            pcall(_G._SyncAppearanceSizeSliders, WIN_W, WIN_H)
+        end
+        SaveMenuState()
+    end
+    API.GetSize = function()
+        return WIN_W, WIN_H
+    end
+    API.SaveMenuState = SaveMenuState
+    API.LoadMenuState = LoadMenuState
+    API.LoadAutoConfig = executeAutoLoad
 
     return API
 end
