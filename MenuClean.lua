@@ -107,9 +107,20 @@ function MenuLib:Init(config)
             if okPM and PM and PM.GetControls then
                 local ctrl = PM:GetControls()
                 if ctrl then
-                    pcall(ctrl.Enable, ctrl)
-                    if ctrl.activeController and ctrl.activeController.Enable then
-                        pcall(ctrl.activeController.Enable, ctrl.activeController)
+                    pcall(ctrl.Enable, ctrl, true)
+                    if ctrl.activeController then
+                        pcall(ctrl.activeController.Enable, ctrl.activeController, true)
+                    end
+                    if ctrl.activeControlModule == nil and ctrl.activeController then
+                        ctrl.activeControlModule = ctrl.activeController
+                    end
+                    if ctrl.controllers and ctrl.keyboardController then
+                        local kc = ctrl.controllers[ctrl.keyboardController]
+                        if kc then
+                            ctrl.activeController = kc
+                            ctrl.activeControlModule = kc
+                            pcall(kc.Enable, kc, true)
+                        end
                     end
                 end
             end
@@ -123,15 +134,6 @@ function MenuLib:Init(config)
     sg.IgnoreGuiInset = true
     sg.DisplayOrder = 2147483647
     sg.Parent = pg
-
-    local inputBlocker = Instance.new("TextButton")
-    inputBlocker.Size = UDim2.fromScale(1, 1)
-    inputBlocker.BackgroundTransparency = 1
-    inputBlocker.Text = ""
-    inputBlocker.Active = true
-    inputBlocker.Visible = false
-    inputBlocker.ZIndex = Z.INPUT_BLOCKER
-    inputBlocker.Parent = sg
 
     local function getControls()
         if controls then return controls end
@@ -169,9 +171,9 @@ function MenuLib:Init(config)
         end
         controlsDisabledByUs = true
         isOpen = true
-        if inputBlocker then inputBlocker.Visible = true end
-        local ctrl = ensureControls()
-        if ctrl then pcall(function() ctrl:Disable() end) end
+        _G._MenuOpen = true
+        _G._MenuCleanIsOpen = true
+        pcall(function() (getgenv and getgenv() or _G)._MenuOpen = true end)
 
         pcall(function()
             local rep = game:GetService("ReplicatedStorage")
@@ -262,38 +264,31 @@ function MenuLib:Init(config)
     local function unlockInput()
         isOpen = false
         controlsDisabledByUs = false
-        if inputBlocker then pcall(function() inputBlocker.Visible = false end) end
+        _G._MenuOpen = false
+        _G._MenuCleanIsOpen = false
+        pcall(function() (getgenv and getgenv() or _G)._MenuOpen = false end)
+
         pcall(function()
-            local ctrl = ensureControls()
-            if ctrl then
-                pcall(function() ctrl:Enable() end)
-                if ctrl.activeController and ctrl.activeController.Enable then
-                    pcall(function() ctrl.activeController:Enable() end)
-                end
-            end
-        end)
-        pcall(function()
-            local ctrl2 = getControls()
-            if ctrl2 then
-                pcall(ctrl2.Enable, ctrl2)
-                if ctrl2.activeController and ctrl2.activeController.Enable then
-                    pcall(ctrl2.activeController.Enable, ctrl2.activeController)
-                end
-            end
-        end)
-        pcall(function()
-            local pl = game:GetService("Players").LocalPlayer
-            if pl then
-                local ps = pl:FindFirstChild("PlayerScripts")
-                local pm = ps and ps:FindFirstChild("PlayerModule")
-                if pm then
-                    local okPM, PM = pcall(function() return require(pm) end)
-                    if okPM and PM and PM.GetControls then
-                        local c = PM:GetControls()
-                        if c then
-                            pcall(c.Enable, c)
-                            if c.activeController and c.activeController.Enable then
-                                pcall(c.activeController.Enable, c.activeController)
+            local ps = lp:FindFirstChild("PlayerScripts")
+            local pm = ps and ps:FindFirstChild("PlayerModule")
+            if pm then
+                local okPM, PM = pcall(function() return require(pm) end)
+                if okPM and PM and PM.GetControls then
+                    local ctrl = PM:GetControls()
+                    if ctrl then
+                        pcall(ctrl.Enable, ctrl, true)
+                        if ctrl.activeController then
+                            pcall(ctrl.activeController.Enable, ctrl.activeController, true)
+                        end
+                        if ctrl.activeControlModule == nil and ctrl.activeController then
+                            ctrl.activeControlModule = ctrl.activeController
+                        end
+                        if ctrl.controllers and ctrl.keyboardController then
+                            local kc = ctrl.controllers[ctrl.keyboardController]
+                            if kc then
+                                ctrl.activeController = kc
+                                ctrl.activeControlModule = kc
+                                pcall(kc.Enable, kc, true)
                             end
                         end
                     end
@@ -321,6 +316,9 @@ function MenuLib:Init(config)
         unloaded = true
         isOpen = false
         controlsDisabledByUs = false
+        _G._MenuOpen = false
+        _G._MenuCleanIsOpen = false
+        pcall(function() (getgenv and getgenv() or _G)._MenuOpen = false end)
 
         if conns then
             for _, c in ipairs(conns) do pcall(function() c:Disconnect() end) end
@@ -329,45 +327,27 @@ function MenuLib:Init(config)
 
         pcall(function() RunService:UnbindFromRenderStep(RS_BIND_INP) end)
 
-        if inputBlocker then
-            pcall(function()
-                inputBlocker.Visible = false
-                inputBlocker:Destroy()
-            end)
-            inputBlocker = nil
-        end
-
         pcall(function()
-            local ctrl = ensureControls()
-            if ctrl then
-                pcall(function() ctrl:Enable() end)
-                if ctrl.activeController and ctrl.activeController.Enable then
-                    pcall(function() ctrl.activeController:Enable() end)
-                end
-            end
-        end)
-        pcall(function()
-            local ctrl2 = getControls()
-            if ctrl2 then
-                pcall(ctrl2.Enable, ctrl2)
-                if ctrl2.activeController and ctrl2.activeController.Enable then
-                    pcall(ctrl2.activeController.Enable, ctrl2.activeController)
-                end
-            end
-        end)
-        pcall(function()
-            local pl = game:GetService("Players").LocalPlayer
-            if pl then
-                local ps = pl:FindFirstChild("PlayerScripts")
-                local pm = ps and ps:FindFirstChild("PlayerModule")
-                if pm then
-                    local okPM, PM = pcall(function() return require(pm) end)
-                    if okPM and PM and PM.GetControls then
-                        local c = PM:GetControls()
-                        if c then
-                            pcall(c.Enable, c)
-                            if c.activeController and c.activeController.Enable then
-                                pcall(c.activeController.Enable, c.activeController)
+            local ps = lp:FindFirstChild("PlayerScripts")
+            local pm = ps and ps:FindFirstChild("PlayerModule")
+            if pm then
+                local okPM, PM = pcall(function() return require(pm) end)
+                if okPM and PM and PM.GetControls then
+                    local ctrl = PM:GetControls()
+                    if ctrl then
+                        pcall(ctrl.Enable, ctrl, true)
+                        if ctrl.activeController then
+                            pcall(ctrl.activeController.Enable, ctrl.activeController, true)
+                        end
+                        if ctrl.activeControlModule == nil and ctrl.activeController then
+                            ctrl.activeControlModule = ctrl.activeController
+                        end
+                        if ctrl.controllers and ctrl.keyboardController then
+                            local kc = ctrl.controllers[ctrl.keyboardController]
+                            if kc then
+                                ctrl.activeController = kc
+                                ctrl.activeControlModule = kc
+                                pcall(kc.Enable, kc, true)
                             end
                         end
                     end
@@ -2138,6 +2118,9 @@ if player ~= lp then
             return
         end
         isOpen = false
+        _G._MenuOpen = false
+        _G._MenuCleanIsOpen = false
+        pcall(function() (getgenv and getgenv() or _G)._MenuOpen = false end)
         for _, closer in ipairs(activeDropdownClosers) do
             pcall(closer)
         end
@@ -2162,6 +2145,9 @@ if player ~= lp then
         if not win or not settingsPanel then return end
         if win.Visible or settingsPanel.Visible then return end
         isOpen = true
+        _G._MenuOpen = true
+        _G._MenuCleanIsOpen = true
+        pcall(function() (getgenv and getgenv() or _G)._MenuOpen = true end)
         fpsT = 0
         fpsN = 0
         lockInput()
@@ -3546,6 +3532,10 @@ if player ~= lp then
 
     API.Hide = function()
         closeMenu()
+    end
+
+    API.IsOpen = function()
+        return isOpen
     end
 
     addSection("AIM")
