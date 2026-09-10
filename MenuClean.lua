@@ -489,7 +489,13 @@ function MenuLib:Init(config)
             state = not state
             apply(true, false)
         end))
-        return { Get = function() return state end, Set = function(v) if v ~= state then state = v apply(true, false) end end }
+        return {
+            Get = function() return state end,
+            Set = function(v, silent)
+                state = (v and true or false)
+                apply(true, silent == true)
+            end
+        }
     end
 
     table.insert(conns, UserInputService.WindowFocusReleased:Connect(function()
@@ -614,6 +620,7 @@ function MenuLib:Init(config)
     win.ClipsDescendants = true
     win.ZIndex = Z.BASE
     win.Visible = false
+    local lastWinPos = win.Position
 
     local mainLayer = fr(win, UDim2.fromScale(1, 1), UDim2.fromOffset(0, 0), C.BG, 1, 0)
     mainLayer.ZIndex = Z.CONTENT
@@ -768,6 +775,17 @@ function MenuLib:Init(config)
         selectTab(entry)
     end
 
+    local function switchToTab(tabName)
+        if not tabName then return false end
+        for _, entry in ipairs(allTabs) do
+            if entry.name == tabName or (entry.lbl and entry.lbl.Text == tabName) then
+                doTabSwitch(entry)
+                return true
+            end
+        end
+        return false
+    end
+
     local ICON_SIZES = {
         [ICON.aim] = { size = 29, x = 2 },
         [ICON.players] = { size = 28, x = 2 },
@@ -839,6 +857,7 @@ function MenuLib:Init(config)
         local hLbl = lbl(hBtn, name, UDim2.new(1, -34, 1, 0), UDim2.fromOffset(30, 0), 11, C.DIM, FONT_BOLD)
 
         local entry = {
+            name = name,
             btn = btn, frame = tf, bg = selBg, line = selLine, ico = icoL, lbl = namL,
             iconSize = iconSize, iconX = iconX,
             hBtn = hBtn, hBg = hBg, hLine = hLine, hIco = hIco, hLbl = hLbl
@@ -919,6 +938,7 @@ function MenuLib:Init(config)
     settingsPanel.ClipsDescendants = true
     settingsPanel.ZIndex = Z.OVERLAY
     settingsPanel.Visible = false
+    local lastSettingsPos = settingsPanel.Position
 
     local settingsMainLayer = fr(settingsPanel, UDim2.fromScale(1, 1), UDim2.fromOffset(0, 0), C.BG, 1, 0)
     settingsMainLayer.ZIndex = Z.CONTENT
@@ -1293,10 +1313,14 @@ function MenuLib:Init(config)
         return row
     end
 
+    local watermarkEnabled = true
     addSettingOption("General", "Show FPS counter", true, function(on) fpsLbl.Visible = on end, true)
     addSettingOption("General", "Show ping counter", true, function(on) pingLbl.Visible = on end, true)
     addSettingOption("General", "Show clock", true, function(on) timeLbl.Visible = on end, true)
-    addSettingOption("General", "Show watermark", true, function(on) hudBar.Visible = on end, true)
+    addSettingOption("General", "Show watermark", true, function(on)
+        watermarkEnabled = on
+        hudBar.Visible = on
+    end, true)
 
     addSettingOption("Appearance", "Compact sidebar", true, function(on)
         compactEnabled = on
@@ -1975,6 +1999,16 @@ if player ~= lp then
                 return nil
             end,
             Set = function(v)
+                if typeof(v) == "EnumItem" then
+                    assignKey(v, true)
+                    return
+                end
+                if type(v) == "string" then
+                    local name = v:gsub("^Enum%.KeyCode%.", ""):gsub("^Enum%.UserInputType%.", "")
+                    local resolved = Enum.KeyCode[name] or Enum.UserInputType[name]
+                    if resolved then assignKey(resolved, true) end
+                    return
+                end
                 if type(v) ~= "table" or not v.n then return end
                 local resolved = nil
                 if v.t == "Enum.UserInputType" then
@@ -2048,7 +2082,7 @@ if player ~= lp then
         settingsPanel.Size = UDim2.fromOffset(0, 0)
         settingsPanel.Position = UDim2.fromScale(0.5, 0.5)
         settingsPanel.Visible = true
-        tw(settingsPanel, { Size = UDim2.fromOffset(WIN_W, WIN_H), Position = UDim2.new(0.5, -WIN_W/2, 0.5, -WIN_H/2) }, 0.25)
+        tw(settingsPanel, { Size = UDim2.fromOffset(WIN_W, WIN_H), Position = lastSettingsPos }, 0.25)
         activeSettingTab = 1
         for i, content in ipairs(settingsTabContents) do
             content.Visible = (i == 1)
@@ -2088,7 +2122,7 @@ if player ~= lp then
         win.Size = UDim2.fromOffset(0, 0)
         win.Position = UDim2.fromScale(0.5, 0.5)
         win.Visible = true
-        tw(win, { Size = UDim2.fromOffset(WIN_W, WIN_H), Position = UDim2.new(0.5, -WIN_W / 2, 0.5, -WIN_H / 2) }, 0.25)
+        tw(win, { Size = UDim2.fromOffset(WIN_W, WIN_H), Position = lastWinPos }, 0.25)
         pcall(function() task.delay(0.25, function() isTransitioning = false end) end)
     end
 
@@ -2131,7 +2165,7 @@ if player ~= lp then
         fpsT = 0
         fpsN = 0
         lockInput()
-        if hudBar then hudBar.Visible = true end
+        if hudBar and watermarkEnabled then hudBar.Visible = true end
         if M.BlurEnabled then
             if not blurPart then
                 blurPart = Instance.new("BlurEffect")
@@ -2144,12 +2178,12 @@ if player ~= lp then
             settingsPanel.Visible = true
             settingsPanel.Size = UDim2.fromOffset(0, 0)
             settingsPanel.Position = UDim2.fromScale(0.5, 0.5)
-            tw(settingsPanel, { Size = UDim2.fromOffset(WIN_W, WIN_H), Position = UDim2.new(0.5, -WIN_W/2, 0.5, -WIN_H/2) }, 0.22)
+            tw(settingsPanel, { Size = UDim2.fromOffset(WIN_W, WIN_H), Position = lastSettingsPos }, 0.22)
         else
             win.Visible = true
             win.Size = UDim2.fromOffset(0, 0)
             win.Position = UDim2.fromScale(0.5, 0.5)
-            tw(win, { Size = UDim2.fromOffset(WIN_W, WIN_H), Position = UDim2.new(0.5, -WIN_W/2, 0.5, -WIN_H/2) }, 0.22)
+            tw(win, { Size = UDim2.fromOffset(WIN_W, WIN_H), Position = lastWinPos }, 0.22)
         end
     end
 
@@ -2189,6 +2223,7 @@ if player ~= lp then
                 win.Size = UDim2.fromOffset(win.AbsoluteSize.X, win.AbsoluteSize.Y)
                 win.Position = UDim2.fromOffset(win.AbsolutePosition.X, win.AbsolutePosition.Y)
                 winOrig = win.Position
+                lastWinPos = win.Position
             end
         end
     end))
@@ -2197,6 +2232,7 @@ if player ~= lp then
         if inp.UserInputType == Enum.UserInputType.MouseButton1 then
             dragging = false
             dragTarget = nil
+            if win then lastWinPos = win.Position end
         end
     end))
 
@@ -2209,6 +2245,7 @@ if player ~= lp then
                 settingsPanel.Size = UDim2.fromOffset(settingsPanel.AbsoluteSize.X, settingsPanel.AbsoluteSize.Y)
                 settingsPanel.Position = UDim2.fromOffset(settingsPanel.AbsolutePosition.X, settingsPanel.AbsolutePosition.Y)
                 settingsOrig = settingsPanel.Position
+                lastSettingsPos = settingsPanel.Position
             end
         end
     end))
@@ -2217,6 +2254,7 @@ if player ~= lp then
         if inp.UserInputType == Enum.UserInputType.MouseButton1 then
             dragging = false
             dragTarget = nil
+            if settingsPanel then lastSettingsPos = settingsPanel.Position end
         end
     end))
 
@@ -2226,10 +2264,12 @@ if player ~= lp then
             if dragTarget == "settings" and settingsPanel then
                 pcall(function()
                     settingsPanel.Position = UDim2.fromOffset(settingsOrig.X.Offset + (mp.X - dragOrig.X), settingsOrig.Y.Offset + (mp.Y - dragOrig.Y))
+                    lastSettingsPos = settingsPanel.Position
                 end)
             elseif dragTarget == "main" and win then
                 pcall(function()
                     win.Position = UDim2.fromOffset(winOrig.X.Offset + (mp.X - dragOrig.X), winOrig.Y.Offset + (mp.Y - dragOrig.Y))
+                    lastWinPos = win.Position
                 end)
             end
         end
@@ -2366,6 +2406,7 @@ if player ~= lp then
     _G._ActiveMenuClean = API
 
     API.AddSection = addSection
+    API.SelectTab = switchToTab
 
     API.AddTab = function(name, icon, buildFn)
         local tabEntry, contentFrame = addTab(name, icon, buildFn)
@@ -3362,7 +3403,18 @@ if player ~= lp then
         local dd = {
             Element = dropdownBtn,
             Get = function() return options[selectedIndex], selectedIndex end,
-            Set = function(idx) selectedIndex = idx if options[idx] then dropdownBtn.Text = options[idx] end if callback then callback(options[idx], idx) end end,
+            Set = function(idx)
+                if type(idx) == "string" then
+                    local found = table.find(options, idx)
+                    if found then idx = found end
+                end
+                idx = tonumber(idx)
+                if idx and options[idx] then
+                    selectedIndex = idx
+                    dropdownBtn.Text = options[idx]
+                    if callback then pcall(callback, options[idx], idx) end
+                end
+            end,
             GetOptions = function() return options end,
             SetOptions = function(newOpts) options = newOpts selectedIndex = 1 dropdownBtn.Text = options[1] or "Select" end,
             SetText = function(text) dropdownBtn.Text = tostring(text or "") end,
@@ -3396,6 +3448,7 @@ if player ~= lp then
     API.AddKeybindOption = function(tabName, label, key, onChange)
         return addKeybindOption(tabName, label, key, onChange)
     end
+    API.AddKeybind = API.AddKeybindOption
 
     API.AddButton = function(tabName, label, callback)
         if type(tabName) ~= "string" or type(label) ~= "string" then return nil end
@@ -4374,6 +4427,14 @@ if player ~= lp then
                     friends[#friends + 1] = tostring(name)
                 end
 
+                local curActiveTabName = nil
+                if activeTab then
+                    curActiveTabName = activeTab.name or (activeTab.lbl and activeTab.lbl.Text)
+                end
+
+                local curWinPos = lastWinPos or (win and win.Position)
+                local curSettingsPos = lastSettingsPos or (settingsPanel and settingsPanel.Position)
+
                 data._MenuSettings = {
                     MenuToggleKey = keyToTable(M.MenuToggleKey),
                     UnloadKey = keyToTable(M.UnloadKey),
@@ -4385,7 +4446,22 @@ if player ~= lp then
                         and { r = M.ESPColour.R, g = M.ESPColour.G, b = M.ESPColour.B } or nil,
                     WindowWidth = WIN_W,
                     WindowHeight = WIN_H,
+                    WindowPosXScale = curWinPos and curWinPos.X.Scale or 0.5,
+                    WindowPosXOffset = curWinPos and curWinPos.X.Offset or (-WIN_W / 2),
+                    WindowPosYScale = curWinPos and curWinPos.Y.Scale or 0.5,
+                    WindowPosYOffset = curWinPos and curWinPos.Y.Offset or (-WIN_H / 2),
+                    SettingsPosXScale = curSettingsPos and curSettingsPos.X.Scale or 0.5,
+                    SettingsPosXOffset = curSettingsPos and curSettingsPos.X.Offset or (-WIN_W / 2),
+                    SettingsPosYScale = curSettingsPos and curSettingsPos.Y.Scale or 0.5,
+                    SettingsPosYOffset = curSettingsPos and curSettingsPos.Y.Offset or (-WIN_H / 2),
                     SidebarWidth = SIDE_W,
+                    CompactSidebar = compactEnabled and true or false,
+                    TabLayout = tabBarIsHorizontal and "Horizontal" or "Vertical",
+                    ActiveTab = curActiveTabName,
+                    ShowFPS = (fpsLbl and fpsLbl.Visible ~= nil) and fpsLbl.Visible or true,
+                    ShowPing = (pingLbl and pingLbl.Visible ~= nil) and pingLbl.Visible or true,
+                    ShowClock = (timeLbl and timeLbl.Visible ~= nil) and timeLbl.Visible or true,
+                    ShowWatermark = (watermarkEnabled ~= nil) and watermarkEnabled or true,
                     Friends = friends,
                 }
                 return data
@@ -4409,7 +4485,13 @@ if player ~= lp then
                     local w = (_G._MenuDropdowns or {})[label]
                     if w then
                         local idx, text
-                        if type(val) == "table" then idx, text = tonumber(val.i), val.v else idx = tonumber(val) end
+                        if type(val) == "table" then
+                            idx, text = tonumber(val.i), val.v
+                        elseif type(val) == "number" then
+                            idx = val
+                        elseif type(val) == "string" then
+                            text = val
+                        end
                         if text and w.GetOptions then
                             local ok, opts = pcall(w.GetOptions)
                             if ok and type(opts) == "table" then
@@ -4418,10 +4500,12 @@ if player ~= lp then
                                 end
                             end
                         end
-                        if idx then
+                        if idx and w.Set then
                             pcall(w.Set, idx)
-                            if text and w.SetText then pcall(w.SetText, text) end
+                        elseif text and w.Set then
+                            pcall(w.Set, text)
                         end
+                        if text and w.SetText then pcall(w.SetText, text) end
                     end
                 end
                 for label, val in pairs(data.ColorPickers or {}) do
@@ -4452,15 +4536,31 @@ if player ~= lp then
                 if type(s) == "table" then
                     if s.SmoothAnimations ~= nil then M.SmoothAnimations = s.SmoothAnimations end
                     if s.AutoRefresh ~= nil then M.AutoRefresh = s.AutoRefresh end
-                    if s.BlurEnabled ~= nil then M.BlurEnabled = s.BlurEnabled end
-                    if s.LightingDimEnabled ~= nil then M.LightingDimEnabled = s.LightingDimEnabled end
+                    if s.BlurEnabled ~= nil then
+                        M.BlurEnabled = s.BlurEnabled
+                        local tog = (_G._MenuToggles or {})["Appearance_Blur background"]
+                        if tog and tog.Set then pcall(tog.Set, s.BlurEnabled) end
+                    end
+                    if s.LightingDimEnabled ~= nil then
+                        M.LightingDimEnabled = s.LightingDimEnabled
+                        local tog = (_G._MenuToggles or {})["Performance_Lighting preset dim"]
+                        if tog and tog.Set then pcall(tog.Set, s.LightingDimEnabled) end
+                    end
                     if s.ESPColour and s.ESPColour.r then
                         M.ESPColour = Color3.new(s.ESPColour.r, s.ESPColour.g, s.ESPColour.b)
                     end
                     local mk = tableToKey(s.MenuToggleKey)
-                    if mk then M.MenuToggleKey = mk end
+                    if mk then
+                        M.MenuToggleKey = mk
+                        local kb = (_G._MenuKeybinds or {})["Keybinds_Toggle menu key"]
+                        if kb and kb.SetKey then pcall(kb.SetKey, mk) end
+                    end
                     local uk = tableToKey(s.UnloadKey)
-                    if uk then M.UnloadKey = uk end
+                    if uk then
+                        M.UnloadKey = uk
+                        local kb = (_G._MenuKeybinds or {})["Keybinds_Unload script key"]
+                        if kb and kb.SetKey then pcall(kb.SetKey, uk) end
+                    end
                     if tonumber(s.WindowWidth) and tonumber(s.WindowHeight) then
                         WIN_W = math.max(600, tonumber(s.WindowWidth))
                         WIN_H = math.max(380, tonumber(s.WindowHeight))
@@ -4469,8 +4569,61 @@ if player ~= lp then
                             if settingsPanel then settingsPanel.Size = UDim2.fromOffset(WIN_W, WIN_H) end
                         end)
                     end
+                    if s.WindowPosXScale ~= nil and s.WindowPosXOffset ~= nil and s.WindowPosYScale ~= nil and s.WindowPosYOffset ~= nil then
+                        lastWinPos = UDim2.new(tonumber(s.WindowPosXScale) or 0.5, tonumber(s.WindowPosXOffset) or (-WIN_W / 2), tonumber(s.WindowPosYScale) or 0.5, tonumber(s.WindowPosYOffset) or (-WIN_H / 2))
+                        pcall(function()
+                            if win and isOpen and not inSettings then
+                                win.Position = lastWinPos
+                            end
+                        end)
+                    end
+                    if s.SettingsPosXScale ~= nil and s.SettingsPosXOffset ~= nil and s.SettingsPosYScale ~= nil and s.SettingsPosYOffset ~= nil then
+                        lastSettingsPos = UDim2.new(tonumber(s.SettingsPosXScale) or 0.5, tonumber(s.SettingsPosXOffset) or (-WIN_W / 2), tonumber(s.SettingsPosYScale) or 0.5, tonumber(s.SettingsPosYOffset) or (-WIN_H / 2))
+                        pcall(function()
+                            if settingsPanel and isOpen and inSettings then
+                                settingsPanel.Position = lastSettingsPos
+                            end
+                        end)
+                    end
+                    if s.CompactSidebar ~= nil then
+                        compactEnabled = s.CompactSidebar and true or false
+                        local tog = (_G._MenuToggles or {})["Appearance_Compact sidebar"]
+                        if tog and tog.Set then pcall(tog.Set, compactEnabled) end
+                    end
                     if tonumber(s.SidebarWidth) then
                         pcall(setSidebarWidth, tonumber(s.SidebarWidth), false)
+                    end
+                    if s.TabLayout then
+                        local isH = (s.TabLayout == "Horizontal")
+                        pcall(setTabLayout, isH, false)
+                        local dd = (_G._MenuDropdowns or {})["Appearance_Tab layout"]
+                        if dd and dd.Set then
+                            pcall(dd.Set, isH and 2 or 1)
+                        end
+                    end
+                    if s.ShowFPS ~= nil then
+                        pcall(function() if fpsLbl then fpsLbl.Visible = s.ShowFPS end end)
+                        local tog = (_G._MenuToggles or {})["General_Show FPS counter"]
+                        if tog and tog.Set then pcall(tog.Set, s.ShowFPS) end
+                    end
+                    if s.ShowPing ~= nil then
+                        pcall(function() if pingLbl then pingLbl.Visible = s.ShowPing end end)
+                        local tog = (_G._MenuToggles or {})["General_Show ping counter"]
+                        if tog and tog.Set then pcall(tog.Set, s.ShowPing) end
+                    end
+                    if s.ShowClock ~= nil then
+                        pcall(function() if timeLbl then timeLbl.Visible = s.ShowClock end end)
+                        local tog = (_G._MenuToggles or {})["General_Show clock"]
+                        if tog and tog.Set then pcall(tog.Set, s.ShowClock) end
+                    end
+                    if s.ShowWatermark ~= nil then
+                        watermarkEnabled = s.ShowWatermark and true or false
+                        pcall(function() if hudBar then hudBar.Visible = watermarkEnabled end end)
+                        local tog = (_G._MenuToggles or {})["General_Show watermark"]
+                        if tog and tog.Set then pcall(tog.Set, watermarkEnabled) end
+                    end
+                    if s.ActiveTab and switchToTab then
+                        pcall(switchToTab, s.ActiveTab)
                     end
                     if type(s.Friends) == "table" then
                         _G._FriendsList = _G._FriendsList or {}
