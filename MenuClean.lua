@@ -99,33 +99,64 @@ function MenuLib:Init(config)
     local prevMouseIconEnabled = UserInputService.MouseIconEnabled
     local win, settingsPanel, toggleMenu, fpsT, fpsN, API
 
-    pcall(function()
-        local ps = lp:FindFirstChild("PlayerScripts")
-        local pm = ps and ps:FindFirstChild("PlayerModule")
-        if pm then
+    local function restoreControls()
+        pcall(function()
+            local ps = lp:FindFirstChild("PlayerScripts")
+            local pm = ps and ps:FindFirstChild("PlayerModule")
+            if not pm then return end
+
             local okPM, PM = pcall(function() return require(pm) end)
+            local ctrl = nil
             if okPM and PM and PM.GetControls then
-                local ctrl = PM:GetControls()
-                if ctrl then
-                    pcall(ctrl.Enable, ctrl, true)
-                    if ctrl.activeController then
-                        pcall(ctrl.activeController.Enable, ctrl.activeController, true)
-                    end
-                    if ctrl.activeControlModule == nil and ctrl.activeController then
-                        ctrl.activeControlModule = ctrl.activeController
-                    end
-                    if ctrl.controllers and ctrl.keyboardController then
-                        local kc = ctrl.controllers[ctrl.keyboardController]
-                        if kc then
-                            ctrl.activeController = kc
-                            ctrl.activeControlModule = kc
-                            pcall(kc.Enable, kc, true)
+                pcall(function() ctrl = PM:GetControls() end)
+            end
+            if not ctrl then
+                local cm = pm:FindFirstChild("ControlModule")
+                if cm then pcall(function() ctrl = require(cm) end) end
+            end
+            if not ctrl then return end
+            controls = ctrl
+
+            ctrl.enabled = true
+            pcall(function() ctrl:Enable(true) end)
+
+            if not ctrl.humanoid then
+                local char = lp.Character
+                local hum = char and char:FindFirstChildOfClass("Humanoid")
+                if hum then ctrl.humanoid = hum end
+            end
+
+            if ctrl.keyboardController and type(ctrl.keyboardController) == "table" then
+                pcall(function() ctrl.keyboardController:Enable(true) end)
+                ctrl.keyboardController.enabled = true
+                if not ctrl.activeController then
+                    ctrl.activeController = ctrl.keyboardController
+                end
+            end
+
+            if ctrl.activeController and type(ctrl.activeController) == "table" and ctrl.activeController.Enable then
+                pcall(function() ctrl.activeController:Enable(true) end)
+                ctrl.activeController.enabled = true
+            end
+
+            if type(ctrl.controllers) == "table" then
+                for _, c in pairs(ctrl.controllers) do
+                    if type(c) == "table" and type(c.Enable) == "function" then
+                        pcall(function() c:Enable(true) end)
+                        c.enabled = true
+                        if not ctrl.activeController then
+                            ctrl.activeController = c
                         end
                     end
                 end
             end
-        end
-    end)
+
+            if ctrl.activeController and (ctrl.activeControlModule == nil or ctrl.activeControlModule == false) then
+                ctrl.activeControlModule = ctrl.activeController
+            end
+        end)
+    end
+    restoreControls()
 
     local sg = Instance.new("ScreenGui")
     sg.Name = "MenuGui_v4"
@@ -233,6 +264,7 @@ function MenuLib:Init(config)
     end
 
     local function applyGameMouseState()
+        if isOpen then return end
         local locked = gameWantsLockedMouse()
         if locked == nil then
             locked = (prevMouseBehavior == Enum.MouseBehavior.LockCenter)
@@ -268,33 +300,7 @@ function MenuLib:Init(config)
         _G._MenuCleanIsOpen = false
         pcall(function() (getgenv and getgenv() or _G)._MenuOpen = false end)
 
-        pcall(function()
-            local ps = lp:FindFirstChild("PlayerScripts")
-            local pm = ps and ps:FindFirstChild("PlayerModule")
-            if pm then
-                local okPM, PM = pcall(function() return require(pm) end)
-                if okPM and PM and PM.GetControls then
-                    local ctrl = PM:GetControls()
-                    if ctrl then
-                        pcall(ctrl.Enable, ctrl, true)
-                        if ctrl.activeController then
-                            pcall(ctrl.activeController.Enable, ctrl.activeController, true)
-                        end
-                        if ctrl.activeControlModule == nil and ctrl.activeController then
-                            ctrl.activeControlModule = ctrl.activeController
-                        end
-                        if ctrl.controllers and ctrl.keyboardController then
-                            local kc = ctrl.controllers[ctrl.keyboardController]
-                            if kc then
-                                ctrl.activeController = kc
-                                ctrl.activeControlModule = kc
-                                pcall(kc.Enable, kc, true)
-                            end
-                        end
-                    end
-                end
-            end
-        end)
+        restoreControls()
         applyGameMouseState()
     end
 
@@ -327,34 +333,7 @@ function MenuLib:Init(config)
 
         pcall(function() RunService:UnbindFromRenderStep(RS_BIND_INP) end)
 
-        pcall(function()
-            local ps = lp:FindFirstChild("PlayerScripts")
-            local pm = ps and ps:FindFirstChild("PlayerModule")
-            if pm then
-                local okPM, PM = pcall(function() return require(pm) end)
-                if okPM and PM and PM.GetControls then
-                    local ctrl = PM:GetControls()
-                    if ctrl then
-                        pcall(ctrl.Enable, ctrl, true)
-                        if ctrl.activeController then
-                            pcall(ctrl.activeController.Enable, ctrl.activeController, true)
-                        end
-                        if ctrl.activeControlModule == nil and ctrl.activeController then
-                            ctrl.activeControlModule = ctrl.activeController
-                        end
-                        if ctrl.controllers and ctrl.keyboardController then
-                            local kc = ctrl.controllers[ctrl.keyboardController]
-                            if kc then
-                                ctrl.activeController = kc
-                                ctrl.activeControlModule = kc
-                                pcall(kc.Enable, kc, true)
-                            end
-                        end
-                    end
-                end
-            end
-        end)
-
+        restoreControls()
         pcall(applyGameMouseState)
 
         if blurPart then pcall(function() blurPart:Destroy() end) blurPart = nil end
@@ -371,6 +350,7 @@ function MenuLib:Init(config)
         if not win or not settingsPanel then return end
         if not win.Visible and not settingsPanel.Visible then
             isOpen = false
+            pcall(applyGameMouseState)
             return
         end
         pcall(function() UserInputService.MouseBehavior = Enum.MouseBehavior.Default end)
