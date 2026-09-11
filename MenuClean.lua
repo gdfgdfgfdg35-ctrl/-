@@ -342,6 +342,14 @@ function MenuLib:Init(config)
         if _G._ActiveMenuClean == API then
             _G._ActiveMenuClean = nil
         end
+
+        if API and API.OnUnload then
+            pcall(API.OnUnload)
+        end
+        local env = (getgenv and getgenv()) or _G
+        if env and env.__CleanEspUnload then
+            pcall(env.__CleanEspUnload)
+        end
     end
 
 
@@ -4990,6 +4998,8 @@ if player ~= lp then
     API.SaveMenuState = SaveMenuState
     API.LoadMenuState = LoadMenuState
     API.LoadAutoConfig = executeAutoLoad
+
+    pcall(applyGameMouseState)
 
     return API
 end
